@@ -212,6 +212,8 @@ body.panou-deschis .panou-fundal{display:block}
 .dif.plus{color:#b3261e}
 .dif.minus{color:var(--verde-text)}
 .dif.zero{color:var(--slab);font-weight:400}
+.fisa-rap tr.difera td{background:#fff8dc}
+.fisa-rap td.n b{font-weight:700}
 
 /* ---- lista de lucrari ---- */
 .lucrare{
@@ -5155,6 +5157,8 @@ function ecranRezultat() {
   const bati = (rez.sectiuni.find((x) => x.nume.startsWith('2.')) || { linii: [] }).linii.filter((x) => x.den === 'Baterie');
   const bat = bati.length ? { cant: null, det: bati.map((x) => `${nr(x.cant)} × ${x.det}`).join(' + ') } : null;
   const nrAvert = rez.verificari.filter((v) => v.tip === 'warn').length;
+  // lucrarea raportată (trimisă sau validată): pe aceeași fișă se văd și consumul raportat și diferența
+  const cuRap = arataConsum(l);
 
   const html = `
   ${nrAvert ? `<button type="button" class="mesaj warn" id="b-la-verificari" style="display:block;width:100%;margin-top:14px;text-align:left;font:inherit;cursor:pointer">${nrAvert === 1 ? 'Un avertisment' : nrAvert + ' avertismente'} la verificări — vedeți mai jos, înainte de comandă.</button>` : ''}
@@ -5173,22 +5177,32 @@ function ecranRezultat() {
     </div>
   </div>
 
+  ${cuRap ? htmlConsumRezumat(l, rez) : ''}
   ${rez.sectiuni.map((s) => `
-    <section class="card"><h2>${E(s.nume)}</h2><div class="corp"><table>
-      <tr><th>Material</th><th>Cantitate</th></tr>
-      ${s.linii.map((x) => `<tr>
-        <td>${E(x.den)}${x.det ? `<span class="det">${E(x.det)}</span>` : ''}${x.nota ? `<span class="det">${E(x.nota)}</span>` : ''}</td>
-        <td class="n">${nr(x.cant)}<span class="um">${E(x.um)}</span></td></tr>`).join('')}
+    <section class="card"><h2>${E(s.nume)}</h2><div class="corp"><table${cuRap ? ' class="rap fisa-rap"' : ''}>
+      ${cuRap ? '<tr><th>Material</th><th>Estimat</th><th>Consumat</th><th>Dif.</th></tr>' : '<tr><th>Material</th><th>Cantitate</th></tr>'}
+      ${s.linii.map((x) => {
+        const material = `<td>${E(x.den)}${x.det ? `<span class="det">${E(x.det)}</span>` : ''}${x.nota ? `<span class="det">${E(x.nota)}</span>` : ''}${cuRap ? `<span class="det">${E(x.um)}</span>` : ''}</td>`;
+        if (!cuRap) return `<tr>${material}<td class="n">${nr(x.cant)}<span class="um">${E(x.um)}</span></td></tr>`;
+        // linia lăsată goală în raport e egală cu estimarea
+        const v = consumLinie(l.raportat, s.nume, x);
+        const cl = difClasa(v, x.cant);
+        return `<tr${cl !== 'zero' ? ' class="difera"' : ''}>${material}
+          <td class="n" style="color:var(--slab)">${nr(x.cant)}</td>
+          <td class="n"><b>${nr(v)}</b></td>
+          <td class="n"><span class="dif ${cl}">${difText(v, x.cant)}</span></td></tr>`;
+      }).join('')}
     </table></div></section>`).join('')}
+  ${cuRap ? htmlExtraRap(l.raportat) : ''}
 
   <div class="sectiune-titlu" id="verificari">Verificări</div>
   ${rez.verificari.map((v) => `<div class="mesaj ${E(v.tip)}">${E(v.text)}</div>`).join('')}
-  <div class="ajutor" style="margin-top:14px">Cantitățile de mai sus sunt antecalculate, cu rezerva de 5% acolo unde se aplică. Bucata minimă folosibilă de șină este de 60 cm.</div>`;
+  <div class="ajutor" style="margin-top:14px">${cuRap ? 'Estimat: cantitățile antecalculate, cu rezerva de 5% acolo unde se aplică. Consumat: ce s-a raportat de pe șantier. Diferența în roșu înseamnă mai mult decât s-a estimat.' : 'Cantitățile de mai sus sunt antecalculate, cu rezerva de 5% acolo unde se aplică. Bucata minimă folosibilă de șină este de 60 cm.'}</div>`;
   const banner = rez.stricat ? `<div class="mesaj warn" style="margin-top:14px">Antecalculul înghețat salvat pe server nu e valid. Mai jos e calculul de acum; Adminul trebuie să deblocheze și să refacă antecalculul.</div>`
     : inghetat ? `<div class="mesaj info" style="margin-top:14px">Antecalcul înghețat din ${inghetat}, la începerea raportării. Rămâne neschimbat chiar dacă regulile aplicației se modifică.${
     K.activ && !poate('deblocheaza', l) ? ' Doar Adminul îl poate debloca.' : ''}</div>` : '';
 
-  $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Rezultat') + '<span class="sub">listă de materiale antecalculată</span>';
+  $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Rezultat') + `<span class="sub">${cuRap ? 'estimat și consumat' : 'listă de materiale antecalculată'}</span>`;
   $('#btn-inapoi').hidden = false;
   $('#ecran').innerHTML = htmlConflict(l) + banner + catalogSchimbat + htmlAlocare(l) + html + htmlIstoric(l) + htmlAdminLucrare(l);
   const rap = poate('raporteaza', l);
@@ -5552,6 +5566,43 @@ function exportaPDF(l) {
   }
 }
 
+// Consumul raportat se arată pe fișa de materiale când raportul e trimis sau validat
+// (fără cont: când consumul e salvat, adică lucrarea e pe cardul „Raportat”).
+function arataConsum(l) {
+  const r = l && l.raportat;
+  if (!r) return false;
+  return !!(r.finalizat || r.validat || (!K.activ && areConsum(r)));
+}
+// Valoarea raportată pe o linie; golul înseamnă „cât s-a estimat”.
+function consumLinie(rap, sectiune, x) {
+  const v = ((rap && rap.valori) || {})[sectiune + '|' + x.den];
+  const n = typeof v === 'number' ? v : (v == null || v === '' ? NaN : Number(String(v).replace(',', '.')));
+  return isFinite(n) ? n : x.cant;
+}
+function htmlConsumRezumat(l, rez) {
+  const r = l.raportat;
+  const zi = (iso) => (iso ? new Date(iso).toLocaleDateString('ro-RO') : '');
+  let peste = 0, sub = 0;
+  rez.sectiuni.forEach((s) => s.linii.forEach((x) => {
+    const c = difClasa(consumLinie(r, s.nume, x), x.cant);
+    if (c === 'plus') peste++; else if (c === 'minus') sub++;
+  }));
+  const extra = (r.extra || []).filter((x) => x.den || x.cant != null).length;
+  const cine = r.validat ? `Raport validat de ${E(r.validat.de)} pe ${zi(r.validat.data)}.`
+    : r.finalizat ? `Raport trimis de ${E(r.finalizat.de)} pe ${zi(r.finalizat.data)}${K.activ ? ', așteaptă validarea' : ''}.`
+      : `Consum raportat${r.persoana ? ' de ' + E(r.persoana) : ''}${r.data ? ' pe ' + zi(r.data) : ''}.`;
+  const dif = !peste && !sub ? 'Toate cantitățile sunt egale cu estimarea.'
+    : `${peste + sub === 1 ? 'O linie diferă' : (peste + sub) + ' linii diferă'} de estimare: ${[peste ? peste + ' peste' : '', sub ? sub + ' sub' : ''].filter(Boolean).join(', ')}. ${peste + sub === 1 ? 'E marcată' : 'Sunt marcate'} pe galben în tabel.`;
+  return `<div class="mesaj ${r.validat ? 'ok' : 'info'}" style="margin-top:14px">${cine} ${dif}${extra ? ` Plus ${extra === 1 ? 'un material' : extra + ' materiale'} în afara listei, la final.` : ''}</div>`;
+}
+function htmlExtraRap(r) {
+  const x = ((r && r.extra) || []).filter((y) => y.den || y.cant != null);
+  if (!x.length) return '';
+  return `<section class="card"><h2>Alte materiale folosite</h2><div class="corp"><table>
+    <tr><th>Material</th><th>Cantitate</th></tr>
+    ${x.map((y) => `<tr><td>${E(y.den || '—')}</td><td class="n">${y.cant == null || y.cant === '' ? '—' : nr(+String(y.cant).replace(',', '.'))}<span class="um">${E(y.um || '')}</span></td></tr>`).join('')}
+  </table></div></section>`;
+}
 function difText(v, est) {
   if (v == null || v === '') return '—';
   if (!isFinite(v)) return '?';
