@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
+<!-- aplicația se poate instala pe telefon (ecranul principal), ca o aplicație obișnuită -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pre-calcul">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Pre-calcul materiale — inoSOLAR</title>
 <style>
 /* fonturi.css — Ubuntu, fontul site-ului inoSOLAR, inclus in aplicatie */
@@ -111,6 +118,18 @@ input.lipsa{border-color:#b3261e;background:#fdf1f0}
 /* ---- rezumat live ---- */
 .live{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .chip{background:var(--galben-deschis);color:var(--gri);border:1px solid #f0e08a;border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:700}
+/* ținta din contract, totalul panourilor și puterea invertorului */
+.tinta{background:var(--galben-deschis);border:1px solid #f0e08a;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14.5px;line-height:1.45;color:var(--gri)}
+.tinta .socoteala{display:block;font-size:12.5px;color:var(--slab);margin-top:3px}
+.total{border-top:1px solid var(--linie);margin-top:14px;padding-top:12px}
+.total .calc{font-size:17px;color:var(--gri);line-height:1.35}
+.total .nota{font-size:12.5px;color:var(--slab)}
+.stare-contract{border-radius:9px;padding:9px 12px;margin-top:9px;font-size:14px;line-height:1.45;border:1px solid}
+.stare-contract.minus{background:#fdecea;border-color:#efb7b2;color:var(--rosu)}
+.stare-contract.ok{background:var(--verde-deschis);border-color:#b8e6cd;color:var(--verde-text)}
+.stare-contract.peste{background:var(--avert);border-color:var(--avert-linie);color:var(--avert-text)}
+.perechi{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.perechi span{background:#f1f1f2;border-radius:8px;padding:6px 10px;font-size:13.5px;color:var(--gri)}
 
 /* ---- bara de actiune ---- */
 .bara{
@@ -138,6 +157,11 @@ input.lipsa{border-color:#b3261e;background:#fdf1f0}
 .rezumat::after{content:"";position:absolute;right:-28px;top:-28px;width:96px;height:96px;border-radius:50%;background:var(--galben);opacity:.95}
 .rezumat .mare{font-size:28px;font-weight:700;letter-spacing:-.3px;position:relative;z-index:1}
 .rezumat .mare span{color:var(--galben)}
+.rezumat .eticheta-mare{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--verde);font-weight:700;position:relative;z-index:1}
+.rezumat .contract-rz{display:inline-block;font-size:13.5px;font-weight:700;margin-top:8px;padding:4px 10px;border-radius:7px;position:relative;z-index:1;background:rgba(255,255,255,.12)}
+.rezumat .contract-rz.ok{color:var(--verde)}
+.rezumat .contract-rz.peste{color:var(--galben)}
+.rezumat .contract-rz.minus{background:#b3261e;color:#fff}
 .rezumat .mic{font-size:13.5px;opacity:.85;margin-top:3px;position:relative;z-index:1;padding-right:70px}
 .rezumat .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-top:14px;padding-top:13px;border-top:1px solid rgba(255,255,255,.18)}
 .rezumat .grid div{font-size:13.5px}
@@ -158,6 +182,31 @@ td.n .um{font-weight:400;color:var(--slab);font-size:13px;margin-left:3px}
 
 /* ---- raportare ---- */
 .rap td{padding:7px 0}
+.rap th+th,.rap td+td{padding-left:8px}
+/* ---- panoul Conturi, în dreapta (Administrare) ---- */
+.panou-dr{position:fixed;top:0;right:0;bottom:0;width:min(420px,92vw);z-index:45;background:var(--fundal);
+  border-left:1px solid var(--linie);box-shadow:-8px 0 24px rgba(45,43,45,.12);display:flex;flex-direction:column;
+  transform:translateX(105%);transition:transform .2s ease;visibility:hidden}
+body.panou-deschis .panou-dr{transform:none;visibility:visible}
+.panou-fundal{position:fixed;inset:0;z-index:44;background:rgba(45,43,45,.35);display:none}
+body.panou-deschis .panou-fundal{display:block}
+.panou-cap{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;border-bottom:3px solid var(--galben);font-size:16px}
+.panou-x{border:0;background:transparent;font-size:28px;line-height:1;width:44px;height:44px;cursor:pointer;color:var(--slab)}
+.panou-corp{flex:1;overflow:auto;padding:12px 16px calc(24px + env(safe-area-inset-bottom))}
+.panou-corp input[type=search]{width:100%;margin-bottom:10px}
+.panou-corp .mesaj{margin-bottom:10px}
+.cont-rand{background:var(--card);border:1px solid var(--linie);border-radius:10px;margin-top:8px}
+.cont-rand>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;flex-direction:column;gap:1px}
+.cont-rand>summary::-webkit-details-marker{display:none}
+.cont-rand[open]>summary{border-bottom:1px solid var(--linie)}
+.cont-info{font-size:13px;color:var(--slab)}
+.cont-corp{padding:4px 12px 12px}
+@media (min-width:1100px){
+  body.panou-deschis .panou-fundal{display:none}
+  body.panou-deschis .wrap,body.panou-deschis header .in,body.panou-deschis .bara .in{margin-right:440px;margin-left:max(16px,calc((100vw - 440px - 780px) / 2))}
+  body.panou-deschis .panou-x,body.panou-deschis .buton-conturi{display:none}
+}
 .rap input{padding:8px 10px;text-align:right;font-variant-numeric:tabular-nums}
 .rap .dif{font-size:13px;font-weight:700;white-space:nowrap}
 .dif.plus{color:#b3261e}
@@ -212,6 +261,9 @@ td.n .um{font-weight:400;color:var(--slab);font-size:13px;margin-left:3px}
 .istoric li{padding:8px 0;border-bottom:1px solid var(--linie);font-size:14px}
 .istoric li:last-child{border-bottom:0}
 .istoric .cand{display:block;font-size:12px;color:var(--slab)}
+.echipa-bloc{padding:10px 0;border-bottom:1px solid var(--linie)}
+.echipa-bloc:first-child{padding-top:0}
+.echipa-bloc .eticheta{font-weight:700}
 header .logo{cursor:pointer}
 .link-buton{background:var(--verde-deschis);border:1px solid #b8e6cd;color:var(--verde-text);font:inherit;font-weight:700;padding:10px 14px;border-radius:9px;cursor:pointer;margin-top:8px;min-height:44px}
 .actiuni{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
@@ -1102,7 +1154,11 @@ const INVERTOARE = MODELE.map(([brand, model, kW, retea, hibrid, serie]) =>
 const BATERII = [
   { brand: 'Huawei', model: 'LUNA2000-5 kWh (modul)', kWh: 5, clasa: 'HV', compatibil: ['Huawei'],
     minModule: 1, maxModule: 6, controler: { den: 'Modul de putere Huawei LUNA2000-5KW-C0', laModule: 3 } },
-  { brand: 'Huawei', model: 'LUNA2000-7 kWh (modul)', kWh: 7, clasa: 'HV', compatibil: ['Huawei'],
+  // LUNA2000-S1: modulele de 7 kWh (LUNA2000-7-E1) și cele noi de 5 kWh (LUNA2000-5-E1) se pot combina în același
+  // sistem, pe modulul de putere LUNA2000-10KW-C1 (cel mult 3 module la unul). Fișa Huawei LUNA2000-5/7/…/21-S1.
+  { brand: 'Huawei', model: 'LUNA2000-7 kWh (modul)', kWh: 7, clasa: 'HV', compatibil: ['Huawei'], familie: 'Huawei LUNA2000-S1',
+    minModule: 1, maxModule: 6, maxModulePeSerie: { huawei_MB0: 12 }, controler: { den: 'Modul de putere Huawei LUNA2000-10KW-C1', laModule: 3 } },
+  { brand: 'Huawei', model: 'LUNA2000-5 kWh S1 (modul LUNA2000-5-E1)', kWh: 5, clasa: 'HV', compatibil: ['Huawei'], familie: 'Huawei LUNA2000-S1',
     minModule: 1, maxModule: 6, maxModulePeSerie: { huawei_MB0: 12 }, controler: { den: 'Modul de putere Huawei LUNA2000-10KW-C1', laModule: 3 } },
   { brand: 'Huawei', model: 'LUNA2000-10 kWh', kWh: 10, clasa: 'HV', compatibil: ['Huawei'], nota: 'sistem complet, cu modulul de putere' },
   { brand: 'Huawei', model: 'LUNA2000-15 kWh', kWh: 15, clasa: 'HV', compatibil: ['Huawei'], nota: 'sistem complet, cu modulul de putere' },
@@ -1124,7 +1180,7 @@ const BATERII = [
   { brand: 'Dyness', model: 'PowerBrick PLUS, 16 kWh', kWh: 16, clasa: 'LV', compatibil: ['Deye', 'Solis'] },
   { brand: 'Dyness', model: 'HV9637 Tower, 3,55 kWh (modul)', kWh: 3.55, clasa: 'HV', compatibil: ['Deye', 'Solis'],
     minModule: 2, maxModule: 6, vModul_V: 96, controler: { den: 'Unitate de control Dyness Tower (BDU)', laModule: 6 } },
-  { brand: 'Dyness', model: 'STACK100 5,12 kWh (modul)', kWh: 5.12, clasa: 'HV', compatibil: ['Deye', 'Solis', 'Growatt'],
+  { brand: 'Dyness', model: 'STACK100 5,12 kWh (modul)', kWh: 5.12, clasa: 'HV', compatibil: ['Deye', 'Solis'],
     minModule: 3, maxModule: 15, vModul_V: 51.2, controler: { den: 'Unitate de control Dyness STACK100 (BMU)', laModule: 15 } },
   { brand: 'Dyness', model: 'STACK280, 14,34 kWh (modul)', kWh: 14.34, clasa: 'HV', compatibil: ['Deye', 'Solis'] },
   { brand: 'Uhome', model: '5000B, 5,12 kWh', kWh: 5.12, clasa: 'LV', compatibil: ['Deye', 'Solis'] },
@@ -1673,11 +1729,13 @@ function caderePct({ retea, I, L, sect, material }) {
 // Imax = curentul maxim de ieșire din fișa invertorului (Ib pentru protecție, SR HD 60364-4-43);
 // fără el, 1,1 × curentul nominal. Căderea de tensiune se socotește cu curentul nominal.
 // cald = traseu prin pod sau la soare: Iz × 0,87 (40 °C, SR HD 60364-5-52, tabelul B.52.14).
-// Icasa = curentul casei când toată casa trece pe backup (curentul de trecere din fișă): intră doar în
-// protecție (Ib), căderea de tensiune rămâne pe curentul invertorului.
+// Icasa = curentul casei când toată casa trece pe backup (curentul de trecere din fișă): intră în
+// protecție (Ib) și, din 5 octombrie (decizia clientului, SR HD 60364-5-52, §525), și în căderea de tensiune.
 function alegeSectiuneAC({ retea, kW, L, Lcoloana, material, Imax, cald, Icasa }) {
-  const I = retea === 'mono' ? (kW * 1000) / 230 : (kW * 1000) / (Math.sqrt(3) * 400);
-  const Ib = Math.max(I, Imax || 1.1 * I, Icasa || 0);
+  const In = retea === 'mono' ? (kW * 1000) / 230 : (kW * 1000) / (Math.sqrt(3) * 400);
+  const Ib = Math.max(In, Imax || 1.1 * In, Icasa || 0);
+  // curentul pentru căderea de tensiune: nominalul invertorului; cu toată casa pe backup, curentul casei
+  const I = Icasa ? Math.max(In, Icasa) : In;
   const kT = cald ? 0.87 : 1;
   const t = C.DIMENSIONARE_AC[retea];
   const pesteTabel = kW > t[t.length - 1].kW + 1e-9;
@@ -1692,8 +1750,8 @@ function alegeSectiuneAC({ retea, kW, L, Lcoloana, material, Imax, cald, Icasa }
   const minim = Math.max(SECT_MIN[material], minTabel || 0);
 
   // siguranta: din tabel; peste tabel, prima valoare standard de cel putin 1,25 × Ib
-  const sigCalcul = C.SIGURANTE_STD.find((x) => x >= Math.max(1.25 * I, Ib));
-  let sig = pesteTabel ? (sigCalcul || Math.ceil((1.25 * I) / 10) * 10) : rand.sig;
+  const sigCalcul = C.SIGURANTE_STD.find((x) => x >= Math.max(1.25 * In, Ib));
+  let sig = pesteTabel ? (sigCalcul || Math.ceil((1.25 * In) / 10) * 10) : rand.sig;
   // siguranța din tabel trebuie să ducă curentul maxim din fișă (Ib <= In)
   const sigUrcata = !pesteTabel && sig < Ib - 1e-9;
   if (sigUrcata) sig = C.SIGURANTE_STD.find((x) => x >= Ib) || sig;
@@ -1721,7 +1779,7 @@ function alegeSectiuneAC({ retea, kW, L, Lcoloana, material, Imax, cald, Icasa }
   const urcataSiguranta = !!protejata && protejata.mm2 > minim;
   const urcataDistanta = !peste && !!protejata && aleasa.mm2 > protejata.mm2;
   return {
-    I, Ib, sigUrcata, kT, sectiune: aleasa.mm2, cadere: caderePct({ retea, I, L, sect: aleasa.mm2, material }),
+    I: In, Icadere: I, Ib, sigUrcata, kT, sectiune: aleasa.mm2, cadere: caderePct({ retea, I, L, sect: aleasa.mm2, material }),
     peste, urcata: aleasa.mm2 > minim, urcataSiguranta, urcataDistanta,
     sectiuneProtejata: protejata ? protejata.mm2 : null,
     minimTabel: minim, sectiuneTabel: minTabel, neprotejata, sigPesteLista: pesteTabel && !sigCalcul,
@@ -1869,7 +1927,7 @@ function smartMeterPentru(brand, retea) {
 
 // Masuratorile din teren, aduse la numere si verificate: din formular vin deja curate,
 // dar motorul se poate apela si din alte locuri (import, teste).
-const CAMPURI_NUMERICE = ['distantaCapriori_cm', 'lungimeBara_m', 'nrStringuri', 'nrBaterii', 'invertor_kW',
+const CAMPURI_NUMERICE = ['distantaCapriori_cm', 'lungimeBara_m', 'nrStringuri', 'nrBaterii', 'nrBaterii2', 'invertor_kW',
   'distantaStringInvertor_m', 'distantaInvertorBransament_m', 'distantaInvertorBackup_m', 'inaltimeCasa_m',
   'distantaStructuraPriza_m', 'putereContract_kWp', 'latimeFasie_cm', 'sigurantaGenerala_A'];
 // Valori de plauzibilitate: ce trece de ele e aproape sigur o greșeală de tastare (de exemplu 44 în loc de 4,4).
@@ -1878,11 +1936,11 @@ const LIMITE = {
   inaltimeCasa_m: [40, 'Înălțimea casei are cel mult 40 m'], distantaStringInvertor_m: [500, 'Distanța panouri – invertor are cel mult 500 m'],
   distantaInvertorBransament_m: [500, 'Distanța invertor – branșament are cel mult 500 m'], distantaInvertorBackup_m: [500, 'Distanța până la tabloul de backup are cel mult 500 m'],
   distantaStructuraPriza_m: [500, 'Distanța până la priza de pământ are cel mult 500 m'], latimeFasie_cm: [200, 'Lățimea fâșiei are cel mult 200 cm'],
-  nrBaterii: [30, 'Cel mult 30 de module de baterie'], sigurantaGenerala_A: [250, 'Siguranța generală a casei are cel mult 250 A'],
+  nrBaterii: [30, 'Cel mult 30 de module de baterie'], nrBaterii2: [30, 'Cel mult 30 de module de baterie'], sigurantaGenerala_A: [250, 'Siguranța generală a casei are cel mult 250 A'],
 };
 const ETICHETE = {
   distantaCapriori_cm: 'distanța între căpriori, pane sau cleme', lungimeBara_m: 'lungimea barei de șină', nrStringuri: 'numărul de string-uri',
-  nrBaterii: 'numărul de module de baterie', invertor_kW: 'puterea invertorului', distantaStringInvertor_m: 'distanța panouri – invertor',
+  nrBaterii: 'numărul de module de baterie', nrBaterii2: 'numărul de module de al doilea tip', invertor_kW: 'puterea invertorului', distantaStringInvertor_m: 'distanța panouri – invertor',
   distantaInvertorBransament_m: 'distanța invertor – branșament', distantaInvertorBackup_m: 'distanța invertor – tablou de backup',
   inaltimeCasa_m: 'înălțimea casei', distantaStructuraPriza_m: 'distanța structură – priza de pământ', putereContract_kWp: 'puterea din contract',
   sigurantaGenerala_A: 'siguranța generală a casei',
@@ -1934,7 +1992,7 @@ function curataIntrarea(input) {
   }
   // fara hibrid nu intra nici bateria, nici tabloul de backup si ATS-ul
   if (!x.hibrid) {
-    x.nrBaterii = 0; x.baterieModel = ''; x.bateriaAlta = false;
+    x.nrBaterii = 0; x.baterieModel = ''; x.bateriaAlta = false; x.nrBaterii2 = 0; x.baterieModel2 = '';
     x.optiuni = Object.assign({}, x.optiuni || {}, { tabloBackup: false, ats: false });
   }
   return x;
@@ -1988,7 +2046,7 @@ function calculeaza(intrare) {
   const laturaPanta_m = (orientare === 'landscape' ? panou.latime_mm : panou.lungime_mm) / 1000;
 
   const trasee = [];
-  let puncte = 0, clemeMijloc = 0, clemeCapat = 0, piloni = 0, miniRailuri = 0, conectoriCruce = 0, separari = 0;
+  let puncte = 0, clemeMijloc = 0, clemeCapat = 0, piloni = 0, miniRailuri = 0, conectoriCruce = 0, separari = 0, separariV = 0;
   for (const c of campuri) {
     const n = c.panouriPeRand;
     const L = lungimeRand(panou, n, orientare);
@@ -2010,7 +2068,8 @@ function calculeaza(intrare) {
       }
       separari += k - 1;
       if (miniRail) miniRailuri += 2 * (n + 1);
-      if (P === 'pilon') piloni += ceil(L / 3) + 1;
+      // la sol, fiecare segment separat termic are pilonii lui (un pilon la cel mult 3 m, plus unul)
+      if (P === 'pilon') piloni += segmente.reduce((t, ns) => t + ceil(lungimeRand(panou, ns, orientare) / 3) + 1, 0);
     }
     if (cruce) {
       // strat superior: doua sine verticale sub fiecare coloana de panouri; peste 17,6 m se separă
@@ -2024,29 +2083,45 @@ function calculeaza(intrare) {
         clemeMijloc += n * 2 * (rv - 1);
         clemeCapat += n * 4;
       }
-      separari += n * (kv - 1);
+      separariV += n * (kv - 1);
       conectoriCruce += 4 * n * c.randuri;
     }
   }
   const plan = trasee.length ? planTaiere(trasee, bara) : null;
   const metriSina = trasee.reduce((s, x) => s + x, 0);
+  let metriSinaRez = 0;
   const tripozi = P === 'tripod' ? ceil(1.5 * N) : 0;
 
   if (plan && plan.taieri.length) {
-    av.push({ tip: 'info', text: `Plan de tăiere optimizat, ${plan.nrBare} bare în loc de ${plan.bareFaraOptimizare}: ` +
-      plan.taieri.map((t) => `${t.nr === 1 ? 'un traseu' : t.nr + ' trasee'} de ${m2(t.traseu_m)} m în ${t.bucati_m.map(m2).join(' + ')} m`).join('; ') +
-      (plan.taieri.reduce((a, t) => a + t.nr, 0) < trasee.length ? '. Celelalte trasee se taie ca de obicei, din bare întregi și restul.' : '.') });
+    // toate traseele (și cele tăiate simplu), apoi ce bucăți se taie din aceeași bară: urmând lista,
+    // echipa folosește exact numărul de bare comandat
+    const grupeaza = (liste) => {
+      const g = [];
+      liste.forEach((b) => { const k = b.join('+'); const x = g.find((y) => y.k === k); if (x) x.nr++; else g.push({ k, b, nr: 1 }); });
+      return g;
+    };
+    const tr = grupeaza(plan.bucatiTrasee_cm.map((p, i) => [Math.ceil(trasee[i] * 100 - 1e-6)].concat(p.slice().sort((a, b) => b - a))));
+    const din = grupeaza(plan.bare_cm.map((b) => b.slice().sort((a, b2) => b2 - a)));
+    const bara_cm = Math.floor(bara * 100 + 1e-6);
+    av.push({ tip: 'info', text: `Plan de tăiere optimizat, ${plan.nrBare} bare în loc de ${plan.bareFaraOptimizare}. Trasee: ` +
+      tr.map((t) => `${t.nr} × ${m2(t.b[0] / 100)} m = ${t.b.slice(1).map((x) => m2(x / 100)).join(' + ')}`).join('; ') +
+      '. Din bare: ' + din.map((t) => `${t.nr === 1 ? 'o bară' : t.nr + ' bare'}: ${t.b.length === 1 && t.b[0] === bara_cm ? 'întreagă' : t.b.map((x) => m2(x / 100)).join(' + ')}` +
+        (bara_cm - t.b.reduce((a, x) => a + x, 0) > 0 ? ` (rest ${m2((bara_cm - t.b.reduce((a, x) => a + x, 0)) / 100)})` : '')).join('; ') + '.' });
   }
-  if (separari) {
-    av.push({ tip: 'info', text: `Separare termică: rândurile de peste ${f(SINA_MAX_M)} m de șină se împart în segmente separate ` +
-      `(${separari} ${separari === 1 ? 'separare' : 'separări'}), fiecare cu cleme de capăt și prinderi proprii; panourile nu trec peste rost.` });
+  if (separari || separariV) {
+    const parti = [];
+    if (separari) parti.push(`rândurile de peste ${f(SINA_MAX_M)} m de șină se împart în segmente separate (${separari} ${separari === 1 ? 'separare' : 'separări'})`);
+    if (separariV) parti.push(`${separari ? 'șinele verticale' : 'șinele verticale (de sub coloanele de panouri)'} de peste ${f(SINA_MAX_M)} m se împart pe rânduri întregi (${separariV} ${separariV === 1 ? 'separare' : 'separări'})`);
+    av.push({ tip: 'info', text: `Separare termică: ${parti.join('; ')}, fiecare segment cu cleme de capăt și prinderi proprii; panourile nu trec peste rost.` });
   }
   const structura = [];
   structura.push({ den: 'Panouri fotovoltaice', det: `${panou.brand} ${panou.model}, ${panou.putere_W} W`, um: 'buc', cant: N });
   if (plan) {
-    structura.push({ den: 'Șină de montaj', um: 'm', cant: metriSina,
-      nota: cruce ? 'două straturi: orizontal pe acoperiș, vertical sub panouri' : 'include 10 cm la fiecare capăt' });
-    structura.push({ den: `Bare de șină de ${f(bara)} m`, um: 'buc', cant: plan.nrBare,
+    // o singură linie pentru șină: numărul de bare (cât se comandă) și, lângă, metrii de șină montați
+    const procS = input.rezervaProcent === undefined ? 5 : input.rezervaProcent;
+    metriSinaRez = procS > 0 ? Math.ceil(metriSina * (1 + procS / 100) - 1e-9) : r1(metriSina);
+    structura.push({ den: `Bare de șină de ${f(bara)} m`, det: `${f(metriSinaRez)} m de șină${procS > 0 ? ' cu rezerva de ' + procS + '%' : ''}${cruce ? ', în două straturi: orizontal pe acoperiș, vertical sub panouri' : ', cu 10 cm la fiecare capăt'}`,
+      um: 'buc', cant: plan.nrBare,
       nota: `plan de tăiere cu bucata minimă de 60 cm${plan.bareFaraOptimizare > plan.nrBare ? `, optimizat (tăierea simplă cerea ${plan.bareFaraOptimizare})` : ''}; ` +
         `resturi nefolosibile ${f(plan.pierdere)} m; fără rezervă` });
     structura.push({ den: 'Îmbinare de șină', um: 'buc', cant: plan.imbinari });
@@ -2139,7 +2214,7 @@ function calculeaza(intrare) {
     nota: '2 pe string, la panouri și la intrarea în invertor' + (treceri ? `, plus ${treceri} la trecerile între rânduri` : '') });
   // în tabloul DC cablul nu intră pe MC4: se întrerupe la soclul de siguranțe, cu pin la intrare și la ieșire, pe + și pe −
   dc.push({ den: `Pin pentru cablul solar ${sectDC} mm² în tabloul DC`, um: 'buc', cant: 4 * nrStringuri,
-    nota: '4 pe string: intrarea și ieșirea din soclul de siguranțe, pe + și pe −' });
+    nota: '4 pe string: intrarea și ieșirea din soclul de siguranțe, pe plus și pe minus' });
   if (distDC > 0) {
     if (ingropatDC) {
       dc.push({ den: 'Tub de protecție pentru traseul DC îngropat', um: 'm', cant: r1(ceil(nrStringuri / K.stringuriPeCopex) * distDC),
@@ -2163,15 +2238,22 @@ function calculeaza(intrare) {
   }
   // bateria din catalog, sau una scrisa de mana („Alta baterie”, la Deye si Solis)
   const batCatalog = input.bateriaAlta ? null : C.BATERII.find((b) => b.model === input.baterieModel);
+  // a doua baterie, doar din aceeași familie (Huawei LUNA2000-S1: module de 5 și de 7 kWh în același sistem)
+  const bat2 = batCatalog && batCatalog.familie && input.baterieModel2 && input.nrBaterii2 > 0
+    ? C.BATERII.find((b) => b.model === input.baterieModel2 && b.familie === batCatalog.familie && b.model !== batCatalog.model) : null;
+  const nBat2 = bat2 ? input.nrBaterii2 : 0;
   if (input.nrBaterii > 0) {
     if (batCatalog || input.baterieModel) {
       const det = batCatalog ? `${batCatalog.brand} ${batCatalog.model}` : input.baterieModel + (input.bateriaAlta ? ' (din afara catalogului)' : '');
-      echipamente.push({ den: 'Baterie', det, um: 'buc', cant: input.nrBaterii });
+      echipamente.push({ den: 'Baterie', det, um: 'buc', cant: input.nrBaterii, nota: bat2 ? `împreună cu ${nBat2} × ${bat2.model}, în același sistem ${batCatalog.familie}` : undefined });
+      if (bat2) echipamente.push({ den: 'Baterie', det: `${bat2.brand} ${bat2.model}`, um: 'buc', cant: nBat2, nota: `în același sistem ${batCatalog.familie}` });
     } else {
       av.push({ tip: 'warn', text: `${input.nrBaterii === 1 ? 'Este trecut 1 modul' : `Sunt trecute ${input.nrBaterii} module`} de baterie, dar bateria nu e aleasă. Alegeți modelul.` });
     }
   }
-  if (input.hibrid && input.bateriaAlta && invertor) {
+  if (input.hibrid && input.bateriaAlta && invertor && !invertor.baterie) {
+    av.push({ tip: 'warn', text: `Invertorul ${invertor.model} nu are intrare de baterie.` });
+  } else if (input.hibrid && input.bateriaAlta && invertor) {
     av.push({ tip: 'warn', text: `Baterie din afara catalogului: ${input.baterieModel || 'nespecificată'}. Verificați în fișa tehnică că merge cu ` +
       `invertorul ${invertor.model}${invertor.baterie ? `, care lucrează cu baterii de ${invertor.baterie === 'LV' ? 'joasă tensiune, 48 V' : 'înaltă tensiune'}` : ''}.` });
   }
@@ -2183,13 +2265,13 @@ function calculeaza(intrare) {
         `lucrează cu baterii de ${clasa(invertor.baterie)}. Nu funcționează împreună.` });
     } else if (bat && !invertor.baterie) {
       av.push({ tip: 'warn', text: `Invertorul ${invertor.model} nu are intrare de baterie.` });
-    } else if (bat && bat.compatibil && invertor.brand && !bat.compatibil.includes(invertor.brand)) {
+    } else if (bat && bat.compatibil && bat.compatibil.length && invertor.brand && !bat.compatibil.includes(invertor.brand)) {
       av.push({ tip: 'warn', text: `Bateria ${bat.brand} ${bat.model} nu e compatibilă cu invertoarele ${invertor.brand} ` +
         `(merge cu ${bat.compatibil.join(', ')}). Alegeți o baterie pentru ${invertor.brand}.` });
     }
   }
   // numărul de module și controlerul bateriilor modulare de înaltă tensiune (fișele producătorilor)
-  const nBat = input.nrBaterii || 0;
+  const nBat = (input.nrBaterii || 0) + nBat2;
   if (input.hibrid && batCatalog && nBat > 0) {
     const b = batCatalog;
     let min = b.minModule || 1;
@@ -2199,14 +2281,14 @@ function calculeaza(intrare) {
       if (m > min) { min = m; motivMin = `, ca să atingă tensiunea minimă de baterie a invertorului, ${invertor.vBatMin_V} V`; }
     }
     if (nBat < min) {
-      av.push({ tip: 'warn', text: `Bateria ${b.model}: ${nBat === 1 ? '1 modul' : nBat + ' module'}, sub minimul de ${min}${motivMin}. Cu mai puține module sistemul nu pornește.` });
+      av.push({ tip: 'warn', text: `Bateria ${bat2 ? b.familie : b.model}: ${nBat === 1 ? '1 modul' : nBat + ' module'}, sub minimul de ${min}${motivMin}. Cu mai puține module sistemul nu pornește.` });
     } else if (b.maxModule && nBat > ((b.maxModulePeSerie || {})[invertor && invertor.serie] || b.maxModule)) {
       const mx = (b.maxModulePeSerie || {})[invertor && invertor.serie] || b.maxModule;
-      av.push({ tip: 'warn', text: `Bateria ${b.model}: ${nBat} module, peste maximul de ${mx} din fișă. Împărțiți pe mai multe sisteme sau alegeți module mai mari.` });
+      av.push({ tip: 'warn', text: `Bateria ${bat2 ? b.familie : b.model}: ${nBat} module${bat2 ? ' în total' : ''}, peste maximul de ${mx} din fișă. Împărțiți pe mai multe sisteme sau alegeți module mai mari.` });
     }
     if (b.controler) {
       echipamente.push({ den: b.controler.den, um: 'buc', cant: ceil(nBat / b.controler.laModule),
-        nota: `unul la cel mult ${b.controler.laModule} module de baterie` });
+        nota: `unul la cel mult ${b.controler.laModule} module de baterie${bat2 ? `, pentru toate cele ${nBat} module` : ''}` });
     }
   }
   // bateriile de 48 V: cablul de putere și protecția DC dintre baterie și invertor (manualul Deye
@@ -2234,6 +2316,9 @@ function calculeaza(intrare) {
   const trecere = toataCasa && invertor && invertor.trecere_A ? invertor.trecere_A : null;
   const sigCasa = toataCasa && input.sigurantaGenerala_A > 0 ? input.sigurantaGenerala_A : null;
   const iCasa = toataCasa ? (trecere && sigCasa ? Math.min(trecere, sigCasa) : (trecere || sigCasa || null)) : null;
+  // la mărcile cu cutie pentru toată casa (SmartGuard, Gateway, SYN), consumul casei trece prin cutie, nu prin
+  // invertor: de la bornă la cutie trece doar curentul invertorului; cutia → branșament și cutia → backup duc casa
+  const prinCutie = !!(toataCasa && iCasa && invertor && invertor.cutieCasa);
   const ac = alegeSectiuneAC({ retea: input.retea, kW: invKW, L: lungimeAC, Lcoloana: input.distantaInvertorBransament_m || 0, material, Imax: imaxInv, cald, Icasa: iCasa });
   const ingropat = input.traseu === 'ingropat';
   const tipCablu = material === 'cupru'
@@ -2242,11 +2327,18 @@ function calculeaza(intrare) {
   const nrConductoare = input.retea === 'mono' ? 3 : 5;
 
   const cabluri = [];
+  const notaCurent = (c) => (c.Ib > c.I * 1.15 + 1e-9 ? `curent ${f(c.I)} A, dimensionat pe ${f(c.Ib)} A` : `curent ${f(c.I)} A`);
   cabluri.push({
-    den: `Cablu AC ${material} ${nrConductoare}×${ac.sectiune} mm², ${tipCablu}`,
+    den: `Cablu AC ${material} ${nrConductoare}×${ac.sectiune} mm², ${tipCablu}${prinCutie ? `, de la ${invertor.cutieCasa} la branșament` : ''}`,
     um: 'm', cant: lungimeAC,
-    nota: `curent ${f(ac.I)} A, cădere ${f(ac.cadere)}%`,
+    nota: `${notaCurent(ac)}, cădere ${f(ac.cadere)}%`,
   });
+  // tronsonul scurt invertor → cutie: doar curentul invertorului, cupru, cât primește borna
+  const acInv = prinCutie ? alegeSectiuneAC({ retea: input.retea, kW: invKW, L: 2, Lcoloana: 0, material: 'cupru', Imax: imaxInv, cald }) : null;
+  if (acInv) {
+    cabluri.push({ den: `Cablu AC cupru ${nrConductoare}×${acInv.sectiune} mm², invertor – ${invertor.cutieCasa}`, um: 'm', cant: 2,
+      nota: `${notaCurent(acInv)}; de la borna invertorului la cutie, aproape de invertor` });
+  }
   if (input.distantaInvertorBransament_m > 0) {
     cabluri.push(ingropat
       ? { den: 'Tub de protecție pentru traseu îngropat', um: 'm', cant: input.distantaInvertorBransament_m }
@@ -2264,13 +2356,13 @@ function calculeaza(intrare) {
     const Lb = (input.distantaInvertorBackup_m || 0) + 2;
     acBackup = alegeSectiuneAC({ retea: input.retea, kW: invKW, L: Lb, Lcoloana: input.distantaInvertorBackup_m || 0, material, Imax: imaxInv, cald, Icasa: iCasa });
     cabluri.push({ den: `Cablu AC ${material} ${nrConductoare}×${acBackup.sectiune} mm² pentru circuitul de backup`, um: 'm', cant: Lb,
-      nota: `de la ieșirea de backup a invertorului la tabloul de backup; cădere ${f(acBackup.cadere)}%` });
+      nota: `${prinCutie ? `de la ${invertor.cutieCasa}` : 'de la ieșirea de backup a invertorului'} la tabloul de backup; ${notaCurent(acBackup)}, cădere ${f(acBackup.cadere)}%` });
     if (!input.distantaInvertorBackup_m) {
       av.push({ tip: 'warn', text: 'Distanța invertor – tablou de backup nu e completată; cablul de backup e socotit doar cu 2 m.' });
     }
     if (acBackup.neprotejata) {
       av.push({ tip: 'warn', text: `Circuitul de backup: nicio secțiune de ${material} din listă nu e protejată de siguranța de ${acBackup.sig} A ` +
-        `(curent ${f(acBackup.I)} A). ${material === 'aluminiu' ? 'Treceți pe cupru sau verificați' : 'Verificați'} soluția la proiectare.` });
+        `(curent de calcul ${f(acBackup.Ib)} A). ${material === 'aluminiu' ? 'Treceți pe cupru sau verificați' : 'Verificați'} soluția la proiectare.` });
     } else if (acBackup.peste) {
       av.push({ tip: 'warn', text: `Circuitul de backup: nici cea mai mare secțiune nu ține căderea sub 3% pe ${f(Lb)} m (${f(acBackup.cadere)}%). Apropiați tabloul de backup.` });
     } else if (acBackup.urcataDistanta) {
@@ -2292,14 +2384,15 @@ function calculeaza(intrare) {
     }
     return true;
   };
-  const cutieJonctiune = capatCupru(ac, '');
+  // prin cutie, cablurile mari intră în cutie, nu în borna invertorului; la bornă ajunge doar tronsonul scurt
+  const cutieJonctiune = prinCutie ? capatCupru(acInv, '') : capatCupru(ac, '');
   if (cutieJonctiune) {
     av.push({ tip: 'info', text: material === 'aluminiu'
       ? 'Cablul de aluminiu nu intră direct în borna invertorului: s-a pus o cutie de joncțiune lângă invertor, cu un capăt scurt de cupru și papuci bimetalici.'
       : `Cablul de ${ac.sectiune} mm² nu intră în borna invertorului (cel mult ${bornaMax} mm²${invertor && invertor.bornaAC_mm2 ? ' din fișă' : ', de verificat în fișă'}): ` +
         's-a pus o cutie de joncțiune lângă invertor, cu un capăt scurt de cupru.' });
   }
-  const cutieBackup = acBackup ? capatCupru(acBackup, 'pentru backup') : false;
+  const cutieBackup = acBackup && !prinCutie ? capatCupru(acBackup, 'pentru backup') : false;
   if (o.smartMeter) {
     cabluri.push({ den: 'Cablu de comunicație RS485, ecranat', um: 'm', cant: lungimeAC,
       nota: 'de la invertor la smart meter, montat la branșament' });
@@ -2355,11 +2448,14 @@ function calculeaza(intrare) {
   } else if (o.descarcatorAC) {
     protectii.push({ den: `Descărcător AC tip II ${input.retea === 'mono' ? '1P+N' : '3P+N'}`, um: 'buc', cant: 1, nota: 'opțiune bifată' });
   }
-  const inDif = (sig) => [25, 40, 63, 80, 100, 125].find((x) => x >= sig) || sig;
+  // diferențialele obișnuite merg până la 125 A; peste, releu diferențial cu transformator toroidal
+  const inDif = (sig) => [25, 40, 63, 80, 100, 125].find((x) => x >= sig) || null;
+  const denDif = (poli, sig, mA) => (inDif(sig) ? `Diferențial ${poli} ${inDif(sig)} A, ${mA} mA, tip A`
+    : `Releu diferențial ${mA} mA cu transformator toroidal, pentru întreruptorul de ${sig} A`);
   if (o.diferential) {
     // pragul cerut de producătorul invertorului; cu 30 mA pe circuitul invertorului apar declanșări fără defect
     const mA = invertor && invertor.rcd_mA ? invertor.rcd_mA : 30;
-    protectii.push({ den: `Diferențial ${input.retea === 'mono' ? '2P' : '4P'} ${inDif(sigAC)} A, ${mA} mA, tip A`, um: 'buc', cant: 1,
+    protectii.push({ den: denDif(input.retea === 'mono' ? '2P' : '4P', sigAC, mA), um: 'buc', cant: 1,
       nota: invertor && invertor.rcd_mA ? `opțiune bifată; ${mA} mA după fișa ${invertor.brand}` : 'opțiune bifată; verificați pragul în fișa invertorului' });
   }
   // backup cu cutie separată obligatorie (Huawei, Sigenergy) sau cu port integrat (Deye, Solis, Growatt)
@@ -2370,7 +2466,7 @@ function calculeaza(intrare) {
     protectii.push({ den: 'Tablou de backup', um: 'buc', cant: 1, nota: 'opțiune bifată' });
     protectii.push({ den: `Întreruptor backup ${input.retea === 'mono' ? '1P+N' : '3P'} ${acBackup.sig} A`, um: 'buc', cant: 1 });
     // circuitele de prize de pe backup cer protecție suplimentară de 30 mA (HD 60364-4-41)
-    protectii.push({ den: `Diferențial backup ${input.retea === 'mono' ? '2P' : '4P'} ${inDif(acBackup.sig)} A, 30 mA, tip A`, um: 'buc', cant: 1,
+    protectii.push({ den: denDif(input.retea === 'mono' ? '2P' : '4P', acBackup.sig, 30).replace(/^Diferențial|^Releu diferențial/, (x) => x + ' backup'), um: 'buc', cant: 1,
       nota: 'pentru circuitele de prize alimentate din backup' });
     av.push({ tip: 'info', text: 'Backup: în regim insular nulul trebuie legat la pământ după manualul invertorului (legătura N–PE).' +
       (toataCasa ? '' : ' Doar circuitele alese trec pe backup; dacă toată casa trece pe backup, bifați opțiunea, ca circuitele să se dimensioneze pe curentul de trecere.') });
@@ -2380,7 +2476,8 @@ function calculeaza(intrare) {
         av.push({ tip: 'warn', text: `Toată casa pe backup: curentul de trecere rețea → backup al invertorului ${input.invertorModel || ''} nu e în fișă sau în catalog. ` +
           (sigCasa ? `Circuitele s-au dimensionat pe siguranța generală a casei, ${f(sigCasa)} A.` : 'Circuitele s-au dimensionat doar pe curentul invertorului; completați siguranța generală a casei sau verificați fișa.') });
       } else {
-        av.push({ tip: 'info', text: `Toată casa pe backup: consumul casei trece prin ${cuCutie || invertor.cutieCasa ? 'cutia de backup' : 'invertor'}. ` +
+        av.push({ tip: 'info', text: `Toată casa pe backup: consumul casei trece prin ${prinCutie ? invertor.cutieCasa : 'invertor'}. ` +
+          (prinCutie ? `De la borna invertorului la cutie trece doar curentul invertorului (cablu de ${acInv.sectiune} mm²). ` : '') +
           `Cablul spre branșament și circuitul de backup sunt dimensionate pe ${f(iCasa)} A${fe}` +
           (sigCasa && sigCasa < trecere ? `, siguranța generală a casei` : `, curentul de trecere din fișă`) +
           `: siguranță ${ac.sig} A spre branșament, ${acBackup.sig} A pe backup.` + (invertor.trecereNota ? ` Curentul de trecere: ${invertor.trecereNota}.` : '') });
@@ -2390,6 +2487,10 @@ function calculeaza(intrare) {
         } else if (!sigCasa) {
           av.push({ tip: 'info', text: `Siguranța generală a casei trebuie să fie cel mult ${f(trecere)} A${fe}, curentul de trecere al invertorului. Cu ea completată, circuitele se dimensionează pe ea.` });
         }
+      }
+      if (sigCasa && sigCasa < ac.I - 1e-9) {
+        av.push({ tip: 'warn', text: `Siguranța generală a casei, ${f(sigCasa)} A, e sub curentul invertorului, ${f(ac.I)} A${fe}: ` +
+          'la export, invertorul poate declanșa siguranța generală. Verificați branșamentul și siguranța.' });
       }
       if (invertor && invertor.cutieCasa && !cuCutie) {
         protectii.push({ den: `Cutie pentru toată casa pe backup: ${invertor.cutieCasa}`, um: 'buc', cant: 1,
@@ -2406,7 +2507,9 @@ function calculeaza(intrare) {
   } else if (input.hibrid && nBat > 0) {
     av.push({ tip: 'warn', text: 'Sistem cu baterie fără smart meter: fără contor la branșament, bateria nu poate lucra pe autoconsum. Bifați smart meter-ul.' });
   }
-  if (o.ats) {
+  if (o.ats && toataCasa && invertor && invertor.cutieCasa && !cuCutie) {
+    av.push({ tip: 'info', text: `Comutarea la backup o face ${invertor.cutieCasa}, pusă pentru toată casa; nu s-a mai pus ATS separat.` });
+  } else if (o.ats) {
     protectii.push(cuCutie
       ? { den: `Cutie de backup: ${numeCutie}`, um: 'buc', cant: 1, nota: 'opțiune bifată' }
       : { den: 'ATS sau comutator automat', um: 'buc', cant: 1,
@@ -2538,7 +2641,8 @@ function calculeaza(intrare) {
       : `${ac.minimTabel} mm², cât dă tabelul`;
   if (ac.neprotejata) {
     av.push({ tip: 'warn', text: `Nicio secțiune de ${material} din listă nu e protejată de siguranța de ${ac.sig} A ` +
-      `(curent ${f(ac.I)} A). ${material === 'aluminiu' ? 'Treceți pe cupru sau verificați' : 'Verificați'} soluția la proiectare.` });
+      `(curent de calcul ${f(ac.Ib)} A). ${material === 'aluminiu' ? 'Treceți pe cupru sau verificați' : 'Verificați'} soluția la proiectare.` +
+      (toataCasa && !sigCasa ? ' Completați siguranța generală a casei: cu ea, circuitele se dimensionează pe ea.' : '') });
   } else if (ac.peste) {
     av.push({ tip: 'warn', text: `Nici cea mai mare secțiune nu ține căderea sub 3% la ${f(lungimeAC)} m (${f(ac.cadere)}%). ` +
       (material === 'aluminiu' ? 'Treceți pe cupru sau reduceți distanța.' : 'Reduceți distanța sau mutați invertorul mai aproape de branșament.') });
@@ -2576,14 +2680,15 @@ function calculeaza(intrare) {
   if (contract) {
     panouriContract = ceil((contract * 1000) / panou.putere_W - 1e-9);
     const kNec = Math.round(panouriContract * panou.putere_W) / 1000;
-    const dc = `${N} × ${panou.putere_W} W = ${fk(kWp)} kWp`;
+    const dc = `${N} × ${panou.putere_W} W = ${fk(kWp)} kWp`;  // „Puterea DC” = puterea tuturor panourilor
     if (N < panouriContract) {
-      av.push({ tip: 'warn', text: `Puterea DC, ${dc}, e sub puterea din contract de ${fk(contract)} kWp. ` +
+      av.push({ tip: 'warn', text: `Puterea panourilor, ${dc}, e sub puterea din contract de ${fk(contract)} kWp. ` +
         `Trebuie cel puțin ${panouriContract} ${panouriContract === 1 ? 'panou' : 'panouri'}, adică ${fk(kNec)} kWp.` });
     } else if (N === panouriContract) {
-      av.push({ tip: 'ok', text: `Puterea DC, ${dc}, acoperă contractul de ${fk(contract)} kWp cu numărul minim de panouri.` });
+      av.push({ tip: 'ok', text: `Puterea panourilor, ${dc}, acoperă contractul de ${fk(contract)} kWp cu numărul minim de panouri.` });
     } else {
-      av.push({ tip: 'warn', text: `Puterea DC, ${dc}, e peste contractul de ${fk(contract)} kWp cu ${N - panouriContract} ` +
+      // 1–2 panouri peste minim (de obicei ca rândurile să fie egale) sunt în regulă: doar informare (decizia din 5 octombrie)
+      av.push({ tip: N - panouriContract <= 2 ? 'info' : 'warn', text: `Puterea panourilor, ${dc}, e peste contractul de ${fk(contract)} kWp cu ${N - panouriContract} ` +
         `${N - panouriContract === 1 ? 'panou' : 'panouri'}. Minimul care acoperă contractul: ${panouriContract} ${panouriContract === 1 ? 'panou' : 'panouri'}, adică ${fk(kNec)} kWp.` });
     }
   }
@@ -2600,14 +2705,18 @@ function calculeaza(intrare) {
       invertor_kW: invKW, retea: input.retea, stringuri: nrStringuri,
       panouriPeString: vs.grupuri.length ? Math.max(...vs.grupuri.map((g) => g.panouriPeString)) : ceil(N / nrStringuri),
       stringuriText: vs.grupuri.length ? textGrupuri(vs.grupuri) : '',
-      tronsoaneSina: plan ? plan.tronsoane : 0, bareSina: plan ? plan.nrBare : 0,
+      tronsoaneSina: plan ? plan.tronsoane : 0, bareSina: plan ? plan.nrBare : 0, metriSina: plan ? metriSinaRez : 0,
       lungimeBara_m: faraSinaContinua ? null : bara, faraSina, miniRail, sinaInCruce: cruce,
       dispunere: estVest ? 'est_vest' : 'sud', depasireInvertor_kWp: depasire,
       pasEfectiv_m: pe.pas, sectiuneAC_mm2: ac.sectiune, materialAC: material, sigurantaAC_A: ac.sig, caderAC_pct: r1(ac.cadere),
       sigurantaGPV_A: sigGPV,
       hibrid: !!input.hibrid, invertorBrand: invertor ? invertor.brand : '', invertorModel: input.invertorModel || (invertor ? invertor.model : ''),
       cabluDC_mm2: sectDC, caderDC_pct: r1(cdc),
-      baterie: (() => { const b = echipamente.find((x) => x.den === 'Baterie'); return b ? { cant: b.cant, det: b.det } : null; })(),
+      baterie: (() => {
+        const b = echipamente.filter((x) => x.den === 'Baterie');
+        if (!b.length) return null;
+        return b.length === 1 ? { cant: b[0].cant, det: b[0].det } : { cant: b.reduce((t, x) => t + x.cant, 0), det: b.map((x) => `${x.cant} × ${x.det}`).join(' + ') };
+      })(),
     },
     recomandareStringuri: rec,
     sectiuni,
@@ -2714,15 +2823,19 @@ function genereazaPDF(l, rez) {
   const date = [
     ['Client', l.client], ['Adresa', l.adresa],
     ['Echipa', l.echipa], ['Estimare făcută de', l.persoana],
-    ['Antecalcul din', dataRo(l.antecalcul ? l.antecalcul.data : l.modificat || l.creat)],
+    // înghețat = ziua în care a început raportarea; altfel, ziua ultimei salvări
+    l.antecalcul ? ['Antecalcul înghețat din', dataRo(l.antecalcul.data)] : ['Antecalcul din', dataRo(l.modificat || l.creat)],
   ];
   if (final) date.push(['Raportat de', rap.persoana], ['Data terminării', dataRo(rap.data)]);
-  // conturile care au făcut operațiunile, din istoricul lucrării (cu cont, scris de server)
-  const ist = Array.isArray(l.istoric) ? l.istoric : [];
+  // conturile care au făcut operațiunile, din istoricul lucrării (doar cu cont: scris de server)
+  const cuCont = !!(window.CONT && window.CONT.activ);
+  const ist = cuCont && Array.isArray(l.istoric) ? l.istoric : [];
   const ultim = (re) => ist.filter((e) => re.test((e && e.actiune) || '')).slice(-1)[0];
-  const cont = (e) => (e ? `${e.de || ''}${e.rol ? ' (' + e.rol + ')' : ''}, ${dataRo(e.data)}` : '');
-  const eA = ultim(/antecalculul$/), eR = ultim(/consumul|trimis raportul/), eV = ultim(/validat raportul/);
-  if (eA || eR) date.push(['Antecalcul făcut din contul', cont(eA)], ['Consum raportat din contul', cont(eR)]);
+  const ROL = { admin: 'Admin', lider: 'lider', membru: 'membru', sales: 'Sales' };
+  const cont = (e) => (e ? `${e.de || ''}${e.rol ? ' (' + (ROL[e.rol] || e.rol) + ')' : ''}, ${dataRo(e.data)}` : '');
+  const eA = ultim(/^a făcut antecalculul$/), eR = ultim(/^a completat consumul$|^a trimis raportul$/), eV = ultim(/^a validat raportul$/);
+  if (eA) date.push(['Antecalcul făcut din contul', cont(eA)]);
+  if (eR && final) date.push(['Consum raportat din contul', cont(eR)]);
   if (eV && rap.validat) date.push(['Validat din contul', cont(eV)]);
   const col = LAT / 2;
   // cate doua pe rand; randul coboara dupa valoarea cea mai lunga, ca textul pe doua randuri sa nu se suprapuna
@@ -2914,7 +3027,7 @@ function genereazaPDF(l, rez) {
   loc(25);
   y += 4;
   const ws = (LAT - 10) / 2;
-  [['Șef de echipă', final ? rap.persoana : ''], ['Verificat', '']].forEach(([t, n], i) => {
+  [['Șef de echipă', ''], ['Verificat', '']].forEach(([t, n], i) => {
     const x = PAG.m + i * (ws + 10);
     font('normal', 7.5, CUL.slab); doc.text(t.toUpperCase(), x, y);
     font('normal', 9); if (n) doc.text(curat(n), x, y + 6);
@@ -3011,6 +3124,21 @@ function catalogEditabil() {
   };
 }
 
+// Câmpurile pe care editorul de catalog le arată (la fel ca CATALOG_UI din app.js). Restul câmpurilor unei
+// serii sau baterii incluse (cutia de backup, tipul backup-ului, limitele pe serie...) nu le poate schimba
+// Adminul, deci vin mereu din catalogul inclus: așa o corectură din aplicație ajunge și peste un catalog
+// salvat mai demult.
+const EDITABIL = {
+  SERII: ['vmaxDC_V', 'vStart_V', 'vmppMin_V', 'vmppMax_V', 'mppturi', 'baterie', 'vBatMin_V', 'rcd_mA', 'maxPV', 'bornaAC_mm2',
+    'trecere_A', 'trecereNota', 'cutieCasa', 'dongle', 'dongleNota', 'sursa', 'nota', 'deConfirmat'],
+  BATERII: ['brand', 'model', 'kWh', 'clasa', 'compatibil', 'minModule', 'maxModule', 'vModul_V', 'controler'],
+};
+const ascunseDin = (inclus, lista) => {
+  const o = {};
+  Object.keys(inclus || {}).forEach((k) => { if (!lista.includes(k)) o[k] = inclus[k]; });
+  return o;
+};
+
 // Pune catalogul primit peste cel inclus. Obiectul window.CATALOG rămâne același,
 // ca motorul de calcul și formularul să vadă imediat valorile noi.
 function aplicaCatalog(date) {
@@ -3021,13 +3149,13 @@ function aplicaCatalog(date) {
   // un catalog salvat înainte de câmpurile noi (limite de module, controler) le primește din catalogul inclus
   C.BATERII = (d.BATERII || baza.BATERII).map((b) => {
     const inclus = baza.BATERII.find((x) => x.brand === b.brand && x.model === b.model);
-    return inclus ? Object.assign({}, inclus, b) : b;
+    return inclus ? Object.assign({}, inclus, b, ascunseDin(inclus, EDITABIL.BATERII)) : b;
   });
   C.CONSUM = Object.assign({}, baza.CONSUM, d.CONSUM || {});
   const serii = d.SERII_INVERTOR || baza.SERII_INVERTOR;
   C.SERII_INVERTOR = {};
   Object.keys(serii).forEach((k) => {
-    const s = Object.assign({}, baza.SERII_INVERTOR[k] || {}, serii[k]);
+    const s = Object.assign({}, baza.SERII_INVERTOR[k] || {}, serii[k], ascunseDin(baza.SERII_INVERTOR[k], EDITABIL.SERII));
     C.SERII_INVERTOR[k] = C.normalizeazaSerie ? C.normalizeazaSerie(s) : s;
   });
   const modele = d.MODELE_INVERTOR || MODELE_INCLUSE;
@@ -3083,13 +3211,28 @@ function curat(l) {
   return o;
 }
 const faraIstoric = (d) => { if (!d || typeof d !== 'object') return d; const o = Object.assign({}, d); delete o.istoric; return o; };
+// Cine și când a trimis sau a validat scrie serverul (ora și numele lui, nu ale telefonului). La comparare
+// contează doar dacă marcajul există, ca o trimitere confirmată să nu pară schimbată.
+const marcajeSimple = (r) => {
+  if (!r || typeof r !== 'object') return r == null ? null : r;
+  const o = Object.assign({}, r);
+  ['finalizat', 'validat'].forEach((k) => { if (o[k]) o[k] = true; });
+  return o;
+};
+const stabilRap = (r) => stabil(marcajeSimple(r || null));
+const pentruComparare = (d) => {
+  if (!d || typeof d !== 'object') return d;
+  const o = faraIstoric(d);
+  if (o.raportat) o.raportat = marcajeSimple(o.raportat);
+  return o;
+};
 function dinRand(r) {
   return Object.assign({}, r.date, {
     id: r.id, _v: r.versiune, _echipa_id: r.echipa_id, _alocati: r.alocati || [], _stare: r.stare,
     _creat_de: r.creat_de, _modificat: r.modificat, _modificat_de: r.modificat_de, _arhivat: r.arhivat,
     // raportul așa cum a venit de pe server: membrul nu intră în conflict dacă altcineva
     // a schimbat doar restul lucrării (adresa, alocarea), nu și raportul
-    _rapBaza: stabil((r.date || {}).raportat || null),
+    _rapBaza: stabilRap((r.date || {}).raportat),
     _antBaza: stabil((r.date || {}).antecalcul || null),
   });
 }
@@ -3137,11 +3280,13 @@ function poate(actiune, l) {
     case 'editeaza': return admin || (aEchipei && !l.antecalcul);
     case 'deblocheaza': return admin;
     // raportează membrii alocați și, din 2 octombrie, liderul echipei și Adminul
-    case 'raporteaza': return (r === 'membru' && alocat || admin || aEchipei) && !rap.validat;
+    // membrul nu mai schimbă raportul după ce l-a trimis; liderul îl poate redeschide
+    case 'raporteaza': return (r === 'membru' && alocat && !rap.finalizat || admin || aEchipei) && !rap.validat;
     // membrul trimite raportul; liderul (sau Adminul) îl validează sau îl redeschide.
     case 'finalizeaza': return r === 'membru' && alocat && !rap.finalizat && !rap.validat;
-    // liderul și Adminul validează raportul trimis de membru, sau pe cel completat de ei (trimis și validat odată)
-    case 'valideaza': return (admin || aEchipei) && !rap.validat && (!!rap.finalizat || areConsumRap(rap));
+    // liderul și Adminul validează raportul trimis de membru, sau pe cel completat de ei (trimis și validat
+    // odată); butonul se vede tot timpul cât completează raportul, și cu liniile goale (egale cu estimarea)
+    case 'valideaza': return (admin || aEchipei) && !rap.validat;
     case 'redeschide': return (admin || aEchipei) && !!(rap.validat || rap.finalizat);
     case 'aloca': return admin || aEchipei;
     case 'echipa': return admin;
@@ -3271,7 +3416,7 @@ function sincronizeaza() {
 
 // Trimite, pe rând, lucrările modificate pe telefon.
 // Ce conținut pleacă la server, ca amprentă: la membru doar raportul, la ceilalți toată lucrarea.
-const amprenta = (l) => (profil.rol === 'membru' ? stabil(l.raportat || null) : stabil(curat(l)));
+const amprenta = (l) => (profil.rol === 'membru' ? stabilRap(l.raportat) : stabil(pentruComparare(curat(l))));
 
 async function trimite() {
   const ids = citesteTot().filter((l) => l._murdar && !l._conflict).map((l) => l.id);
@@ -3295,8 +3440,12 @@ async function trimiteUna(l) {
     if (profil.rol === 'membru') {
       let versiune = l._v;
       for (let incercare = 0; incercare < 2; incercare++) {
+        // antecalculul pleacă doar dacă l-a înghețat chiar acest telefon (pe server nu era înghețat).
+        // Unul înghețat deja pe server nu se retrimite: dacă Adminul l-a deblocat între timp,
+        // cel vechi de pe telefon nu trebuie să-l înghețe la loc.
+        const antNou = l.antecalcul && (l._antBaza == null || l._antBaza === 'null') ? l.antecalcul : null;
         ({ data: rand, error: err } = await sb.rpc('raporteaza_consum', {
-          p_id: l.id, p_raportat: l.raportat || null, p_antecalcul: l.antecalcul || null, p_versiune: versiune,
+          p_id: l.id, p_raportat: l.raportat || null, p_antecalcul: antNou, p_versiune: versiune,
         }));
         if (!err || !/conflict/i.test(err.message) || incercare) break;
         const v = await raportNeatins(l);
@@ -3304,7 +3453,8 @@ async function trimiteUna(l) {
         versiune = v;
       }
       // versiune veche, lucrare validată, ștearsă sau dezalocată: utilizatorul alege ce face, nu rămâne blocat
-      if (err && /conflict|validat|nu mai există|nu aveți acces/i.test(err.message)) return marcheazaConflict(l, err.message);
+      // la fel când lucrarea s-a schimbat (alt număr de panouri, recalculată) sau antecalculul a fost deblocat
+      if (err && /conflict|validat|nu mai există|nu aveți acces|nu corespunde|antecalculul înghețat/i.test(err.message)) return marcheazaConflict(l, err.message);
     } else if (l._v == null) {
       ({ data: rand, error: err } = await sb.from('lucrari')
         .insert({ id: l.id, echipa_id: l._echipa_id || null, alocati: l._alocati || [], date: curat(l) })
@@ -3336,7 +3486,7 @@ function confirmaTrimiterea(l, rand) {
     const neschimbat = x.modificat === l.modificat;
     const nou = Object.assign(neschimbat ? dinRand(rand) : x, { _v: rand.versiune, _stare: rand.stare, _baza: l.modificat });
     if (neschimbat) { delete nou._murdar; delete nou._eroare; delete nou._conflict; delete nou._incercari; }
-    else Object.assign(nou, { _rapBaza: stabil((rand.date || {}).raportat || null), _antBaza: stabil((rand.date || {}).antecalcul || null) });
+    else Object.assign(nou, { _rapBaza: stabilRap((rand.date || {}).raportat), _antBaza: stabil((rand.date || {}).antecalcul || null) });
     return nou;
   });
 }
@@ -3346,7 +3496,7 @@ function confirmaTrimiterea(l, rand) {
 async function raportNeatins(l) {
   const { data, error } = await sb.from('lucrari').select('*').eq('id', l.id).maybeSingle();
   if (error || !data) return null;
-  const h = stabil((data.date || {}).raportat || null);
+  const h = stabilRap((data.date || {}).raportat);
   return (l._rapBaza != null && h === l._rapBaza) || (l._incercari || []).includes(h) ? data.versiune : null;
 }
 
@@ -3356,15 +3506,15 @@ async function marcheazaConflict(l, motiv) {
   // dacă pe server e exact ce voiam să trimit (de exemplu, răspunsul s-a pierdut pe drum), nu e conflict
   if (data) {
     const egal = profil.rol === 'membru'
-      ? acelasiContinut((data.date || {}).raportat || null, l.raportat || null)
-      : acelasiContinut(faraIstoric(data.date), curat(l));
+      ? stabilRap((data.date || {}).raportat) === stabilRap(l.raportat)
+      : acelasiContinut(pentruComparare(data.date), pentruComparare(curat(l)));
     if (egal) { confirmaTrimiterea(l, data); return 'ok'; }
     // serverul are o trimitere anterioară a acestui telefon (răspunsul ei s-a pierdut), iar pe telefon
     // s-a mai lucrat între timp: nu e conflict, se trimite din nou peste versiunea serverului
-    const h = profil.rol === 'membru' ? stabil((data.date || {}).raportat || null) : stabil(faraIstoric(data.date));
+    const h = profil.rol === 'membru' ? stabilRap((data.date || {}).raportat) : stabil(pentruComparare(data.date));
     if ((l._incercari || []).includes(h)) {
       inlocuieste(l.id, (x) => Object.assign(x, { _v: data.versiune,
-        _rapBaza: stabil((data.date || {}).raportat || null), _antBaza: stabil((data.date || {}).antecalcul || null) }));
+        _rapBaza: stabilRap((data.date || {}).raportat), _antBaza: stabil((data.date || {}).antecalcul || null) }));
       return 'reincearca';
     }
   }
@@ -3486,7 +3636,8 @@ async function rezolvaConflict(id, pastrezAMea) {
           // nu le-a atins nimeni; altfel rămân cele de pe server (raportul membrului nu se pierde).
           // Adminul, care are voie să le schimbe, își păstrează schimbarea și când ambele s-au modificat.
           const alege = (cheie, baza) => {
-            const eu = stabil(x[cheie] || null) !== baza, ei = stabil(server[cheie] || null) !== baza;
+            const st = cheie === 'raportat' ? stabilRap : (v) => stabil(v || null);
+            const eu = st(x[cheie]) !== baza, ei = st(server[cheie]) !== baza;
             if (baza == null) return server[cheie];
             if (!eu) return server[cheie];
             if (!ei) return x[cheie];
@@ -3514,7 +3665,7 @@ async function asteapta(p) { const { data, error } = await p; if (error) throw n
 // Funcția de pe server răspunde cu {eroare} și cod de eroare; se arată mesajul ei, pe românește.
 async function eroareFunctie(error) {
   let mesaj = '';
-  try { const c = await error.context.json(); if (c && c.eroare) mesaj = c.eroare; } catch (e) { /* */ }
+  try { const c = await error.context.json(); if (c && c.eroare) mesaj = mesajEroare(c.eroare); } catch (e) { /* */ }
   return new Error(mesaj || mesajEroare(error));
 }
 
@@ -3533,6 +3684,13 @@ async function parolaUtilizator(id, parola) {
   const { data, error } = await sb.functions.invoke('utilizatori', { body: { actiune: 'parola', id, parola } });
   if (error) throw await eroareFunctie(error);
   if (data && data.eroare) throw new Error(mesajEroare(data.eroare));
+}
+// Ștergerea definitivă a unui cont (prin funcția de pe server; lucrările lui rămân, fără autor).
+async function stergeUtilizator(id) {
+  const { data, error } = await sb.functions.invoke('utilizatori', { body: { actiune: 'sterge', id } });
+  if (error) throw await eroareFunctie(error);
+  if (data && data.eroare) throw new Error(mesajEroare(data.eroare));
+  await sincronizeaza();
 }
 async function echipaNoua(nume) {
   await asteapta(sb.from('echipe').insert({ nume: String(nume).replace(/[\u200b-\u200d\ufeff]/g, '').replace(/\s+/g, ' ').trim() }).select());
@@ -3599,7 +3757,7 @@ window.CONT = {
   membriEchipei: (id) => oameni.profiluri.filter((p) => p.echipa_id === id && p.rol === 'membru' && p.activ !== false),
   numeOm: (id) => { const p = oameni.profiluri.find((x) => x.id === id); return p ? (p.nume || p.email) : ''; },
   catalogEditabil, aplicaCatalog, CATALOG_INCLUS,
-  salveazaProfil, creeazaUtilizator, parolaUtilizator, echipaNoua, redenumesteEchipa, salveazaCatalog,
+  salveazaProfil, creeazaUtilizator, parolaUtilizator, stergeUtilizator, echipaNoua, redenumesteEchipa, salveazaCatalog,
   arhiva, arhiveaza, sterge,
 };
 })();
@@ -3709,7 +3867,17 @@ const OPTIUNI = [
  * ------------------------------------------------------------------ */
 const K = window.CONT;
 const citesteTot = () => K.citesteTot();
+// Raportul fără marcajele de stare, ca să se vadă dacă s-a schimbat consumul.
+const faraStariRap = (r) => { const o = Object.assign({}, r || {}); delete o.validat; delete o.finalizat; delete o.redeschis; delete o.deRetrimis; return JSON.stringify(o); };
+// Raport doar deschis: nimic completat, nimic trimis, validat sau redeschis.
+const raportGol = (r) => !!r && !areConsum(r) && !r.finalizat && !r.validat && !r.redeschis && !r.deRetrimis;
 const salveaza = (l) => {
+  // un raport doar deschis nu se salvează pe lucrare (nu apare „raport: …” și nici consum în istoric)
+  if (raportGol(l.raportat)) l.raportat = null;
+  // fără cont, istoricul notează consumul salvat, pe orice cale (Salvează, ieșire, PDF), când s-a schimbat
+  if (!K.activ && l.raportat && faraStariRap((citesteTot().find((x) => x.id === l.id) || {}).raportat) !== faraStariRap(l.raportat)) {
+    notaIstoric(l, 'a completat consumul');
+  }
   stare.alocareNesalvata = false;
   // lista se deschide pe cardul în care a ajuns lucrarea salvată
   stare.dupaSalvare = l;
@@ -3718,6 +3886,15 @@ const salveaza = (l) => {
   stergeCiorna();
 };
 const poate = (actiune, l) => K.poate(actiune, l);
+// numele lung al clientului se scurtează în antet, ca antetul fix să nu acopere ecranul
+const scurt = (t, n = 38) => { const x = String(t || ''); return x.length > n ? x.slice(0, n - 1).trimEnd() + '…' : x; };
+// bara de jos poate trece pe două rânduri pe telefoanele înguste: conținutul se termină deasupra ei
+try {
+  new ResizeObserver(() => {
+    const w = document.querySelector('.wrap'), b = document.getElementById('bara');
+    if (w && b) w.style.paddingBottom = (b.hidden ? 24 : b.offsetHeight + 24) + 'px';
+  }).observe(document.getElementById('bara'));
+} catch (e) { /* browser vechi: rămâne spațiul din CSS */ }
 
 function lucrareNoua() {
   const p = K.profil;
@@ -3777,6 +3954,7 @@ function stergeCiorna() { clearTimeout(temporizatorCiorna); try { localStorage.r
 
 function du(ecran, lucrare) {
   stare.ecran = ecran;
+  if (ecran !== 'admin') document.body.classList.remove('panou-deschis');
   if (lucrare !== undefined) stare.lucrare = lucrare;
   window.scrollTo(0, 0);
   deseneaza();
@@ -3858,12 +4036,15 @@ const finalizata = (l) => !!(l.raportat && (l.raportat.finalizat || l.raportat.v
 // cardurile pe care le vede fiecare tip de cont
 function carduriVizibile() {
   const r = K.rol();
+  if (!K.activ) return CARDURI.map((c) => (c.k === 'raportat' ? Object.assign({}, c, { s: 'consum raportat' }) : c));
   const k = r === 'membru' ? ['antecalculat', 'raportat'] : r === 'sales' ? ['raportat'] : ['lucru', 'antecalculat', 'raportat'];
   return CARDURI.filter((c) => k.includes(c.k));
 }
 function cardCurent() {
   const viz = carduriVizibile();
   if (stare.dupaSalvare) {
+    // lucrarea abia salvată trebuie să se vadă: căutarea rămasă de dinainte se golește
+    stare.cauta = '';
     const c = viz.find((x) => x.stari.includes(stareLucrare(stare.dupaSalvare)));
     stare.dupaSalvare = null;
     if (c) { stare.card = c.k; try { localStorage.setItem('ino_card', c.k); } catch (e) { /* */ } }
@@ -3898,7 +4079,9 @@ const ROL_TEXT = { admin: 'Admin', lider: 'lider', membru: 'membru', sales: 'Sal
 const cineText = (e) => (e ? `${e.de || 'necunoscut'}${e.rol ? ` (${ROL_TEXT[e.rol] || e.rol})` : ''}` : '');
 // pe scurt, pentru lista de lucrări: cine a făcut antecalculul și cine a raportat
 function cineAFacut(l) {
-  const a = ultimaDin(l, /antecalculul$/), r = ultimaDin(l, /consumul|trimis raportul|validat raportul/);
+  // fără cont e un singur telefon: nu e nimic de spus
+  if (!K.activ) return '';
+  const a = ultimaDin(l, /^a făcut antecalculul$/), r = ultimaDin(l, /^a completat consumul$|^a trimis raportul$/);
   return [a ? 'antecalcul: ' + cineText(a) : '', r ? 'raport: ' + cineText(r) : ''].filter(Boolean).join(' · ');
 }
 function htmlIstoric(l) {
@@ -3935,6 +4118,37 @@ function htmlCardLucrare(l) {
   </button>`;
 }
 
+// Instalarea pe telefon (aplicație web): Android/Chrome oferă butonul „Instalează”; pe iPhone se
+// adaugă din Safari, „Partajare” → „Adaugă pe ecranul principal”.
+let cerereInstalare = null;
+const instalata = () => (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+const eIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+try {
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+} catch (e) { /* */ }
+window.addEventListener('beforeinstallprompt', (ev) => { ev.preventDefault(); cerereInstalare = ev; if (stare.ecran === 'lista') ecranLista(); });
+window.addEventListener('appinstalled', () => { cerereInstalare = null; if (stare.ecran === 'lista') ecranLista(); });
+function htmlInstalare() {
+  let ascuns = false;
+  try { ascuns = localStorage.getItem('ino_instalare_ascuns') === '1'; } catch (e) { /* */ }
+  if (instalata() || ascuns || !(location.protocol === 'https:' || location.hostname === 'localhost')) return '';
+  if (!cerereInstalare && !eIOS()) return '';
+  return `<div class="mesaj info instalare"><b>Puneți aplicația pe telefon.</b> ${cerereInstalare
+    ? 'Apare pe ecranul principal, ca o aplicație obișnuită, și pornește și fără semnal.'
+    : 'Pe iPhone: în Safari, apăsați „Partajare” (pătratul cu săgeată) → „Adaugă pe ecranul principal”.'}
+    <div class="actiuni" style="margin-top:8px">${cerereInstalare ? '<button type="button" class="buton" id="b-instaleaza">Instalează aplicația</button>' : ''}
+    <button type="button" class="buton gol" id="b-instalare-nu">Nu acum</button></div></div>`;
+}
+function legaInstalare() {
+  if ($('#b-instaleaza')) $('#b-instaleaza').onclick = async () => {
+    const c = cerereInstalare; if (!c) return;
+    cerereInstalare = null;
+    try { await c.prompt(); await c.userChoice; } catch (e) { /* */ }
+    ecranLista();
+  };
+  if ($('#b-instalare-nu')) $('#b-instalare-nu').onclick = () => { try { localStorage.setItem('ino_instalare_ascuns', '1'); } catch (e) { /* */ } ecranLista(); };
+}
+
 function ecranLista() {
   const toate = citesteTot();
   const r = K.rol();
@@ -3945,7 +4159,10 @@ function ecranLista() {
     membru: 'Nicio lucrare alocată vouă.<br>Liderul echipei vă alocă lucrările.',
     sales: 'Nicio lucrare raportată încă.<br>Aici apar lucrările după raportarea consumului.',
   }[r] || '';
-  const deValidat = toate.filter((l) => poate('valideaza', l) && finalizata(l)).length;
+  const deValidatToate = toate.filter((l) => poate('valideaza', l) && finalizata(l));
+  const deValidat = deValidatToate.length;
+  // cea mai veche zi cu un raport de validat, ca butonul să deschidă o perioadă care le cuprinde pe toate
+  const deLaValidare = deValidat ? ziISO(Math.min(...deValidatToate.map(dataActivitate).filter((x) => x > 0), Date.now())) : null;
   const viz = carduriVizibile();
   const card = cardCurent();
   const din = toate.filter(inPerioada);
@@ -3955,29 +4172,37 @@ function ecranLista() {
       </button>`).join('')}</div>
     <div class="filtru-lista">
       <div class="camp data"><label for="f-deLa">Lucrări de la</label><input type="date" id="f-deLa" value="${E(dataDeLa())}" max="${ziISO(Date.now())}"></div>
-      <div class="camp"><label for="f-cauta">Caută</label><input type="search" id="f-cauta" placeholder="client, adresă, echipă, om" value="${E(stare.cauta || '')}"></div>
+      <div class="camp"><label for="f-cauta">Caută</label><input type="search" id="f-cauta" placeholder="client, adresă, om" value="${E(stare.cauta || '')}"></div>
     </div>
     <div class="ajutor" style="margin-top:6px">Implicit ultimele 30 de zile; alegeți o dată mai veche ca să vedeți lucrările de dinainte.</div>
     <div id="lista-lucrari">${toate.length ? '' : `<div class="gol-text"><img src="${window.LOGO_INOSOLAR}" alt="inoSOLAR">${gol}</div>`}</div>`;
 
   $('#titlu').innerHTML = 'Pre-calcul materiale<span class="sub">sisteme fotovoltaice 3–30 kWp</span>';
   $('#btn-inapoi').hidden = true;
-  $('#ecran').innerHTML = htmlContBara()
+  $('#ecran').innerHTML = htmlContBara() + htmlInstalare()
     + (deValidat ? `<div class="mesaj warn">${deValidat === 1 ? 'O lucrare are raportul' : deValidat + ' lucrări au raportul'} gata de validat.
-      ${card.k !== 'raportat' ? '<br><button type="button" class="link-buton" id="b-devalidat">Vezi rapoartele de validat</button>' : ''}</div>` : '')
+      ${card.k !== 'raportat' || deLaValidare < dataDeLa() ? '<br><button type="button" class="link-buton" id="b-devalidat">Vezi rapoartele de validat</button>' : ''}</div>` : '')
     + corp;
   $('#bara-in').innerHTML = (poate('admin') ? '<button class="buton gol" id="b-admin">Administrare</button>' : '')
     + (poate('creeaza') ? '<button class="buton" id="b-nou">Lucrare nouă</button>' : '');
   $('#bara').hidden = !$('#bara-in').innerHTML;
 
   if ($('#b-nou')) $('#b-nou').onclick = () => du('form', lucrareNoua());
+  legaInstalare();
   if ($('#b-admin')) $('#b-admin').onclick = () => du('admin');
   if ($('#b-cont')) $('#b-cont').onclick = () => du('cont');
-  if ($('#b-devalidat')) $('#b-devalidat').onclick = () => { stare.card = 'raportat'; stare.deLa = null; ecranLista(); };
+  if ($('#b-devalidat')) $('#b-devalidat').onclick = () => {
+    stare.card = 'raportat';
+    try { localStorage.setItem('ino_card', 'raportat'); } catch (e) { /* */ }
+    // perioada se lărgește doar dacă un raport de validat e mai vechi decât data aleasă
+    if (deLaValidare && deLaValidare < dataDeLa()) stare.deLa = deLaValidare;
+    ecranLista();
+  };
   document.querySelectorAll('[data-card]').forEach((btn) => {
     btn.onclick = () => { stare.card = btn.dataset.card; try { localStorage.setItem('ino_card', stare.card); } catch (e) { /* */ } ecranLista(); };
   });
-  $('#f-deLa').onchange = (ev) => { if (/^\d{4}-\d{2}-\d{2}$/.test(ev.target.value)) { stare.deLa = ev.target.value; ecranLista(); } };
+  // data golită (butonul de ștergere al calendarului) revine la ultimele 30 de zile, cum arată câmpul
+  $('#f-deLa').onchange = (ev) => { stare.deLa = /^\d{4}-\d{2}-\d{2}$/.test(ev.target.value) ? ev.target.value : null; ecranLista(); };
   $('#f-cauta').oninput = (ev) => { stare.cauta = ev.target.value; deseneazaListaFiltrata(toate); };
   if (toate.length) deseneazaListaFiltrata(toate);
   document.querySelectorAll('[data-deschide]').forEach((b) => {
@@ -4052,7 +4277,7 @@ function invertorLucrare(l) {
 }
 // Bateriile care se potrivesc cu marca și clasa de tensiune a invertorului.
 function bateriiPentru(l, inv) {
-  return C.BATERII.filter((b) => (!b.compatibil || b.compatibil.includes(l.invertorBrand)) && (!inv || !inv.baterie || b.clasa === inv.baterie));
+  return C.BATERII.filter((b) => (!b.compatibil || !b.compatibil.length || b.compatibil.includes(l.invertorBrand)) && (!inv || !inv.baterie || b.clasa === inv.baterie));
 }
 // „Altă baterie…”: la Deye și Solis (decizie client), și oriunde catalogul nu are nicio baterie potrivită.
 const permiteAltaBaterie = (l, inv) => ['Deye', 'Solis'].includes(l.invertorBrand) || (!!inv && !!inv.baterie && !bateriiPentru(l, inv).length);
@@ -4079,10 +4304,18 @@ function htmlBaterie(l, inv) {
   }
   if (permiteAlta) opt.push({ v: '__alta', t: 'Altă baterie…' });
   const clasa = (x) => (x === 'HV' ? 'înaltă tensiune (HV)' : x === 'LV' ? 'joasă tensiune, 48 V (LV)' : 'tipul din fișa lui');
-  return `<div class="randuri2">
-      ${campSelect('baterieModel', 'Baterie', l.bateriaAlta ? '__alta' : l.baterieModel, opt)}
-      ${campText('nrBaterii', 'Număr de module', l.nrBaterii, 'text', 'inputmode="numeric" min="0" step="1"')}
-    </div>
+  // lista pe toată lățimea: numele bateriilor sunt lungi și, tăiate, nu se mai deosebesc
+  return `${campSelect('baterieModel', 'Baterie', l.bateriaAlta ? '__alta' : l.baterieModel, opt)}
+    <div class="randuri2">${campText('nrBaterii', 'Număr de module', l.nrBaterii, 'text', 'inputmode="numeric" min="0" step="1"')}<div></div></div>
+    ${(() => {
+      // Huawei LUNA2000-S1: module de 5 kWh și de 7 kWh se pot pune în același sistem
+      const b1 = !l.bateriaAlta && C.BATERII.find((b) => b.model === l.baterieModel);
+      const fam = b1 && b1.familie ? C.BATERII.filter((b) => b.familie === b1.familie && b.model !== b1.model) : [];
+      if (!fam.length) return '';
+      return `${campSelect('baterieModel2', 'Combinat cu, în același sistem', l.baterieModel2 || '', [{ v: '', t: '— nimic —' }].concat(fam.map((b) => ({ v: b.model, t: `${b.brand} ${b.model}` }))))}
+      ${l.baterieModel2 ? `<div class="randuri2">${campText('nrBaterii2', 'Module de acest tip', l.nrBaterii2, 'text', 'inputmode="numeric" min="0" step="1"')}<div></div></div>` : ''}
+      <div class="ajutor">${E(b1.familie)}: modulele de 5 kWh (LUNA2000-5-E1) și de 7 kWh (LUNA2000-7-E1) se pot combina; un modul de putere duce cel mult ${b1.controler ? b1.controler.laModule : 3} module.</div>`;
+    })()}
     ${nepotrivita || (!l.bateriaAlta && l.baterieModel && !C.BATERII.some((b) => b.model === l.baterieModel))
       ? `<div class="rosu">Bateria aleasă nu ${!nepotrivita ? 'mai e în catalog'
         : inv && inv.baterie && nepotrivita.clasa === inv.baterie
@@ -4102,13 +4335,26 @@ const invertorPermis = (l, i) => i.retea === l.retea && (l.hibrid ? !!i.hibrid :
 function htmlToataCasa(l, inv) {
   const t = inv && inv.trecere_A;
   return campText('sigurantaGenerala_A', 'Siguranța generală a casei (A), opțional', l.sigurantaGenerala_A == null ? '' : String(l.sigurantaGenerala_A).replace('.', ','), 'text', 'inputmode="decimal" autocomplete="off" placeholder="de exemplu 32"')
-    + `<div class="ajutor" style="margin:-6px 0 8px">${t ? `Curentul de trecere din fișa ${E(inv.model)}: ${nr(t)} A${l.retea === 'mono' ? '' : ' pe fază'}${inv.cutieCasa ? `, prin ${E(inv.cutieCasa)}` : ''}. ` : `Curentul de trecere al invertorului${inv ? ' ' + E(inv.model) : ''} nu e în catalog: de verificat în fișă. `}`
+    + `<div class="ajutor" style="margin:2px 0 8px">${t ? `Curentul de trecere din fișa ${E(inv.model)}: ${nr(t)} A${l.retea === 'mono' ? '' : ' pe fază'}${inv.cutieCasa ? `, prin ${E(inv.cutieCasa)}` : ''}. ` : `Curentul de trecere al invertorului${inv ? ' ' + E(inv.model) : ''} nu e în catalog: de verificat în fișă. `}`
     + 'Cu siguranța generală completată, cablurile se dimensionează pe cea mai mică dintre ele.</div>';
+}
+
+// Pe rezultat: contractul pe rândul lui, cu starea (acoperit / lipsesc / peste minim).
+function htmlContractRezultat(r) {
+  if (!r.putereContract_kWp) return '';
+  const c = nrK(r.putereContract_kWp), nec = r.panouriContract, N = r.panouri;
+  if (!(nec > 0)) return `<div class="contract-rz">Contract: ${c} kWp</div>`;
+  if (N < nec) return `<div class="contract-rz minus">Contract: ${c} kWp · lipsesc ${panouriText(nec - N)}</div>`;
+  if (N === nec) return `<div class="contract-rz ok">Contract: ${c} kWp · acoperit</div>`;
+  return `<div class="contract-rz peste">Contract: ${c} kWp · acoperit, cu ${panouriText(N - nec)} peste minim</div>`;
 }
 
 function ecranForm() {
   const l = stare.lucrare;
   const acoperis = ACOPERISURI[l.montaj];
+  // lucrare de dinainte de bifa „Accept și invertor hibrid”: alegerea se fixează după invertorul ei,
+  // ca schimbarea mărcii sau a bifei „Sistem hibrid” să n-o mai schimbe singură
+  if (l.acceptHibrid == null) l.acceptHibrid = !!(invertorLucrare(l) || {}).hibrid;
   // marca se alege prima; modelele se filtreaza dupa marca, branșament si hibrid
   const potrivite = C.INVERTOARE.filter((i) => invertorPermis(l, i));
   const marci = [...new Set(potrivite.map((i) => i.brand))].sort();
@@ -4153,7 +4399,7 @@ function ecranForm() {
     ${C.MONTAJ[l.montaj].prindere === 'tripod'
       ? campSeg('faraSina', 'Tipul structurii', l.faraSina ? '1' : '0',
           [{ v: '0', t: 'Cu șină' }, { v: '1', t: 'Fără șină' }])
-        + `<div class="ajutor" style="margin:-6px 0 0">${l.faraSina
+        + `<div class="ajutor" style="margin:2px 0 0">${l.faraSina
             ? 'Panourile se prind direct în picioarele de montaj. Nu intră șină, îmbinări și cleme.'
             : 'Panourile stau pe șine, prinse cu cleme de mijloc și de capăt.'}</div>`
       : ''}
@@ -4170,19 +4416,20 @@ function ecranForm() {
       : campText('lungimeBara_m', 'Lungimea barei de șină (m)', l.lungimeBara_m == null ? '' : String(l.lungimeBara_m).replace('.', ','), 'text', 'inputmode="decimal" min="1" step="0.1" placeholder="obligatoriu"')}
   </div></section>
 
-  <section class="card"><h2>Panourile</h2><div class="corp">
-    ${campText('putereContract_kWp', 'Puterea din contract (kWp)', l.putereContract_kWp == null ? '' : String(l.putereContract_kWp).replace('.', ','), 'text', 'inputmode="decimal" autocomplete="off" placeholder="din contract, de ex. 10,35"')}
+  <section class="card"><h2>Puterea și panourile</h2><div class="corp">
+    ${campText('putereContract_kWp', 'Puterea sistemului, din contract (kWp)', l.putereContract_kWp == null ? '' : String(l.putereContract_kWp).replace('.', ','), 'text', 'inputmode="decimal" autocomplete="off" placeholder="de ex. 10,35"')}
+    <div class="ajutor">Puterea totală a instalației, cum scrie în contract. Nu e puterea unui panou și nici a invertorului.</div>
+    ${campSelect('panouId', 'Panoul folosit (puterea unui panou, în W)', l.panouId, C.PANOURI.map((p) => ({
+      v: p.id, t: `${p.putere_W} W pe panou · ${p.lungime_mm}×${p.latime_mm} mm · ${p.model}` }))
+      .concat(panouScos ? [{ v: panou.id, t: `${panou.putere_W} W pe panou · ${panou.model} — scos din catalog` }] : []))}
     <div id="contract-box">${htmlContract(l)}</div>
-    ${campSelect('panouId', 'Model de panou', l.panouId, C.PANOURI.map((p) => ({
-      v: p.id, t: `${p.putere_W} W · ${p.lungime_mm}×${p.latime_mm} mm · ${p.model}` }))
-      .concat(panouScos ? [{ v: panou.id, t: `${panou.putere_W} W · ${panou.model} — scos din catalog` }] : []))}
     ${panouScos ? '<div class="rosu">Panoul acestei lucrări a fost scos din catalog. Calculul folosește datele lui de la ultimul calcul; puteți alege alt panou.</div>' : ''}
     ${campSeg('orientare', 'Orientarea panourilor', l.orientare,
       [{ v: 'portret', t: 'Portret (vertical)' }, { v: 'landscape', t: 'Landscape (culcat)' }])}
     ${terasa && l.orientare === 'portret'
       ? '<div class="rosu">Pe acoperiș plat nu se recomandă montajul în portret: panoul prinde mai mult vânt și umbrește mai mult șirul din spate.</div>'
       : ''}
-    ${!terasa && l.orientare === 'landscape' ? `
+    ${!terasa && C.MONTAJ[l.montaj].prindere !== 'pilon' && l.orientare === 'landscape' ? `
       <div class="rosu">Landscape pe acoperiș înclinat: cu șine orizontale, clemele prind panoul pe latura scurtă. Verificați în fișa panoului${siCruce ? ' sau montați șină în cruce' : ''}.</div>
       ${siCruce ? `<label class="bifa"><input type="checkbox" data-bifa="sinaInCruce" ${l.sinaInCruce ? 'checked' : ''}><span>Șină în cruce: un strat orizontal pe acoperiș și unul vertical sub panouri</span></label>` : ''}` : ''}
     ${terasa ? campSeg('dispunere', 'Dispunerea panourilor', l.dispunere,
@@ -4207,7 +4454,7 @@ function ecranForm() {
         </div>`).join('')}</div>
       <button class="adauga" id="b-adauga">${terasa ? '+ Încă o zonă' : '+ Încă o orientare'}</button>
     </div>
-    <div class="live"><span class="chip">${Math.max(0, N)} ${N === 1 ? 'panou' : 'panouri'}</span><span class="chip">${nrK(Math.max(0, kWp))} kWp DC</span></div>
+    <div id="total-box">${htmlTotal(l)}</div>
   </div></section>
 
   <section class="card"><h2>Invertorul</h2><div class="corp">
@@ -4216,13 +4463,18 @@ function ecranForm() {
     ${l.hibrid ? '' : `<label class="bifa"><input type="checkbox" data-bifa="acceptHibrid" ${acceptaHibrid(l) ? 'checked' : ''}><span>Accept și invertor hibrid, pregătit pentru o baterie mai târziu</span></label>
     ${acceptaHibrid(l) ? '' : (() => { const doarHibrid = [...new Set(C.INVERTOARE.filter((i) => i.retea === l.retea).map((i) => i.brand))]
       .filter((b) => !C.INVERTOARE.some((i) => i.retea === l.retea && i.brand === b && !i.hibrid)).sort();
-      return doarHibrid.length ? `<div class="ajutor" style="margin:-6px 0 8px">${E(doarHibrid.join(', '))} ${doarHibrid.length === 1 ? 'are' : 'au'} pe ${l.retea === 'mono' ? 'monofazat' : 'trifazat'} doar invertoare hibride: bifați ca să apară în listă.</div>` : ''; })()}`}
+      return doarHibrid.length ? `<div class="ajutor" style="margin:2px 0 8px">${E(doarHibrid.join(', '))} ${doarHibrid.length === 1 ? 'are' : 'au'} pe ${l.retea === 'mono' ? 'monofazat' : 'trifazat'} doar invertoare hibride: bifați ca să apară în listă.</div>` : ''; })()}`}
     ${campSelect('invertorBrand', 'Marca invertorului', l.invertorBrand, marci.map((m) => ({ v: m, t: m })))}
     ${campSelect('invertorModel', 'Model de invertor', l.invertorModel,
       invertoare.map((i) => ({ v: i.model, t: `${i.model} · ${nr(i.kW)} kW${i.hibrid ? ' · hibrid' : ''}` }))
         .concat(invScos ? [{ v: inv.model, t: `${inv.model} · ${nr(inv.kW)} kW — scos din catalog` }] : []),
       `${invertoare.length} modele ${l.invertorBrand} pentru branșament ${l.retea === 'mono' ? 'monofazat' : 'trifazat'}${l.hibrid ? ', cu stocare' : ''}.`)}
 
+    ${(() => { const v = stare.invertorInlocuit; stare.invertorInlocuit = null;
+      return v && inv && v !== inv.model ? `<div class="rosu">Invertorul ales de mână, ${E(v)}, nu se potrivește cu branșamentul sau cu sistemul ales; s-a propus ${E(inv.model)}.</div>` : ''; })()}
+    ${(() => { if (!inv || l.invertorManual || !(kWp > 0) || kWp / inv.kW >= 0.7 || l.hibrid) return '';
+      return `<div class="ajutor">Panourile, ${nrK(kWp)} kWp, încarcă invertorul propus doar ${Math.round(kWp / inv.kW * 100)}%: ${E(l.invertorBrand)} nu are pe ${l.retea === 'mono' ? 'monofazat' : 'trifazat'} un model mai mic${acceptaHibrid(l) ? '' : ' on-grid'} potrivit.${acceptaHibrid(l) ? '' : ' Bifați „Accept și invertor hibrid” sau'} ${acceptaHibrid(l) ? 'Alegeți' : 'alegeți'} altă marcă.</div>`; })()}
+    <div id="inv-putere">${htmlPutereInvertor(l, inv)}</div>
     ${invScos ? '<div class="rosu">Invertorul acestei lucrări a fost scos din catalog. Calculul folosește datele lui de la ultimul calcul; puteți alege alt invertor.</div>' : ''}
     <div id="baterie-box">${htmlBaterie(l, inv)}</div>
     <div class="camp"><label for="f-nrStringuri">Număr de string-uri</label>
@@ -4241,7 +4493,7 @@ function ecranForm() {
     ${campSeg('traseu', 'Traseul cablului AC', l.traseu, [{ v: 'aparent', t: 'Aparent' }, { v: 'ingropat', t: 'Îngropat' }])}
     <label class="bifa"><input type="checkbox" data-bifa="cabluCald" ${l.cabluCald ? 'checked' : ''}><span>Cablul AC trece prin pod sau stă la soare</span></label>
     ${campSeg('paratrasnet', 'Paratrăsnet pe clădire', l.paratrasnet || 'nu', [{ v: 'nu', t: 'Nu' }, { v: 'cu_distanta', t: 'Da, la distanță' }, { v: 'fara_distanta', t: 'Da, aproape' }])}
-    ${(l.paratrasnet || 'nu') !== 'nu' ? `<div class="ajutor" style="margin:-6px 0 8px">${l.paratrasnet === 'cu_distanta'
+    ${(l.paratrasnet || 'nu') !== 'nu' ? `<div class="ajutor" style="margin:2px 0 8px">${l.paratrasnet === 'cu_distanta'
       ? 'Panourile păstrează distanța de separare față de paratrăsnet: descărcător AC tip 1+2 la origine.'
       : 'Panourile nu pot păstra distanța de separare: descărcătoare tip 1+2 pe DC și AC și echipotențializare de 16 mm².'}</div>` : ''}
     <div class="randuri2">
@@ -4260,7 +4512,7 @@ function ecranForm() {
   </div></section>
   ${htmlAdminLucrare(l)}`;
 
-  $('#titlu').innerHTML = (l.client ? E(l.client) : 'Lucrare nouă') + '<span class="sub">datele din teren</span>';
+  $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Lucrare nouă') + '<span class="sub">datele din teren</span>';
   $('#btn-inapoi').hidden = false;
   $('#ecran').innerHTML = html;
   $('#bara-in').innerHTML = `<button class="buton gol" id="b-salveaza">Salvează</button><button class="buton" id="b-calc">Calculează</button>`;
@@ -4272,26 +4524,83 @@ function ecranForm() {
 
 // Puterea din contract: se pun atatea panouri incat puterea DC sa fie egala cu ea
 // sau putin peste, cand numarul de panouri nu da fix puterea.
-function htmlContract(l) {
-  const p = panouLucrare(l) || C.PANOURI[0];
-  const N = l.campuri.reduce((s, c) => s + numarPanouri(c), 0);
+// Ținta: din puterea din contract și puterea unui panou rezultă numărul minim de panouri.
+// Se afișează imediat sub cele două câmpuri, cu socoteala în W și în kWp.
+const panouriText = (n) => `${n} ${n === 1 ? 'panou' : 'panouri'}`;
+const wattiText = (w) => Math.round(w).toLocaleString('ro-RO') + ' W';   // 10350 → „10.350 W”
+function contractLucrare(l) {
   const v = l.putereContract_kWp;
-  if (v == null || v === '') return '<div class="ajutor">Se pun atâtea panouri încât puterea DC să fie egală cu cea din contract sau puțin peste.</div>';
+  if (v == null || v === '') return { gol: true };
   const c = typeof v === 'number' ? v : NaN;
-  if (!(c > 0 && isFinite(c))) return '<div class="rosu">Puterea din contract trebuie să fie un număr pozitiv, în kWp, de exemplu 10,35.</div>';
+  if (!(c > 0 && isFinite(c))) return { gresit: true };
+  const p = panouLucrare(l) || C.PANOURI[0];
   const nec = Math.ceil((c * 1000) / p.putere_W - 1e-9);
-  const kNec = Math.round(nec * p.putere_W) / 1000;
-  const pan = (n) => `${n} ${n === 1 ? 'panou' : 'panouri'}`;
-  const acum = `${N} × ${p.putere_W} W = ${nrK(Math.round(N * p.putere_W) / 1000)} kWp`;
-  const domeniu = c < 3 || c > 30 ? ` <b>Atenție: ${nrK(c)} kWp e în afara domeniului aplicației, 3–30 kWp.</b>` : '';
-  const baza = `Pentru ${nrK(c)} kWp cu panouri de ${p.putere_W} W: <b>${pan(nec)} = ${nrK(kNec)} kWp</b>.`;
-  if (N < nec) return `<div class="rosu">${baza} Acum: ${acum}, sub contract cu ${pan(nec - N)}.${domeniu}</div>`;
-  if (N > nec) return `<div class="rosu">${baza} Acum: ${acum}, cu ${pan(N - nec)} peste minim.${domeniu}</div>`;
-  return `<div class="ajutor" style="color:var(--verde-text)">${baza} Numărul de panouri e exact cel necesar.${domeniu}</div>`;
+  return { c, p, nec, kNec: Math.round(nec * p.putere_W) / 1000 };
+}
+function htmlContract(l) {
+  const k = contractLucrare(l);
+  if (k.gol) return '';
+  if (k.gresit) return '<div class="rosu">Puterea din contract trebuie să fie un număr pozitiv, în kWp, de exemplu 10,35.</div>';
+  const { c, p, nec, kNec } = k;
+  const domeniu = c < 3 || c > 30 ? `<div class="rosu">Atenție: ${nrK(c)} kWp e în afara domeniului aplicației, 3–30 kWp.</div>` : '';
+  const peste = kNec > c + 1e-9 ? ` Panourile vin întregi, deci puțin peste ${nrK(c)} kWp.` : '';
+  return `<div class="tinta">De pus: cel puțin <b>${panouriText(nec)}</b> de ${p.putere_W} W
+    <span class="socoteala">${nec} × ${p.putere_W} W = ${wattiText(nec * p.putere_W)} = ${nrK(kNec)} kWp.${peste}</span></div>${domeniu}`;
+}
+
+// Totalul de sub câmpuri: ce s-a pus acum, comparat cu ținta din contract.
+// Cu un singur câmp se propune numărul de panouri pe rând care acoperă contractul.
+function propunereContract(l, nec) {
+  if (l.campuri.length !== 1) return null;
+  const r = intregPozitiv(l.campuri[0].randuri) || 1;
+  const ppr = Math.ceil(nec / r);
+  if (ppr > 60) return null;
+  return { r, ppr, N: r * ppr };
+}
+function htmlTotal(l) {
+  const p = panouLucrare(l) || C.PANOURI[0];
+  const N = Math.max(0, l.campuri.reduce((s, c) => s + numarPanouri(c), 0));
+  const kWp = Math.round(N * p.putere_W) / 1000;
+  const terasa = C.MONTAJ[l.montaj].prindere === 'tripod';
+  const total = `<div class="total"><div class="calc"><b>${panouriText(N)}</b> × ${p.putere_W} W = <b>${nrK(kWp)} kWp</b></div>
+    <div class="nota">puterea tuturor panourilor de mai sus</div>`;
+  const k = contractLucrare(l);
+  if (k.gol) return total + '<div class="ajutor">Completați puterea din contract, sus, ca să vedeți câte panouri trebuie.</div></div>';
+  if (k.gresit) return total + '</div>';
+  const { c, nec } = k;
+  let stareC;
+  if (N < nec) stareC = `<div class="stare-contract minus">Lipsesc <b>${panouriText(nec - N)}</b> până la contract (${nrK(c)} kWp).</div>`;
+  else if (N === nec) stareC = `<div class="stare-contract ok">Acoperă contractul de ${nrK(c)} kWp, cu numărul minim de panouri.</div>`;
+  else stareC = `<div class="stare-contract peste">Acoperă contractul de ${nrK(c)} kWp, dar cu <b>${panouriText(N - nec)}</b> peste minim (minimul e ${nec}).</div>`;
+  let buton = '';
+  const pr = N !== nec ? propunereContract(l, nec) : null;
+  if (pr && pr.N !== N) {
+    const rand = (n) => terasa ? (n === 1 ? 'șir' : 'șiruri') : (n === 1 ? 'rând' : 'rânduri');
+    buton = `<button type="button" id="b-contract" class="link-buton" data-r="${pr.r}" data-p="${pr.ppr}">Folosește ${panouriText(pr.N)}: ${pr.r} ${rand(pr.r)} × ${pr.ppr}</button>
+      <div class="ajutor">${pr.N > nec ? `${nec} nu se împart egal pe ${pr.r} ${rand(pr.r)}. ` : ''}Verificați că încap pe acoperiș.</div>`;
+  } else if (N < nec && l.campuri.length > 1) {
+    buton = '<div class="ajutor">Adăugați panouri în câmpurile de mai sus.</div>';
+  }
+  return total + stareC + buton + '</div>';
 }
 function actualizeazaContract() {
+  const l = stare.lucrare;
   const box = $('#contract-box');
-  if (box) box.innerHTML = htmlContract(stare.lucrare);
+  if (box) box.innerHTML = htmlContract(l);
+  const tot = $('#total-box');
+  if (tot) {
+    tot.innerHTML = htmlTotal(l);
+    const b = $('#b-contract');
+    if (b) b.onclick = () => {
+      // se scrie în câmpul 1 și se refac totalul, ținta și invertorul, ca la tastare
+      const inR = document.querySelector('[data-cmp="0"][data-k="randuri"]');
+      const inP = document.querySelector('[data-cmp="0"][data-k="panouriPeRand"]');
+      if (!inR || !inP) return;
+      inR.value = b.dataset.r; inP.value = b.dataset.p;
+      l.campuri[0].randuri = +b.dataset.r;
+      inP.oninput();
+    };
+  }
 }
 
 // Cat timp utilizatorul nu a ales singur modelul, se propune cel mai mic invertor al marcii
@@ -4315,8 +4624,10 @@ function propuneInvertor(l) {
     : plini.some((c) => c.directie === 'E') && plini.some((c) => c.directie === 'V');
   // invertorul scos din catalog rămâne al lucrării (cu datele de la calcul), chiar dacă fusese propus automat
   const scos = !!l.invertorDate && l.invertorDate.model === l.invertorModel && l.invertorDate.brand === l.invertorBrand
-    && !C.INVERTOARE.some((i) => i.model === l.invertorModel && i.brand === l.invertorBrand);
-  const manualValid = scos || (l.invertorManual && (invertoare.some((i) => i.model === l.invertorModel) || invertorLucrare(l)));
+    && !C.INVERTOARE.some((i) => i.model === l.invertorModel && i.brand === l.invertorBrand) && invertorPermis(l, l.invertorDate);
+  // ales de mână: rămâne doar cât timp se potrivește cu branșamentul și cu sistemul (hibrid sau nu)
+  const manualValid = scos || (l.invertorManual && invertoare.some((i) => i.model === l.invertorModel));
+  if (!manualValid && l.invertorManual && l.invertorModel) stare.invertorInlocuit = l.invertorModel;
   if (!manualValid) {
     // cel mai mic invertor care respectă regula de putere; dintre ele, întâi cel care merge cu
     // bateria aleasă și primește curentul panoului pe un MPPT
@@ -4335,6 +4646,8 @@ function propuneInvertor(l) {
     const potrivit = cand.find((i) => merge(i) && bateria(i) && fezabil(i))
       || cand.find((i) => merge(i) && bateria(i) && curentul(i))
       || cand.find((i) => merge(i) && bateria(i))
+      // niciun invertor nu respectă regula de putere: cel mai mare care merge cu bateria aleasă
+      || cand.slice().reverse().find(bateria)
       || cand.find(merge)
       || cand[cand.length - 1];
     l.invertorModel = potrivit ? potrivit.model : '';
@@ -4344,6 +4657,23 @@ function propuneInvertor(l) {
   const grupuri = M.grupeazaPeOrientari({ campuri: l.campuri, montaj: l.montaj, dispunere: l.dispunere });
   const rec = inv ? M.recomandaStringuri({ panou, invertor: inv, grupuri }) : null;
   return { inv, rec };
+}
+
+// Puterea invertorului (kW) lângă puterea panourilor (kWp): se spune că nu trebuie să fie egale.
+// Aceeași regulă ca la propunerea invertorului: panourile pot trece cu 1 kWp peste (3 kWp la est-vest).
+function htmlPutereInvertor(l, inv) {
+  if (!inv) return '';
+  const p = panouLucrare(l) || C.PANOURI[0];
+  const plini = l.campuri.filter((c) => numarPanouri(c) > 0);
+  const kWp = Math.round(plini.reduce((s, c) => s + numarPanouri(c), 0) * p.putere_W) / 1000;
+  if (!(kWp > 0)) return '';
+  const terasa = C.MONTAJ[l.montaj].prindere === 'tripod';
+  const ev = terasa ? l.dispunere === 'est_vest' : plini.some((c) => c.directie === 'E') && plini.some((c) => c.directie === 'V');
+  const lim = ev ? 3 : 1;
+  const dif = Math.round((kWp - inv.kW) * 1000) / 1000;
+  const cmp = `<div class="perechi"><span>Panourile <b>${nrK(kWp)} kWp</b></span><span>Invertorul <b>${nr(inv.kW)} kW</b></span></div>`;
+  if (dif > lim + 1e-9) return cmp + `<div class="rosu">Panourile au cu ${nrK(dif)} kWp mai mult decât invertorul; se acceptă cel mult ${lim} kWp${ev ? ' la est-vest' : ''}. Alegeți un invertor mai mare.</div>`;
+  return cmp + `<div class="ajutor">Nu trebuie să fie egale: invertorul poate fi cu până la ${lim} kWp mai mic decât panourile${ev ? ' la est-vest' : ''}.</div>`;
 }
 
 function htmlRecomandare(rec, inv) {
@@ -4375,6 +4705,8 @@ function actualizeazaInvertor() {
   }
   const box = $('#rec-box');
   if (box) { box.innerHTML = htmlRecomandare(rec, inv); legaRecomandare(); }
+  const ip = $('#inv-putere');
+  if (ip) ip.innerHTML = htmlPutereInvertor(l, inv);
   // bateriile depind de invertor: lista se reface pe loc, fără să piardă ce s-a ales
   const bb = $('#baterie-box');
   if (bb) {
@@ -4392,7 +4724,7 @@ function legaRecomandare() {
   };
 }
 
-const NUMERICE = new Set(['distantaCapriori_cm', 'lungimeBara_m', 'nrStringuri', 'nrBaterii',
+const NUMERICE = new Set(['distantaCapriori_cm', 'lungimeBara_m', 'nrStringuri', 'nrBaterii', 'nrBaterii2',
   'distantaStringInvertor_m', 'distantaInvertorBransament_m', 'distantaInvertorBackup_m',
   'inaltimeCasa_m', 'distantaStructuraPriza_m', 'sigurantaGenerala_A']);
 const REDESENEAZA = new Set(['montaj', 'panouId', 'retea', 'invertorBrand', 'invertorModel']);
@@ -4426,7 +4758,19 @@ function legaCamp(el) {
       }
       // fără contor la branșament bateria nu lucrează pe autoconsum: smart meter-ul se bifează singur
       if ((l.baterieModel || alta) && !l.smartMeterAles) { l.optiuni.smartMeter = true; const sm = document.querySelector('[data-opt="smartMeter"]'); if (sm) sm.checked = true; }
-      if (schimbat) deseneaza(); else actualizeazaInvertor();
+      // bateria combinată rămâne doar în aceeași familie (Huawei LUNA2000-S1)
+      const b1 = C.BATERII.find((x) => x.model === l.baterieModel);
+      const aveaFamilie = !!document.querySelector('#f-baterieModel2');
+      if (l.baterieModel2 && !(b1 && b1.familie && C.BATERII.some((x) => x.model === l.baterieModel2 && x.familie === b1.familie && x.model !== b1.model))) {
+        l.baterieModel2 = ''; l.nrBaterii2 = 0;
+      }
+      if (schimbat || aveaFamilie !== !!(b1 && b1.familie)) deseneaza(); else actualizeazaInvertor();
+      return;
+    }
+    if (k === 'baterieModel2') {
+      l.baterieModel2 = el.value;
+      l.nrBaterii2 = el.value ? (+l.nrBaterii2 > 0 ? l.nrBaterii2 : 1) : 0;
+      deseneaza();
       return;
     }
     if (k === 'putereContract_kWp') {
@@ -4491,7 +4835,7 @@ function legaFormular() {
       l[el.dataset.bifa] = el.checked;
       // fără hibrid nu rămân în lucrare bateria, tabloul de backup și ATS-ul
       if (el.dataset.bifa === 'hibrid' && !el.checked) {
-        l.baterieModel = ''; l.bateriaAlta = false; l.bateriaAltaModel = ''; l.nrBaterii = 0;
+        l.baterieModel = ''; l.bateriaAlta = false; l.bateriaAltaModel = ''; l.nrBaterii = 0; l.baterieModel2 = ''; l.nrBaterii2 = 0;
         l.optiuni.tabloBackup = false; l.optiuni.ats = false; l.optiuni.toataCasa = false;
         if (l.acceptHibrid == null) l.acceptHibrid = false;
       }
@@ -4517,11 +4861,7 @@ function legaFormular() {
       // numerele se citesc cu virgulă sau punct; ce nu e număr rămâne text, ca validarea să-l semnaleze
       l.campuri[+el.dataset.cmp][k] = k === 'directie' ? el.value : (el.value.trim() === '' ? '' : citesteNumar(el.value));
       if (k === 'directie') { deseneaza(); return; }
-      const N = l.campuri.reduce((s, c) => s + numarPanouri(c), 0);
-      const p = panouLucrare(l) || C.PANOURI[0];
-      const chips = document.querySelector('.live');
-      if (chips) chips.innerHTML = `<span class="chip">${Math.max(0, N)} ${N === 1 ? 'panou' : 'panouri'}</span><span class="chip">${nrK(Math.max(0, Math.round(N * p.putere_W) / 1000))} kWp DC</span>`;
-      actualizeazaContract();
+      actualizeazaContract();   // ținta, totalul și butonul „Folosește N panouri”
       actualizeazaInvertor();
     };
   });
@@ -4537,6 +4877,7 @@ function legaFormular() {
   };
 
   legaRecomandare();
+  actualizeazaContract();   // leagă butonul „Folosește N panouri”
 
   $('#b-salveaza').onclick = () => { if (salveazaFormular(l)) du('lista'); };
   $('#b-calc').onclick = () => {
@@ -4597,6 +4938,8 @@ function salveazaFormular(l) {
         'dar lista de materiale se schimbă doar după „Calculează”, care reface antecalculul. Salvați?')) return false;
     } else {
       // rezultatul vechi nu mai corespunde formularului: lucrarea redevine necalculată
+      if (K.activ && (l._alocati || []).length && l.rezumatSalvat
+        && !confirm('Datele de calcul s-au schimbat după „Calculează”. Lucrarea redevine „în lucru” și nu mai apare la membrii alocați până nu apăsați din nou „Calculează”. Salvați așa?')) return false;
       delete l.rezumatSalvat; delete l.amprentaCalc;
     }
   }
@@ -4614,25 +4957,39 @@ function campuriLipsa(l) {
   const lipsa = (cheie, nume) => out.push({ cheie, nume });
   // distanță: număr, cel puțin `min`
   // max: valoare de plauzibilitate (de obicei o virgulă uitată: 44 în loc de 4,4)
-  const distanta = (cheie, nume, obligatoriu, min = 0, max = 500) => {
+  const distanta = (cheie, nume, obligatoriu, min = 0, max = 500, um = 'm') => {
     const v = l[cheie];
+    const cu = (x) => `${String(x).replace('.', ',')} ${um}`;
     if (v != null && v !== '' && typeof v !== 'number') { lipsa(cheie, `${nume}: „${v}” nu e un număr`); return; }
-    if (gol(v)) { if (obligatoriu) lipsa(cheie, nume); return; }
-    if (+v < min) lipsa(cheie, `${nume}: ${min ? `cel puțin ${String(min).replace('.', ',')}` : 'nu poate fi negativă'}`);
-    else if (+v > max) lipsa(cheie, `${nume}: cel mult ${String(max).replace('.', ',')} (verificați virgula zecimală)`);
+    if (gol(v)) { if (obligatoriu) lipsa(cheie, `${nume} (${um})`); return; }
+    if (+v < min) lipsa(cheie, `${nume}: ${min ? `cel puțin ${cu(min)}` : 'nu poate fi negativă'}`);
+    else if (+v > max) lipsa(cheie, `${nume}: cel mult ${cu(max)} (verificați virgula zecimală)`);
   };
-  if (a.pasCamp) distanta('distantaCapriori_cm', a.pasCamp.eticheta + ' (cm)', !a.pasCamp.optional, 10, 300);
+  if (a.pasCamp) distanta('distantaCapriori_cm', a.pasCamp.eticheta, !a.pasCamp.optional, 10, 300, 'cm');
+  // tabla fălțuită: fără distanța între cleme, pasul se ia din lățimea fâșiei; fără niciuna, clemele n-ar cădea pe falț
+  if (l.montaj === 'tabla_faltuita' && gol(l.distantaCapriori_cm) && (l.raspunsuri.latimeFasie == null || l.raspunsuri.latimeFasie === '')) {
+    lipsa('r_latimeFasie', 'Lățimea fâșiei (cm) sau distanța între cleme: cel puțin una, ca clemele să cadă pe falț');
+  }
   const cuSina = !(m.prindere === 'tripod' && l.faraSina) && m.prindere !== 'mini_rail';
-  if (cuSina) distanta('lungimeBara_m', 'Lungimea barei de șină (m)', true, 1.2, 7);
+  if (cuSina) distanta('lungimeBara_m', 'Lungimea barei de șină', true, 1.2, 7);
   if (l.nrStringuri != null && l.nrStringuri !== '' && typeof l.nrStringuri !== 'number') lipsa('nrStringuri', `Numărul de string-uri: „${l.nrStringuri}” nu e un număr`);
   else if (gol(l.nrStringuri)) lipsa('nrStringuri', 'Numărul de string-uri (folosiți recomandarea dacă nu îl știți)');
   else if (!Number.isInteger(l.nrStringuri) || l.nrStringuri < 1) lipsa('nrStringuri', 'Numărul de string-uri: un număr întreg, cel puțin 1');
+  else if (l.nrStringuri > 24) lipsa('nrStringuri', 'Numărul de string-uri: cel mult 24');
   distanta('distantaStringInvertor_m', 'Distanța string → invertor', true);
   distanta('distantaInvertorBransament_m', 'Distanța invertor → branșament', true);
   distanta('inaltimeCasa_m', 'Înălțimea casei', true, 0, 40);
   distanta('distantaStructuraPriza_m', 'Distanța structură → priză de pământ', true);
   if (l.hibrid && l.optiuni.tabloBackup) distanta('distantaInvertorBackup_m', 'Distanța invertor → tablou de backup', true);
-  if (l.hibrid && l.optiuni.tabloBackup && l.optiuni.toataCasa) distanta('sigurantaGenerala_A', 'Siguranța generală a casei (A)', false, 6, 250);
+  if (l.hibrid && l.optiuni.tabloBackup && l.optiuni.toataCasa) {
+    distanta('sigurantaGenerala_A', 'Siguranța generală a casei', false, 6, 250, 'A');
+    // cu un curent de trecere pe care niciun cablu din listă nu-l duce protejat, siguranța generală e obligatorie
+    const inv = invertorLucrare(l);
+    if (inv && inv.trecere_A && gol(l.sigurantaGenerala_A)) {
+      const t = M.alegeSectiuneAC({ retea: l.retea, kW: inv.kW, L: 2, Lcoloana: 0, material: l.materialCabluAC || 'cupru', Imax: inv.imaxAC_A, cald: !!l.cabluCald, Icasa: inv.trecere_A });
+      if (t.neprotejata) lipsa('sigurantaGenerala_A', `Siguranța generală a casei (A): obligatorie aici, curentul de trecere al invertorului (${nr(inv.trecere_A)} A) nu e protejat de niciun cablu din listă`);
+    }
+  }
   // panourile: numere întregi, cel puțin un panou
   if (l.campuri.some((c) => [c.randuri, c.panouriPeRand].some((v) => v !== '' && v != null && !intregPozitiv(v) && v !== 0))) {
     lipsa('campuri', 'Rândurile și panourile pe rând: numere întregi, pozitive');
@@ -4657,6 +5014,11 @@ function campuriLipsa(l) {
     }
     if (l.bateriaAlta && !String(l.bateriaAltaModel || '').trim()) lipsa('bateriaAltaModel', 'Marca și modelul bateriei (ați ales „Altă baterie”)');
     if ((l.baterieModel || l.bateriaAlta) && !(+l.nrBaterii > 0)) lipsa('nrBaterii', 'Numărul de module pentru bateria aleasă');
+    if (+l.nrBaterii > 30) lipsa('nrBaterii', 'Numărul de module de baterie: cel mult 30');
+    if (l.baterieModel2 && !l.bateriaAlta) {
+      if (!(typeof l.nrBaterii2 === 'number' && Number.isInteger(l.nrBaterii2) && l.nrBaterii2 >= 1)) lipsa('nrBaterii2', 'Numărul de module pentru bateria combinată: un număr întreg, cel puțin 1');
+      else if (+l.nrBaterii + l.nrBaterii2 > 30) lipsa('nrBaterii2', 'Numărul de module de baterie: cel mult 30 în total');
+    }
     if (+l.nrBaterii > 0 && !l.baterieModel && !l.bateriaAlta) lipsa('baterieModel', 'Bateria: alegeți modelul pentru modulele trecute');
   }
   if (l.putereContract_kWp != null && l.putereContract_kWp !== '' && !(typeof l.putereContract_kWp === 'number' && l.putereContract_kWp > 0 && isFinite(l.putereContract_kWp))) {
@@ -4699,10 +5061,21 @@ const CAMPURI_CALCUL = ['traseuDC', 'cabluCald', 'paratrasnet', 'panouId', 'orie
   'baterieModel', 'bateriaAlta', 'bateriaAltaModel', 'putereContract_kWp', 'distantaStringInvertor_m', 'distantaInvertorBransament_m',
   'materialCabluAC', 'traseu', 'inaltimeCasa_m', 'prizaPamantExistenta', 'distantaStructuraPriza_m', 'optiuni'];
 // câmpurile adăugate mai târziu intră în amprentă doar când au valoare, ca lucrările calculate înainte să nu pară schimbate
-const CAMPURI_CALCUL_NOI = ['sigurantaGenerala_A'];
+const CAMPURI_CALCUL_NOI = ['sigurantaGenerala_A', 'baterieModel2', 'nrBaterii2'];
 const amprentaIntrare = (l) => JSON.stringify(CAMPURI_CALCUL.map((k) => (l[k] === undefined ? null : l[k]))
   .concat(CAMPURI_CALCUL_NOI.filter((k) => l[k] != null && l[k] !== '').map((k) => [k, l[k]])));
-const schimbatDupaCalcul = (l) => !!l.amprentaCalc && l.amprentaCalc !== amprentaIntrare(l);
+// Comparare fără ordinea cheilor: după trecerea prin server (jsonb) cheile obiectelor vin în altă ordine.
+const ordonat = (x) => (Array.isArray(x) ? x.map(ordonat)
+  : x && typeof x === 'object' ? Object.keys(x).sort().reduce((o, k) => { o[k] = ordonat(x[k]); return o; }, {}) : x);
+const amprentaEgala = (a, b) => { try { return JSON.stringify(ordonat(JSON.parse(a))) === JSON.stringify(ordonat(JSON.parse(b))); } catch (e) { return a === b; } };
+const schimbatDupaCalcul = (l) => !!l.amprentaCalc && !amprentaEgala(l.amprentaCalc, amprentaIntrare(l));
+// Antecalculul înghețat, cu amprenta datelor din care s-a făcut: serverul refuză un antecalcul
+// făcut din date vechi (liderul a schimbat și recalculat lucrarea între timp).
+function antecalculDin(l, rz, faraAmprenta) {
+  const a = { data: new Date().toISOString(), rezumat: rz.rezumat, sectiuni: rz.sectiuni, verificari: rz.verificari };
+  if (!faraAmprenta) { try { a.amprenta = JSON.parse(amprentaIntrare(l)); } catch (e) { /* */ } }
+  return a;
+}
 
 function calculeazaLucrarea(l) {
   const inv = invertorLucrare(l);
@@ -4715,6 +5088,7 @@ function calculeazaLucrarea(l) {
     distantaInvertorBackup_m: l.distantaInvertorBackup_m,
     retea: l.retea, invertor: inv, invertorModel: l.invertorModel, invertor_kW: inv ? inv.kW : 0,
     nrStringuri: l.nrStringuri, hibrid: l.hibrid, nrBaterii: +l.nrBaterii || 0, baterieModel: l.bateriaAlta ? (l.bateriaAltaModel || '').trim() : l.baterieModel, bateriaAlta: !!l.bateriaAlta,
+    baterieModel2: l.bateriaAlta ? '' : (l.baterieModel2 || ''), nrBaterii2: l.baterieModel2 && !l.bateriaAlta ? (+l.nrBaterii2 || 0) : 0,
     putereContract_kWp: l.putereContract_kWp,
     distantaStringInvertor_m: l.distantaStringInvertor_m, distantaInvertorBransament_m: l.distantaInvertorBransament_m,
     materialCabluAC: l.materialCabluAC, traseu: l.traseu,
@@ -4748,7 +5122,7 @@ function ecranRezultat() {
   const l = stare.lucrare;
   // o lucrare salvată, dar necalculată încă, nu are ce arăta
   if (!l.antecalcul && campuriLipsa(l).length) {
-    $('#titlu').innerHTML = (l.client ? E(l.client) : 'Lucrare') + '<span class="sub">listă de materiale</span>';
+    $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Lucrare') + '<span class="sub">listă de materiale</span>';
     $('#btn-inapoi').hidden = false;
     $('#ecran').innerHTML = htmlConflict(l) + `<div class="mesaj info" style="margin-top:14px">Lucrarea nu e încă antecalculată. Lista de materiale apare după ce liderul echipei completează datele din teren și apasă „Calculează”.</div>` + htmlAlocare(l) + htmlAdminLucrare(l);
     $('#bara-in').innerHTML = poate('editeaza', l) ? '<button class="buton" id="b-inapoi2">Completează datele</button>' : '<button class="buton gol" id="b-lista">Înapoi la lucrări</button>';
@@ -4760,7 +5134,7 @@ function ecranRezultat() {
   let rez;
   try { rez = antecalculLucrare(l); }
   catch (e) {
-    $('#titlu').innerHTML = (l.client ? E(l.client) : 'Lucrare') + '<span class="sub">listă de materiale</span>';
+    $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Lucrare') + '<span class="sub">listă de materiale</span>';
     $('#btn-inapoi').hidden = false;
     $('#ecran').innerHTML = `<div class="mesaj warn" style="margin-top:14px">Lista de materiale nu se poate calcula: ${E(e.message)}</div>` + htmlAdminLucrare(l);
     $('#bara-in').innerHTML = poate('editeaza', l) ? '<button class="buton" id="b-inapoi2">Deschide formularul</button>' : '<button class="buton gol" id="b-lista">Înapoi la lucrări</button>';
@@ -4778,20 +5152,24 @@ function ecranRezultat() {
     l.rezumatSalvat = r;
     if (poate('editeaza', l)) salveaza(l);
   }
-  const bat = (rez.sectiuni.find((x) => x.nume.startsWith('2.')) || { linii: [] }).linii.find((x) => x.den === 'Baterie');
+  const bati = (rez.sectiuni.find((x) => x.nume.startsWith('2.')) || { linii: [] }).linii.filter((x) => x.den === 'Baterie');
+  const bat = bati.length ? { cant: null, det: bati.map((x) => `${nr(x.cant)} × ${x.det}`).join(' + ') } : null;
   const nrAvert = rez.verificari.filter((v) => v.tip === 'warn').length;
 
   const html = `
-  ${nrAvert ? `<a class="mesaj warn" href="#verificari" style="display:block;margin-top:14px;text-decoration:none">${nrAvert === 1 ? 'Un avertisment' : nrAvert + ' avertismente'} la verificări — vedeți mai jos, înainte de comandă.</a>` : ''}
+  ${nrAvert ? `<button type="button" class="mesaj warn" id="b-la-verificari" style="display:block;width:100%;margin-top:14px;text-align:left;font:inherit;cursor:pointer">${nrAvert === 1 ? 'Un avertisment' : nrAvert + ' avertismente'} la verificări — vedeți mai jos, înainte de comandă.</button>` : ''}
   <div class="rezumat">
-    <div class="mare"><span>${nrK(r.kWp)}</span> kWp DC</div>
-    <div class="mic">${r.panouri} ${r.panouri === 1 ? 'panou' : 'panouri'}${r.putere_W ? ` × ${r.putere_W} W` : ''}${r.putereContract_kWp ? ` · contract ${nrK(r.putereContract_kWp)} kWp` : ''} · ${E(r.montaj)}${r.dispunere === 'est_vest' ? ' · est-vest' : ''}${r.faraSina ? ' · fără șină' : ''} · ${r.orientare === 'portret' ? 'portret' : 'landscape'}</div>
+    <div class="eticheta-mare">Puterea panourilor</div>
+    <div class="mare"><span>${nrK(r.kWp)}</span> kWp</div>
+    <div class="mic">${r.panouri} ${r.panouri === 1 ? 'panou' : 'panouri'}${r.putere_W ? ` × ${r.putere_W} W` : ''}</div>
+    ${htmlContractRezultat(r)}
+    <div class="mic">${E(r.montaj)}${r.dispunere === 'est_vest' ? ' · est-vest' : ''}${r.faraSina ? ' · fără șină' : ''} · ${r.orientare === 'portret' ? 'portret' : 'landscape'}</div>
     <div class="grid">
       <div><b>Invertor</b>${nr(r.invertor_kW)} kW ${r.retea === 'mono' ? 'monofazat' : 'trifazat'}</div>
       <div><b>String-uri</b>${r.stringuri}${r.stringuriText ? ' — ' + E(r.stringuriText) : ''}</div>
       <div><b>Pas de prindere</b>${r.pasEfectiv_m ? nr(r.pasEfectiv_m) + ' m' : '—'}</div>
       <div><b>Cablu AC</b>${r.sectiuneAC_mm2} mm² ${E(r.materialAC)}</div>
-      ${bat ? `<div style="grid-column:1/-1"><b>Stocare</b>${nr(bat.cant)} × ${E(bat.det)}</div>` : r.hibrid ? '<div style="grid-column:1/-1"><b>Stocare</b>hibrid, fără baterie aleasă</div>' : ''}
+      ${bat ? `<div style="grid-column:1/-1"><b>Stocare</b>${E(bat.det)}</div>` : r.hibrid ? '<div style="grid-column:1/-1"><b>Stocare</b>hibrid, fără baterie aleasă</div>' : ''}
     </div>
   </div>
 
@@ -4810,7 +5188,7 @@ function ecranRezultat() {
     : inghetat ? `<div class="mesaj info" style="margin-top:14px">Antecalcul înghețat din ${inghetat}, la începerea raportării. Rămâne neschimbat chiar dacă regulile aplicației se modifică.${
     K.activ && !poate('deblocheaza', l) ? ' Doar Adminul îl poate debloca.' : ''}</div>` : '';
 
-  $('#titlu').innerHTML = (l.client ? E(l.client) : 'Rezultat') + '<span class="sub">listă de materiale antecalculată</span>';
+  $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Rezultat') + '<span class="sub">listă de materiale antecalculată</span>';
   $('#btn-inapoi').hidden = false;
   $('#ecran').innerHTML = htmlConflict(l) + banner + catalogSchimbat + htmlAlocare(l) + html + htmlIstoric(l) + htmlAdminLucrare(l);
   const rap = poate('raporteaza', l);
@@ -4831,14 +5209,27 @@ function ecranRezultat() {
     du('lista');
   };
   $('#b-pdf').onclick = () => exportaPDF(l);
+  if ($('#b-la-verificari')) $('#b-la-verificari').onclick = () => { const v = $('#verificari'); if (v) v.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   if ($('#b-gata')) $('#b-gata').onclick = () => { salveaza(l); du('lista'); };
-  if ($('#b-inapoi2')) $('#b-inapoi2').onclick = () => { stare.rezultatDinLista = false; du('form'); };
+  if ($('#b-inapoi2')) $('#b-inapoi2').onclick = () => {
+    // alocarea pleacă doar la „Salvează”: înainte de formular se salvează sau se renunță la ea
+    if (stare.alocareNesalvata) {
+      if (confirm('Alocarea nu e salvată. O salvați acum? „Anulează” renunță la ea.')) {
+        salveaza(l);
+      } else {
+        const salvata = citesteTot().find((x) => x.id === l.id);
+        if (salvata) { l._alocati = salvata._alocati; l._echipa_id = salvata._echipa_id; l.echipa = salvata.echipa; }
+        stare.alocareNesalvata = false;
+      }
+    }
+    stare.rezultatDinLista = false; du('form');
+  };
   if ($('#b-raport')) $('#b-raport').onclick = () => {
     // la prima raportare, antecalculul se ingheata pe lucrare
     if (rap && !l.antecalcul) {
       if (!confirm('Începeți raportarea consumului? Antecalculul se îngheață acum și nu se mai schimbă la modificări ulterioare.')) return;
       const rz = stare.rezultat || calculeazaLucrarea(l);
-      l.antecalcul = { data: new Date().toISOString(), rezumat: rz.rezumat, sectiuni: rz.sectiuni, verificari: rz.verificari };
+      l.antecalcul = antecalculDin(l, rz);
       notaIstoric(l, 'a început raportarea (antecalcul înghețat)');
       salveaza(l);
     }
@@ -4862,7 +5253,7 @@ function htmlAlocare(l) {
     <div class="camp"><label>Membri alocați</label>
       ${membri.length || plecati.length ? membri.concat(plecati).map((m) => `<label class="bifa"><input type="checkbox" data-aloc="${E(m.id)}" ${alocati.includes(m.id) ? 'checked' : ''}><span${m.plecat ? ' style="color:var(--rosu)"' : ''}>${E(m.nume || m.email)}</span></label>`).join('')
         : '<div class="ajutor" style="margin:0">Echipa nu are încă membri. Adminul îi adaugă din Administrare.</div>'}
-      <div class="ajutor">După „Salvează”, membrii bifați văd lucrarea în contul lor, cu fișa de materiale, și doar ei raportează consumul la final.</div>
+      <div class="ajutor">După „Salvează”, membrii bifați văd lucrarea în contul lor, cu fișa de materiale, și raportează consumul la final. Liderul și Adminul pot raporta și ei.</div>
     </div>
   </div></section>`;
 }
@@ -4942,7 +5333,7 @@ function htmlConflict(l) {
     ? ' Dacă păstrați versiunea dvs., raportul și antecalculul rămân cele de pe server, afară de cazul în care chiar dvs. le-ați schimbat.'
     : K.rol() === 'lider' && !c.sters
     ? ' Dacă păstrați versiunea dvs., antecalculul înghețat și raportul membrilor rămân cele de pe server.'
-    : K.rol() === 'membru' && !c.sters ? ' Dacă păstrați versiunea dvs., se trimite doar raportul dvs.' : '';
+    : K.rol() === 'membru' && !c.sters ? ' Dacă păstrați versiunea dvs., se trimite doar raportul dvs. și înlocuiește corecturile făcute între timp de lider pe raport.' : '';
   return `<div class="mesaj warn" style="margin-top:14px"><b>Conflict.</b> ${c.sters
       ? 'Lucrarea nu mai există pe server sau nu mai aveți acces la ea.'
       : `Lucrarea a fost modificată între timp de ${E(K.numeOm(c._modificat_de) || 'altcineva')}${c._modificat ? ', ' + timpRelativ(c._modificat) : ''}.`}${motiv}
@@ -4960,7 +5351,11 @@ function legaConflict(l) {
     if (nou) { stare.rezultat = null; stare.lucrare = nou; du(stare.ecran, nou); } else du('lista');
   };
   if ($('#b-conf-a')) $('#b-conf-a').onclick = () => f(true);
-  if ($('#b-conf-s')) $('#b-conf-s').onclick = () => f(false);
+  if ($('#b-conf-s')) $('#b-conf-s').onclick = () => {
+    // lucrarea care n-a ajuns niciodată pe server se șterge de pe telefon la „Renunț”: se cere confirmare
+    if (l._eroare && !l._conflict && l._v == null && !confirm('Lucrarea nu a ajuns încă pe server. „Renunț” o șterge de pe acest telefon, cu tot ce conține. Continuați?')) return;
+    f(false);
+  };
 }
 
 /* ------------------------------------------------------------------ *
@@ -4981,7 +5376,7 @@ function ecranRaport() {
     ? `<div class="mesaj ok" style="margin-top:14px">Raport validat de ${E(rap.validat.de)} pe ${zi(rap.validat.data)}.${rap.finalizat ? ` Trimis de ${E(rap.finalizat.de)} pe ${zi(rap.finalizat.data)}.` : ''}</div>`
     : rap.finalizat
       ? `<div class="mesaj warn" style="margin-top:14px">Raport trimis de ${E(rap.finalizat.de)} pe ${zi(rap.finalizat.data)}${K.activ ? ', așteaptă validarea liderului de echipă' : ''}.</div>`
-      : rap.deRetrimis ? '<div class="mesaj warn" style="margin-top:14px">Adminul a refăcut antecalculul cât lucrați fără semnal. Verificați consumul pe lista nouă și trimiteți raportul din nou.</div>'
+      : rap.deRetrimis ? '<div class="mesaj warn" style="margin-top:14px">Lucrarea s-a schimbat cât lucrați fără semnal (antecalculul a fost deblocat sau refăcut). Consumul dvs. a rămas; verificați-l pe lista de acum și trimiteți raportul din nou.</div>'
       : rap.redeschis ? `<div class="mesaj warn" style="margin-top:14px">Raport redeschis de ${E(rap.redeschis.de)} pe ${zi(rap.redeschis.data)}: de corectat și trimis din nou.</div>`
         : !editabil ? '<div class="mesaj info" style="margin-top:14px">Raportarea nu e încă finalizată. Valorile de mai jos pot să se mai schimbe.</div>' : '';
 
@@ -5000,10 +5395,10 @@ function ecranRaport() {
         const cheie = s.nume + '|' + x.den;
         const v = rap.valori[cheie];
         return `<tr>
-          <td>${E(x.den)}<span class="det">${E(x.um)}</span></td>
+          <td>${E(x.den)}${x.det ? `<span class="det">${E(x.det)}</span>` : ''}<span class="det">${E(x.um)}</span></td>
           <td class="n" style="color:var(--slab)">${nr(x.cant)}</td>
           <td style="width:88px"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Consumat" data-rap="${E(cheie)}" data-est="${x.cant}" data-um="${E(x.um || '')}" value="${v == null ? '' : E(String(v).replace('.', ','))}"${dz}></td>
-          <td class="n"><span class="dif ${difClasa(v, x.cant)}" data-dif="${E(cheie)}">${difText(v, x.cant)}</span></td>
+          <td class="n"><span class="dif ${difClasa(v, x.cant)}" data-dif="${E(cheie)}">${!editabil && (v == null || v === '') ? '0' : difText(v, x.cant)}</span></td>
         </tr>`;
       }).join('')}
     </table></div></section>`).join('')}
@@ -5024,9 +5419,9 @@ function ecranRaport() {
 
   <div class="ajutor" style="margin-top:14px">Diferența în roșu înseamnă că s-a consumat mai mult decât s-a estimat. Se completează doar liniile la care consumul diferă; ce rămâne gol se consideră egal cu estimarea.</div>`;
 
-  $('#titlu').innerHTML = (l.client ? E(l.client) : 'Raportare') + '<span class="sub">consum real la final de lucrare</span>';
+  $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Raportare') + '<span class="sub">consum real la final de lucrare</span>';
   $('#btn-inapoi').hidden = false;
-  $('#ecran').innerHTML = htmlConflict(l) + stareRap + html;
+  $('#ecran').innerHTML = htmlConflict(l) + stareRap + html + (K.rol() === 'sales' ? htmlIstoric(l) : '');
   $('#bara-in').innerHTML = '<button class="buton gol" id="b-pdf">PDF</button>'
     + (editabil ? '<button class="buton' + (poate('finalizeaza', l) || poate('valideaza', l) ? ' gol' : '') + '" id="b-salvrap">Salvează' + (K.activ ? '' : ' raportarea') + '</button>' : '')
     + (poate('finalizeaza', l) ? '<button class="buton" id="b-finalizez">Trimite raportul</button>' : '')
@@ -5066,11 +5461,18 @@ function ecranRaport() {
       const v = c == null ? null : (typeof c === 'number' ? c : NaN);
       // la bucăți, doar numere întregi
       const um = el.dataset.um || (el.dataset.extra != null ? ((rap.extra[+el.dataset.extra] || {}).um || '') : '');
-      const gresit = v != null && (!isFinite(v) || v < 0 || (/^buc/.test(um) && !Number.isInteger(v)));
+      const gresit = v != null && (!isFinite(v) || v < 0 || (/^buc/i.test(um.trim()) && !Number.isInteger(v)));
       el.classList.toggle('lipsa', gresit);
       if (gresit) rau++;
     });
     if (rau) { alert(`${rau === 1 ? 'O valoare' : rau + ' valori'} de consum nu ${rau === 1 ? 'e validă' : 'sunt valide'}: consumul se trece ca număr pozitiv (la bucăți, întreg) sau se lasă gol.`); return false; }
+    // un material în plus are nevoie de denumire, altfel nu apare în PDF
+    const faraNume = [];
+    rap.extra.forEach((x, i) => { if (!String(x.den || '').trim() && (x.cant != null || String(x.um || '').trim() !== 'buc')) faraNume.push(i); });
+    document.querySelectorAll('[data-extra][data-k="den"]').forEach((el) => el.classList.toggle('lipsa', faraNume.includes(+el.dataset.extra)));
+    if (faraNume.length) { alert('Scrieți denumirea materialului în plus' + (faraNume.length > 1 ? ' la fiecare rând' : '') + ', sau ștergeți rândul.'); return false; }
+    // rândurile adăugate și lăsate goale nu se păstrează
+    rap.extra = rap.extra.filter((x) => String(x.den || '').trim() || x.cant != null);
     // peste dublul estimării se cere confirmarea (de obicei o virgulă uitată: 365 în loc de 36,5)
     const mari = [];
     document.querySelectorAll('[data-rap]').forEach((el) => {
@@ -5091,12 +5493,13 @@ function ecranRaport() {
   };
   // și ieșirea cu „Salvați?” trece prin aceeași verificare
   stare.verificaRaport = editabil ? consumValid : null;
-  // fără cont, istoricul notează salvarea consumului doar când acesta s-a schimbat
-  const faraStari = (r) => { const o = Object.assign({}, r || {}); delete o.validat; delete o.finalizat; delete o.redeschis; return JSON.stringify(o); };
-  const salvatInainte = faraStari((citesteTot().find((x) => x.id === l.id) || {}).raportat);
   if ($('#b-salvrap')) $('#b-salvrap').onclick = () => {
     if (!consumValid()) return;
-    if (faraStari(rap) !== salvatInainte) notaIstoric(l, 'a completat consumul');
+    // fără cont, lucrarea trece pe „Raportat” când raportul are data terminării (liniile goale = cât s-a estimat)
+    if (!K.activ && !rap.data && !confirm('Lucrarea trece pe „Raportat” când completați data terminării. Salvați acum fără dată? Rămâne „raportare începută”.')) {
+      const d = $('#f-rap_data'); if (d) { d.classList.add('lipsa'); d.focus(); }
+      return;
+    }
     salveaza(l); du('lista');
   };
   const cine = () => (K.profil && (K.profil.nume || K.profil.email)) || rap.persoana || '';
@@ -5107,7 +5510,8 @@ function ecranRaport() {
     // dacă antecalculul a fost deblocat între timp, raportul pleacă cu antecalculul de acum, înghețat
     if (!l.antecalcul) {
       const rz = antecalculLucrare(l);
-      l.antecalcul = { data: new Date().toISOString(), rezumat: rz.rezumat, sectiuni: rz.sectiuni, verificari: rz.verificari };
+      // după un conflict rezolvat, datele sunt deja cele de pe server: amprenta nu mai e nevoie
+      l.antecalcul = antecalculDin(l, rz, !!rap.deRetrimis);
     }
     rap.finalizat = { de: cine(), id: K.profil && K.profil.id, data: new Date().toISOString() };
     delete rap.redeschis; delete rap.deRetrimis;
@@ -5119,7 +5523,7 @@ function ecranRaport() {
     if (!confirm('Validați raportul? După validare consumul nu se mai modifică decât dacă îl redeschideți.')) return;
     if (!l.antecalcul) {
       const rz = antecalculLucrare(l);
-      l.antecalcul = { data: new Date().toISOString(), rezumat: rz.rezumat, sectiuni: rz.sectiuni, verificari: rz.verificari };
+      l.antecalcul = antecalculDin(l, rz);
     }
     rap.validat = { de: cine(), id: K.profil && K.profil.id, data: new Date().toISOString() };
     // raportul completat de lider sau de Admin se trimite și se validează în același pas
@@ -5263,6 +5667,23 @@ function parolaSugerata() {
   return Array.from(v, (x) => a[x % a.length]).join('');
 }
 
+// Lista tuturor echipelor cu oamenii lor (liderii primii), apoi cei fără echipă (Admin, Sales, conturi noi).
+function htmlEchipeOameni(profiluri, echipe) {
+  const ordine = { lider: 0, membru: 1, admin: 2, sales: 3 };
+  const sorteaza = (lista) => lista.slice().sort((a, b) => ((ordine[a.rol] ?? 9) - (ordine[b.rol] ?? 9)) || String(a.nume || a.email).localeCompare(String(b.nume || b.email)));
+  const om = (p) => `<li><b>${E(p.nume || p.email)}</b> · ${E(K.ROLURI[p.rol] || 'fără rol')}${p.activ === false ? ' · <span style="color:var(--rosu)">dezactivat</span>' : ''}
+    <span class="cand">${E(p.email || '')}</span></li>`;
+  const bloc = (titlu, lista, gol) => `<div class="echipa-bloc"><div class="eticheta">${E(titlu)} <span class="ajutor" style="display:inline">· ${lista.length} ${lista.length === 1 ? 'om' : 'oameni'}</span></div>
+    ${lista.length ? `<ul class="istoric">${sorteaza(lista).map(om).join('')}</ul>` : `<div class="ajutor">${E(gol)}</div>`}</div>`;
+  const faraEchipa = profiluri.filter((p) => !p.echipa_id || !echipe.some((e) => e.id === p.echipa_id));
+  return `<section class="card"><h2>Echipe și oameni</h2><div class="corp">
+    ${echipe.length ? echipe.slice().sort((a, b) => a.nume.localeCompare(b.nume)).map((e) => bloc(e.nume, profiluri.filter((p) => p.echipa_id === e.id), 'Nimeni în echipă încă.')).join('') : '<div class="ajutor">Nicio echipă încă. O creați mai jos, la Echipe.</div>'}
+    ${bloc('Fără echipă', faraEchipa, 'Toți oamenii sunt într-o echipă.')}
+    <div class="ajutor">Rolul, echipa și ștergerea unui cont se fac din panoul Conturi.</div>
+  </div></section>`;
+}
+
+const fara0 = (t) => fara(t);
 function ecranAdmin() {
   const { echipe } = K.oameni;
   // conturile fără rol primele: sunt cele care așteaptă ceva de la Admin
@@ -5270,25 +5691,46 @@ function ecranAdmin() {
   const fara = profiluri.filter((p) => !p.rol).length;
   $('#titlu').innerHTML = 'Administrare<span class="sub">utilizatori, echipe, catalog</span>';
   $('#btn-inapoi').hidden = false;
+  // panoul cu toate conturile, în dreapta: pe calculator stă deschis, pe telefon se deschide din buton
+  if (stare.panouConturi == null) stare.panouConturi = window.innerWidth >= 1100;
+  const admini0 = profiluri.filter((p) => p.rol === 'admin' && p.activ !== false).length;
+  const cardCont = (p) => {
+    const eu = p.id === K.profil.id;
+    const ultimulAdmin = p.rol === 'admin' && p.activ !== false && admini0 <= 1;
+    const cauta = fara0([p.nume, p.email, K.ROLURI[p.rol] || 'fara rol', K.numeEchipa(p.echipa_id)].join(' '));
+    return `<details class="cont-rand" data-cont="${E(p.id)}" data-cauta="${E(cauta)}"${stare.contDeschis === p.id ? ' open' : ''}>
+      <summary><b>${E(p.nume || p.email)}${eu ? ' (dvs.)' : ''}</b>
+        <span class="cont-info">${E(K.ROLURI[p.rol] || 'fără rol')}${p.echipa_id ? ' · ' + E(K.numeEchipa(p.echipa_id)) : ''}${p.activ === false ? ' · <span style="color:var(--rosu)">dezactivat</span>' : ''}</span>
+        <span class="cont-info">${E(p.email || '')}</span></summary>
+      <div class="cont-corp" data-user="${E(p.id)}">
+        ${campText('u_nume_' + p.id, 'Nume', p.nume)}
+        <div class="randuri2" style="margin-top:10px">
+          ${campSelect('u_rol_' + p.id, 'Rol', p.rol || '', optiuniRol)}
+          ${campSelect('u_echipa_' + p.id, 'Echipa', p.echipa_id || '', optiuniEchipa())}
+        </div>
+        <label class="bifa"><input type="checkbox" id="f-u_activ_${E(p.id)}" ${p.activ !== false ? 'checked' : ''} ${eu ? 'disabled' : ''}><span>Cont activ</span></label>
+        <div class="actiuni"><button class="buton gol" data-salv-user="${E(p.id)}">Salvează</button><button class="buton gol" data-parola-user="${E(p.id)}">Parolă nouă</button></div>
+        ${eu ? '<div class="ajutor">Propriul cont nu se poate șterge de aici.</div>'
+          : ultimulAdmin ? '<div class="ajutor">E singurul Admin activ: nu se poate șterge.</div>'
+          : `<button class="buton gol pericol" style="width:100%;margin-top:10px" data-sterge-user="${E(p.id)}">Șterge contul</button>`}
+      </div>
+    </details>`;
+  };
+  const panou = `<div class="panou-fundal" id="panou-fundal"></div>
+    <aside class="panou-dr" id="panou-conturi" aria-label="Conturi">
+      <div class="panou-cap"><b>Conturi (${profiluri.length})</b><button type="button" class="panou-x" id="b-panou-x" aria-label="Închide">&times;</button></div>
+      <div class="panou-corp">
+        ${fara ? `<div class="mesaj warn" style="margin-top:0">${fara === 1 ? 'Un cont nu are' : fara + ' conturi nu au'} rol și nu văd nimic până nu primesc unul.</div>` : ''}
+        <input type="search" id="f-cauta-cont" placeholder="nume, email, rol, echipă" aria-label="Caută un cont" value="${E(stare.cautaCont || '')}">
+        <div id="lista-conturi">${profiluri.map(cardCont).join('')}</div>
+        <div class="ajutor" style="margin-top:10px">Liderul și membrii au nevoie de echipă; Adminul și Sales nu. Un cont dezactivat nu mai vede nimic. Contul șters dispare definitiv; lucrările lui rămân.</div>
+      </div>
+    </aside>`;
+  document.body.classList.toggle('panou-deschis', !!stare.panouConturi);
   $('#ecran').innerHTML = `
     ${K.sync.online ? '' : '<div class="mesaj warn" style="margin-top:14px">Fără semnal. Administrarea cere internet.</div>'}
-    <section class="card"><h2>Utilizatori (${profiluri.length})</h2><div class="corp">
-      ${fara ? `<div class="mesaj warn" style="margin-top:0">${fara === 1 ? 'Un cont nu are' : fara + ' conturi nu au'} rol și nu văd nimic până nu primesc unul.</div>` : ''}
-      ${profiluri.map((p) => `
-        <div class="camp-pv" data-user="${E(p.id)}">
-          <div class="eticheta">${E(p.nume || p.email)}${p.id === K.profil.id ? ' (dvs.)' : ''}${p.activ === false ? ' · dezactivat' : ''}</div>
-          <div class="ajutor" style="margin:-4px 0 8px">${E(p.email || '')}</div>
-          ${campText('u_nume_' + p.id, 'Nume', p.nume)}
-          <div class="randuri2" style="margin-top:10px">
-            ${campSelect('u_rol_' + p.id, 'Rol', p.rol || '', optiuniRol)}
-            ${campSelect('u_echipa_' + p.id, 'Echipa', p.echipa_id || '', optiuniEchipa())}
-          </div>
-          <label class="bifa"><input type="checkbox" id="f-u_activ_${E(p.id)}" ${p.activ !== false ? 'checked' : ''} ${p.id === K.profil.id ? 'disabled' : ''}><span>Cont activ</span></label>
-          <div class="actiuni"><button class="buton gol" data-salv-user="${E(p.id)}">Salvează</button><button class="buton gol" data-parola-user="${E(p.id)}">Parolă nouă</button></div>
-        </div>`).join('')}
-      <div class="ajutor">Liderul și membrii au nevoie de echipă. Adminul și Sales nu. Un cont dezactivat nu mai vede nimic.</div>
-    </div></section>
-
+    <div class="actiuni buton-conturi" style="margin-top:14px"><button class="buton gol" id="b-conturi">Conturi (${profiluri.length})${fara ? ` · ${fara} fără rol` : ''} ▸</button></div>
+    ${htmlEchipeOameni(profiluri, echipe)}
     <section class="card"><h2>Cont nou</h2><div class="corp">
       ${campText('n_nume', 'Nume', '')}
       ${campText('n_email', 'Email', '', 'email', 'autocomplete="off"')}
@@ -5314,16 +5756,23 @@ function ecranAdmin() {
 
     <section class="card"><h2>Date</h2><div class="corp">
       <div class="actiuni"><button class="buton gol" id="b-catalog">Catalog de echipamente</button><button class="buton gol" id="b-arhiva">Lucrări arhivate</button></div>
-    </div></section>`;
+    </div></section>
+    ${panou}`;
   $('#bara-in').innerHTML = '<button class="buton gol" id="b-lista">Înapoi la lucrări</button>';
   $('#b-lista').onclick = () => du('lista');
 
-  // după o salvare se redesenează ecranul; ce se scrisese în celelalte câmpuri, nesalvat, rămâne
+  // după o salvare se redesenează ecranul cu datele de pe server. Rămâne doar ce se scrisese și nu se
+  // salvase încă (câmpurile schimbate de om față de ce venise de pe server); restul arată valorile noi,
+  // ca să nu se trimită înapoi, la o salvare ulterioară, o valoare veche peste schimbarea altui Admin.
   const ruleaza = async (b, f, pastreaza) => {
     const t = b.textContent; b.disabled = true; b.textContent = 'Se salvează…';
     const valori = {};
     document.querySelectorAll('#ecran input, #ecran select').forEach((el) => {
-      if (el.id && !(pastreaza && pastreaza(el.id))) valori[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+      if (!el.id || (pastreaza && pastreaza(el.id))) return;
+      const v = el.type === 'checkbox' ? el.checked : el.value;
+      const initial = el.type === 'checkbox' ? el.defaultChecked
+        : el.tagName === 'SELECT' ? ([...el.options].find((o) => o.defaultSelected) || el.options[0] || {}).value : el.defaultValue;
+      if (v !== initial) valori[el.id] = v;
     });
     try {
       const rez = await f();
@@ -5339,6 +5788,32 @@ function ecranAdmin() {
       b.disabled = false; b.textContent = t;
     }
   };
+  const deschidePanou = (v) => { stare.panouConturi = v; document.body.classList.toggle('panou-deschis', v); };
+  $('#b-conturi').onclick = () => deschidePanou(true);
+  $('#b-panou-x').onclick = () => deschidePanou(false);
+  $('#panou-fundal').onclick = () => deschidePanou(false);
+  const filtreazaConturi = () => {
+    const q = fara0((stare.cautaCont || '').trim());
+    document.querySelectorAll('.cont-rand').forEach((d) => { d.hidden = !!q && !d.dataset.cauta.includes(q); });
+  };
+  $('#f-cauta-cont').oninput = (ev) => { stare.cautaCont = ev.target.value; filtreazaConturi(); };
+  filtreazaConturi();
+  document.querySelectorAll('.cont-rand').forEach((d) => {
+    d.addEventListener('toggle', () => { if (d.open) stare.contDeschis = d.dataset.cont; else if (stare.contDeschis === d.dataset.cont) stare.contDeschis = null; });
+  });
+  document.querySelectorAll('[data-sterge-user]').forEach((b) => {
+    const id = b.dataset.stergeUser;
+    b.onclick = () => ruleaza(b, async () => {
+      const p = K.oameni.profiluri.find((x) => x.id === id) || {};
+      const nume = p.nume || p.email || 'acest cont';
+      if (!confirm(`Ștergeți definitiv contul ${nume}${p.email && p.nume ? ' (' + p.email + ')' : ''}? Omul nu mai poate intra în aplicație. ` +
+        'Lucrările și istoricul rămân; contul e scos de la lucrările la care era alocat. Nu se poate anula.')) throw new Error('Anulat.');
+      await K.stergeUtilizator(id);
+      if (stare.contDeschis === id) stare.contDeschis = null;
+      alert(`Contul ${nume} a fost șters.`);
+      return null;
+    }, (x) => x.endsWith('_' + id));
+  });
   const admini = () => K.oameni.profiluri.filter((p) => p.rol === 'admin' && p.activ !== false);
   document.querySelectorAll('[data-salv-user]').forEach((b) => {
     const id = b.dataset.salvUser;
@@ -5467,8 +5942,10 @@ const CATALOG_UI = {
       ['maxPV', 'Puterea DC maximă, multiplu al puterii AC (de ex. 1,5), opțional', 'num'],
       ['bornaAC_mm2', 'Secțiunea maximă la borna AC (mm²), opțional', 'num'],
       ['trecere_A', 'Curentul de trecere rețea → backup (A pe fază), pentru toată casa pe backup, opțional', 'num'],
+      ['trecereNota', 'Observație la curentul de trecere (apare în listă), opțional', 'text'],
       ['cutieCasa', 'Cutia prin care trece toată casa pe backup, opțional', 'text'],
       ['dongle', 'Dongle de comunicație de cumpărat separat (gol dacă e integrat sau vine în cutie)', 'text'],
+      ['dongleNota', 'Observație la dongle (apare în listă), opțional', 'text'],
       ['sursa', 'Sursa: fișa tehnică', 'text'], ['nota', 'Observații', 'text'], ['deConfirmat', 'Ce nu e confirmat din fișă (gol dacă totul e confirmat)', 'text']],
     obligatorii: ['_cheie', 'vmaxDC_V', 'vmppMin_V', 'mppturi'],
     nou: () => ({ vmaxDC_V: null, vStart_V: null, vmppMin_V: null, vmppMax_V: null, mppturi: [{ s: 1, imax: null, isc: null }, { s: 1, imax: null, isc: null }],
@@ -5479,7 +5956,9 @@ const CATALOG_UI = {
     campuri: [['brand', 'Marca', 'text'], ['model', 'Model', 'text'], ['kWh', 'Capacitate (kWh)', 'num'], ['clasa', 'Clasa', 'sel', CLASE_BATERIE],
       ['compatibil', 'Mărci de invertor compatibile, separate prin virgulă', 'lista'],
       ['minModule', 'Număr minim de module (fișă), opțional', 'num'], ['maxModule', 'Număr maxim de module (fișă), opțional', 'num'],
-      ['vModul_V', 'Tensiunea unui modul (V), opțional', 'num']],
+      ['vModul_V', 'Tensiunea unui modul (V), opțional', 'num'],
+      ['_controlerDen', 'Controlerul bateriei (cutie de control, BMU), opțional', 'text'],
+      ['_controlerLa', 'Un controler la cel mult câte module', 'num']],
     obligatorii: ['brand', 'model', 'kWh'],
     nou: () => ({ brand: '', model: '', kWh: null, clasa: 'HV', compatibil: [] }),
   },
@@ -5594,7 +6073,9 @@ function ecranCatalog() {
 
 function ecranCatalogItem() {
   const c = stare.catalog, d = c.date, ui = CATALOG_UI[c.tab];
-  const x = ui.obiect ? Object.assign({ _cheie: c.item }, d[c.tab][c.item]) : d[c.tab][c.item];
+  const x = ui.obiect ? Object.assign({ _cheie: c.item }, d[c.tab][c.item])
+    : c.tab === 'BATERII' ? Object.assign({}, d[c.tab][c.item], { _controlerDen: ((d[c.tab][c.item] || {}).controler || {}).den || '', _controlerLa: ((d[c.tab][c.item] || {}).controler || {}).laModule ?? null })
+      : d[c.tab][c.item];
   $('#titlu').innerHTML = E(c.nou ? 'Element nou' : ui.nume(x, c.item)) + '<span class="sub">' + E(ui.titlu) + '</span>';
   $('#btn-inapoi').hidden = false;
   $('#ecran').innerHTML = `<section class="card"><h2>${E(ui.titlu)}</h2><div class="corp">
@@ -5626,7 +6107,7 @@ function ecranCatalogItem() {
       return alert('MPPT-urile nu sunt în formatul cerut. Pentru fiecare MPPT: string-uri / curent de lucru / scurtcircuit, separate prin „;”. Exemplu: 2 / 26 / 34; 1 / 13 / 17');
     }
     // valorile numerice trebuie să fie pozitive (coeficientul de temperatură, negativ)
-    const intregi = ['minModule', 'maxModule', 'rcd_mA'];
+    const intregi = ['minModule', 'maxModule', 'rcd_mA', '_controlerLa'];
     const gresite = ui.campuri.filter(([k, , tip]) => tip === 'num' && nou[k] != null
       && (k === 'beta_Voc' ? !(nou[k] < 0 && nou[k] > -1) : !(nou[k] > 0) || (intregi.includes(k) && !Number.isInteger(nou[k]))));
     if (gresite.length) {
@@ -5639,15 +6120,34 @@ function ecranCatalogItem() {
     }
     if (c.tab === 'PANOURI' && d.PANOURI.some((p, i) => i !== c.item && p.id === nou.id)) return alert('Codul intern e deja folosit de alt panou.');
     if (c.tab === 'MODELE_INVERTOR' && d.MODELE_INVERTOR.some((m, i) => i !== c.item && m.brand === nou.brand && m.model === nou.model)) return alert('Modelul există deja la această marcă.');
+    // bifa de hibrid trebuie să se potrivească cu seria: hibridul are clasă de baterie, on-grid-ul nu
+    if (c.tab === 'MODELE_INVERTOR') {
+      const ser = d.SERII_INVERTOR[nou.serie] || {};
+      if (nou.hibrid && !ser.baterie) return alert(`Seria ${nou.serie} nu are clasă de baterie: un invertor hibrid are nevoie de o serie hibridă (LV sau HV).`);
+      if (!nou.hibrid && ser.baterie) return alert(`Seria ${nou.serie} e hibridă (baterie ${ser.baterie}): bifați „Hibrid” sau alegeți o serie on-grid.`);
+    }
+    if (c.tab === 'BATERII') {
+      // bateria se alege în formular după model: modelul trebuie să fie unic
+      if (d.BATERII.some((b, i) => i !== c.item && String(b.model).trim().toLowerCase() === String(nou.model).trim().toLowerCase())) {
+        return alert('Există deja o baterie cu acest model. Scrieți modelul complet, de exemplu cu marca sau capacitatea.');
+      }
+      if (nou.minModule != null && nou.maxModule != null && nou.minModule > nou.maxModule) return alert('Numărul minim de module e mai mare decât cel maxim.');
+      if (nou._controlerDen && !(nou._controlerLa > 0)) return alert('La controler, completați la câte module se pune unul.');
+      const den = nou._controlerDen, la = nou._controlerLa;
+      delete nou._controlerDen; delete nou._controlerLa;
+      nou.controler = den ? { den, laModule: la } : undefined;
+    }
     if (ui.obiect) {
       const cheie = nou._cheie; delete nou._cheie;
       if (cheie !== c.item && d[c.tab][cheie]) return alert('Codul seriei e deja folosit.');
+      // câmpurile pe care editorul nu le arată (diferențial, putere DC maximă, cutia de backup etc.) rămân ale seriei,
+      // și la redenumire: se iau înainte ca seria veche să fie scoasă
+      const vechi = Object.assign({}, d[c.tab][c.item] || {});
       if (cheie !== c.item) {
         delete d[c.tab][c.item];
         d.MODELE_INVERTOR.forEach((m) => { if (m.serie === c.item) m.serie = cheie; });
       }
-      // câmpurile pe care editorul nu le arată (diferențial, putere DC maximă etc.) rămân ale seriei
-      d[c.tab][cheie] = C.normalizeazaSerie(Object.assign({}, d[c.tab][c.item] || {}, nou));
+      d[c.tab][cheie] = C.normalizeazaSerie(Object.assign(vechi, nou));
     } else {
       d[c.tab][c.item] = Object.assign(d[c.tab][c.item], nou);
     }
@@ -5694,7 +6194,7 @@ function deseneaza() {
     try { ecranRezultat(); } catch (err) {
       console.warn(err);
       const l = stare.lucrare;
-      $('#titlu').innerHTML = (l.client ? E(l.client) : 'Lucrare') + '<span class="sub">listă de materiale</span>';
+      $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Lucrare') + '<span class="sub">listă de materiale</span>';
       $('#btn-inapoi').hidden = false;
       $('#ecran').innerHTML = htmlConflict(l) + `<div class="mesaj warn" style="margin-top:14px">Lucrarea are date care nu se pot afișa (${E(err.message)}). ` +
         `${K.activ ? 'Adminul o poate debloca sau arhiva mai jos.' : 'Deschideți formularul și apăsați „Calculează”.'}</div>` + htmlAdminLucrare(l);
@@ -5822,6 +6322,10 @@ K.laSchimbare((motiv) => {
   if (motiv === 'rol') {
     if (!K.rol()) return du('fara_rol');
     if (e === 'fara_rol' || e === 'lista') return du('lista');
+    if (['admin', 'catalog', 'catalogItem', 'arhiva'].includes(e) && !poate('admin')) {
+      alert('Contul dvs. nu mai are rolul de Admin. Administrarea s-a închis.');
+      return du('lista');
+    }
   }
   if (e === 'lista') {
     // cât timp se scrie în căutare, se redesenează doar lista, ca tastatura să rămână deschisă
