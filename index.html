@@ -3378,6 +3378,302 @@ window.NOMENCLATOR = {
 
 </script>
 <script>
+/* ===== citire-fisa.js ===== */
+/* citire-fisa.js — citește fișa tehnică a unui panou fotovoltaic (PDF) direct în aplicație, fără server și fără AI.
+
+   1. textul PDF-ului se scoate cu PDF.js (biblioteca Mozilla, încărcată doar la nevoie), rând cu rând,
+      după poziția pe pagină;
+   2. în rânduri se caută tabelul electric la STC (puterea, Voc, Vmp, Isc, Imp, pe fiecare variantă de putere),
+      dimensiunile, greutatea, coeficientul de temperatură al Voc și siguranța maximă în serie.
+   Rezultatul are aceeași formă ca la citirea cu AI: { brand, variante: [{ model, putere_W, voc_V, vmp_V, isc_A, imp_A }],
+   lungime_mm, latime_mm, grosime_mm, greutate_kg, beta_Voc, sigMax_A, observatii }.
+   Ce nu se găsește rămâne gol, iar omul îl completează din PDF. Fișele scanate (imagini, fără text) nu se pot citi. */
+(function (radacina) {
+'use strict';
+
+const PDFJS_VERSIUNE = '3.11.174';
+const PDFJS_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSIUNE}/pdf.min.js`;
+const PDFJS_WORKER = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSIUNE}/pdf.worker.min.js`;
+
+/* -------------------------------------------------------------- PDF.js ---- */
+let incarcare = null;
+function pdfjs() {
+  if (radacina.pdfjsLib) return Promise.resolve(radacina.pdfjsLib);
+  if (incarcare) return incarcare;
+  incarcare = new Promise((rez, rej) => {
+    const s = document.createElement('script');
+    s.src = PDFJS_URL;
+    s.onload = () => {
+      if (!radacina.pdfjsLib) { incarcare = null; rej(new Error('Cititorul de PDF nu s-a încărcat.')); return; }
+      radacina.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+      rez(radacina.pdfjsLib);
+    };
+    s.onerror = () => { incarcare = null; rej(new Error('Cititorul de PDF nu s-a putut încărca. Verificați internetul.')); };
+    document.head.appendChild(s);
+  });
+  return incarcare;
+}
+
+// Rândurile de text ale PDF-ului: bucățile cu aceeași înălțime pe pagină, de la stânga la dreapta.
+async function randuriDinPdf(date, lib) {
+  const L = lib || await pdfjs();
+  const doc = await L.getDocument({ data: date, isEvalSupported: false, disableFontFace: true }).promise;
+  const out = [];
+  for (let p = 1; p <= Math.min(doc.numPages, 4); p++) {
+    const pg = await doc.getPage(p);
+    const tc = await pg.getTextContent();
+    const buc = tc.items.filter((i) => i.str && i.str.trim())
+      .map((i) => ({ s: i.str, x: i.transform[4], y: i.transform[5], h: Math.abs(i.transform[3]) || 8 }))
+      .sort((a, b) => b.y - a.y || a.x - b.x);
+    const randuri = [];
+    for (const b of buc) {
+      const r = randuri.find((x) => Math.abs(x.y - b.y) <= Math.max(2, b.h * 0.35));
+      if (r) r.b.push(b); else randuri.push({ y: b.y, b: [b] });
+    }
+    randuri.sort((a, b) => b.y - a.y);
+    for (const r of randuri) out.push(r.b.sort((a, b) => a.x - b.x).map((x) => x.s.trim()).join(' '));
+  }
+  return out;
+}
+
+/* ----------------------------------------------------------- citirea ---- */
+const curat = (t) => String(t)
+  .replace(/[\u0000-\u001f]/g, ' ')
+  .replace(/[‒–—−]/g, '-')
+  .replace(/[ˣ×✕]/g, '×')
+  .replace(/Coe\s*ffi\s*cient/gi, 'Coefficient')
+  .replace(/\b([VIP])\s+(OC|SC|MAX|MPP|MP)\b/gi, '$1$2')
+  .replace(/\bl(sc)\b/g, 'I$1')
+  .replace(/\s+/g, ' ').trim();
+
+const numere = (t) => (String(t).match(/[-+]?\d+(?:[.,]\d+)?/g) || []).map((x) => +x.replace(',', '.'));
+
+const ETICHETE = {
+  putere_W: /(maximum\s*power(?!\s*(voltage|current))|peak\s*power|rated\s*(maximum\s*)?power(?!\s*(voltage|current))|nominal\s*(max\.?\s*)?power|max\.?\s*power\s*output|\bpmax\b|\bpmpp?\b)/i,
+  vmp_V: /(maximum\s*power\s*voltage|max\.?\s*power\s*voltage|voltage\s*at\s*(maximum\s*power|pmax|mpp)|optimum\s*operating\s*voltage|opt\.?\s*operating\s*voltage|\bvmpp?\b)/i,
+  imp_A: /(maximum\s*power\s*current|max\.?\s*power\s*current|current\s*at\s*(maximum\s*power|pmax|mpp)|optimum\s*operating\s*current|opt\.?\s*operating\s*current|\bimpp?\b)/i,
+  voc_V: /(open[\s-]*circuit\s*vol\s*tage|\bvoc\b)/i,
+  isc_A: /(short[\s-]*circuit\s*curr\s*ent|\bisc\b)/i,
+};
+const INTERVAL = { putere_W: [100, 1000], voc_V: [20, 80], vmp_V: [15, 70], isc_A: [5, 25], imp_A: [5, 25] };
+const NU_E_RAND = /(coefficient|tolerance|temperature|efficiency|measurement|degradation|warranty|bifacial|gain)/i;
+
+// Șirul de valori dintr-un rând: N numere la rând, în interval (cu pasul 2 la tabelele STC/NOCT intercalate)
+function sir(nr, n, pas, [min, max]) {
+  for (let i = 0; i + (n - 1) * pas < nr.length; i++) {
+    const v = Array.from({ length: n }, (_, k) => nr[i + k * pas]);
+    if (v.every((x) => x >= min && x <= max)) return v;
+  }
+  return null;
+}
+
+// Puterile: cel mai lung șir monoton de puteri plauzibile (sau intercalat cu valorile NOCT/NMOT, mai mici)
+function puteri(nr) {
+  const ok = (x) => x >= 100 && x <= 1000;
+  let best = null;
+  for (const pas of [1, 2]) {
+    for (let i = 0; i < nr.length; i++) {
+      if (!ok(nr[i])) continue;
+      const v = [nr[i]];
+      for (let j = i + pas; j < nr.length && ok(nr[j]); j += pas) {
+        const d = nr[j] - v[v.length - 1];
+        const d0 = v.length > 1 ? v[1] - v[0] : d;
+        if (d === 0 || Math.sign(d) !== Math.sign(d0) || Math.abs(d) > 30) break;
+        v.push(nr[j]);
+      }
+      if (pas === 2) {
+        // la pas 2, valorile dintre ele trebuie să fie mai mici (NOCT/NMOT)
+        const intre = v.slice(0, -1).map((_, k) => nr[i + 2 * k + 1]);
+        if (!intre.every((x, k) => x < v[k] * 0.9)) continue;
+      }
+      if (!best || v.length > best.v.length) best = { v, pas };
+    }
+  }
+  return best;
+}
+
+// Rândul (sau vecinul lui) cu valorile unei mărimi; „dupa” = indicele rândului de puteri, ca să rămânem la STC.
+function cauta(randuri, eticheta, potriveste, de) {
+  for (let i = de; i < randuri.length; i++) {
+    const r = randuri[i];
+    const m = r.match(eticheta);
+    if (!m || NU_E_RAND.test(r.slice(0, m.index + m[0].length + 25))) continue;
+    const dupa = r.slice(m.index + m[0].length);
+    let v = potriveste(numere(dupa));
+    if (v) return { v, i };
+    for (const j of [i + 1, i - 1, i + 2]) {
+      if (j < 0 || j >= randuri.length) continue;
+      v = potriveste(numere(randuri[j]));
+      if (v) return { v, i };
+    }
+  }
+  return null;
+}
+
+function dimensiuni(randuri) {
+  const re = /(\d{4})\s*[×xX*]\s*(\d{3,4})\s*[×xX*]\s*(\d{2})(?:[.,]\d+)?(?!\d)\s*mm/;
+  const cand = randuri.filter((r) => re.test(r)).sort((a, b) => (/dimension/i.test(b) ? 1 : 0) - (/dimension/i.test(a) ? 1 : 0));
+  for (const r of cand) {
+    const [, l, w, g] = r.match(re).map(Number);
+    if (l >= 1000 && l <= 2600 && w >= 600 && w <= 1400 && g >= 20 && g <= 50) return { lungime_mm: l, latime_mm: w, grosime_mm: g };
+  }
+  return {};
+}
+
+function greutate(randuri) {
+  for (const r of randuri) {
+    if (!/weight/i.test(r) || /gross|net\s*weight|box|pallet|container/i.test(r)) continue;
+    const m = r.match(/weight[^\d]{0,15}(\d{1,2}(?:[.,]\d+)?)\s*k\s*g/i);
+    if (m) { const v = +m[1].replace(',', '.'); if (v >= 8 && v <= 45) return v; }
+  }
+  return null;
+}
+
+function coefVoc(randuri) {
+  for (let i = 0; i < randuri.length; i++) {
+    const r = randuri[i];
+    if (!/coefficient/i.test(r) || !/\bvoc\b/i.test(r)) continue;
+    const dupa = r.slice(r.search(/\bvoc\b/i));
+    for (const t of [dupa, randuri[i + 1] || '']) {
+      const m = t.match(/([-+]?\s*0?[.,]\d+)\s*%/);
+      if (m) {
+        let v = +m[1].replace(/\s/g, '').replace(',', '.');
+        if (v > 0) v = -v;   // semnul minus se pierde uneori la extragere; coeficientul Voc e mereu negativ
+        if (v <= -0.01 && v >= -1) return v;
+      }
+    }
+  }
+  return null;
+}
+
+function sigurantaMax(randuri) {
+  for (const r of randuri) {
+    const m = r.match(/series\s*fuse(?:\s*rating)?\s*(?:\(A\))?[^\d]{0,12}(\d{2})\s*(?:A\b|$|\s)/i);
+    if (m) { const v = +m[1]; if (v >= 10 && v <= 60) return v; }
+  }
+  return null;
+}
+
+const MARCI = [['LONGi', /\blongi\b/i], ['Jinko Solar', /\bjinko/i], ['Trina Solar', /\btrina/i], ['JA Solar', /\bja\s*solar\b/i],
+  ['Canadian Solar', /canadian\s*solar|\bcsi\s*solar/i], ['Risen', /\brisen\b/i], ['Suntech', /\bsuntech\b/i], ['Aiko', /\baiko\b/i],
+  ['Astronergy', /astro\s*n?\s*energy/i], ['Tongwei', /\btongwei\b/i], ['DAH Solar', /\bdah\s*solar\b/i], ['Huasun', /\bhuasun\b/i],
+  ['Runergy', /\brunergy\b/i], ['REC', /\bREC\s+(solar|group|alpha|twinpeak|n-peak)/i], ['Qcells', /q\.?\s*cells/i], ['Seraphim', /\bseraphim\b/i],
+  ['DMEGC', /\bdmegc\b/i], ['Leapton', /\bleapton\b/i], ['Sunova', /\bsunova\b/i], ['Yingli', /\byingli\b/i], ['Hyundai', /\bhyundai\b/i],
+  ['Meyer Burger', /meyer\s*burger/i], ['Znshine', /\bznshine\b/i], ['GCL', /\bGCL\b/], ['Ulica', /\bulica\b/i], ['Bauer', /\bbauer\b/i]];
+function marca(text) {
+  for (const [n, re] of MARCI) if (re.test(text)) return n;
+  return null;
+}
+
+// Codul de model al fiecărei puteri: un cuvânt cu litere care conține puterea (de ex. LR5-54HTH-450M, TSM-475, RSM40-8-405M)
+function modele(randuri, p) {
+  const text = randuri.join(' \n ');
+  return p.map((w) => {
+    const re = new RegExp(`(?:^|[\\s(/])([A-Z][A-Z0-9]*(?:[-./][A-Z0-9]+)*[-./]?${Math.round(w)}(?:[A-Z][A-Z0-9-]*|[-./][A-Z0-9][A-Z0-9-]*)?)(?=[\\s)/,]|$)`, 'm');
+    const m = text.match(re);
+    return m && /[A-Z]{2,}/.test(m[1]) && m[1].length >= 5 && !/\d{3}[A-Z]?-\d{3}/.test(m[1]) ? m[1].replace(/[-./]$/, '') : null;
+  });
+}
+
+// Tabelul cu un model pe rând: ordinea coloanelor din antet (Pmax, Vmp, Imp, Voc, Isc), valorile cu unități
+function tabelPeRanduri(randuri) {
+  const ant = randuri.find((r) => (r.match(/\((pmax|vmp|imp|voc|isc)\)/gi) || []).length >= 4);
+  const ordine = ant ? [...new Set((ant.match(/\((pmax|vmp|imp|voc|isc)\)/gi) || []).map((x) => x.slice(1, -1).toLowerCase()))] : ['pmax', 'vmp', 'imp', 'voc', 'isc'];
+  if (ordine.length < 5) return null;
+  const cheie = { pmax: 'putere_W', vmp: 'vmp_V', imp: 'imp_A', voc: 'voc_V', isc: 'isc_A' };
+  const re = /(?:^|\s)([A-Z][A-Z0-9]*(?:[-./][A-Z0-9]+)+)\s+(\d{3}(?:[.,]\d+)?)\s*W\s+(\d+(?:[.,]\d+)?)\s*[VA]\s+(\d+(?:[.,]\d+)?)\s*[VA]\s+(\d+(?:[.,]\d+)?)\s*[VA]\s+(\d+(?:[.,]\d+)?)\s*[VA]/;
+  const toate = {};
+  const reG = new RegExp(re.source, 'g');
+  for (const r of randuri) {
+    for (const m of r.matchAll(reG)) {
+      const v = { model: m[1] };
+      ordine.forEach((k, i) => { v[cheie[k]] = +m[i + 2].replace(',', '.'); });
+      if (!Object.keys(INTERVAL).every((k) => v[k] >= INTERVAL[k][0] && v[k] <= INTERVAL[k][1])) continue;
+      (toate[m[1]] = toate[m[1]] || []).push(v);
+    }
+  }
+  // la fiecare model, valorile STC: puterea din numele modelului, altfel cea mai mare (NMOT e mai mică)
+  const out = Object.keys(toate).map((mod) => {
+    const l = toate[mod];
+    return l.find((v) => mod.includes(String(Math.round(v.putere_W)))) || l.sort((a, b) => b.putere_W - a.putere_W)[0];
+  });
+  return out.length ? out : null;
+}
+
+// Citirea propriu-zisă, din rândurile de text
+function citeste(randuriBrute) {
+  const randuri = randuriBrute.map(curat).filter(Boolean);
+  const text = randuri.join('\n');
+  const obs = [];
+  if (randuri.length < 25 || !/\d/.test(text)) {
+    return { brand: marca(text), variante: [], observatii: 'Fișa nu are text care să se poată citi (probabil e scanată sau desenată ca imagine). Completați datele de mână, din PDF.' };
+  }
+  // puterile: rândul cu cele mai multe puteri; la egalitate, primul (tabelul STC e înaintea celui NOCT/NMOT)
+  let rp = null;
+  for (let i = 0; i < randuri.length; i++) {
+    const r = randuri[i];
+    const m = r.match(ETICHETE.putere_W);
+    if (!m || NU_E_RAND.test(r.slice(0, m.index + m[0].length + 5)) || /noct|nmot/i.test(r.slice(0, m.index))) continue;
+    for (const j of [i, i + 1, i - 1]) {
+      if (j < 0 || j >= randuri.length) continue;
+      const t = j === i ? r.slice(m.index + m[0].length) : randuri[j];
+      const x = puteri(numere(t));
+      // o singură putere se acceptă doar scrisă cu unitatea (de ex. „450 W”)
+      const ok = x && (x.v.length > 1 || new RegExp(`\\b${x.v[0]}\\s*W`, 'i').test(t));
+      if (ok && (!rp || x.v.length > rp.v.length)) { rp = Object.assign(x, { i }); break; }
+    }
+  }
+  const variante = [];
+  // tabel pe rânduri, câte un model pe rând (de ex. Canadian Solar bifacial): „CS6.1-60TB-490 490 W 36.2 V 13.55 A 42.8 V 14.37 A”
+  const peRanduri = (!rp || rp.v.length < 2) ? tabelPeRanduri(randuri) : null;
+  if (peRanduri && peRanduri.length >= 2) {
+    variante.push(...peRanduri);
+  } else if (!rp) obs.push('nu am găsit tabelul electric');
+  else {
+    const n = rp.v.length;
+    const val = {};
+    for (const k of ['voc_V', 'vmp_V', 'isc_A', 'imp_A']) {
+      const g = cauta(randuri, ETICHETE[k], (nr) => sir(nr, n, rp.pas, INTERVAL[k]), Math.max(0, rp.i - 3));
+      val[k] = g ? g.v : null;
+      if (!g) obs.push({ voc_V: 'Voc', vmp_V: 'Vmp', isc_A: 'Isc', imp_A: 'Imp' }[k] + ' negăsit');
+    }
+    const mod = modele(randuri, rp.v);
+    // din modelele găsite, cele lipsă după același tipar (de ex. CS6R-440T → CS6R-420T)
+    const tipar = mod.map((m, k) => m && m.split(String(Math.round(rp.v[k]))).length === 2 ? [m, Math.round(rp.v[k])] : null).find(Boolean);
+    if (tipar) rp.v.forEach((w, k) => { if (!mod[k] || /\d{3}-\d{3}/.test(mod[k])) mod[k] = tipar[0].replace(String(tipar[1]), String(Math.round(w))); });
+    rp.v.forEach((w, k) => variante.push({
+      model: mod[k], putere_W: w,
+      voc_V: val.voc_V ? val.voc_V[k] : null, vmp_V: val.vmp_V ? val.vmp_V[k] : null,
+      isc_A: val.isc_A ? val.isc_A[k] : null, imp_A: val.imp_A ? val.imp_A[k] : null,
+    }));
+    // verificări de bun-simț: Vmp sub Voc, Imp sub Isc
+    if (variante.some((v) => v.vmp_V != null && v.voc_V != null && v.vmp_V >= v.voc_V)) obs.push('Vmp nu e sub Voc la toate variantele: verificați rândurile');
+    if (variante.some((v) => v.imp_A != null && v.isc_A != null && v.imp_A >= v.isc_A)) obs.push('Imp nu e sub Isc la toate variantele: verificați rândurile');
+  }
+  const d = dimensiuni(randuri);
+  if (!d.lungime_mm) obs.push('dimensiuni negăsite');
+  const beta = coefVoc(randuri);
+  if (beta == null) obs.push('coeficientul Voc negăsit');
+  const sig = sigurantaMax(randuri);
+  if (sig == null) obs.push('siguranța maximă negăsită');
+  return Object.assign({ brand: marca(text), serie: null, variante }, d, {
+    greutate_kg: greutate(randuri), beta_Voc: beta, sigMax_A: sig,
+    observatii: (obs.length ? 'Citit din textul fișei; ' + obs.join(', ') + '.' : 'Citit din textul fișei.') + ' Verificați valorile cu PDF-ul.',
+  });
+}
+
+async function citesteFisier(fisier) {
+  const date = new Uint8Array(await fisier.arrayBuffer());
+  return citeste(await randuriDinPdf(date));
+}
+
+const API = { citeste, citesteFisier, randuriDinPdf, curat, PDFJS_URL, PDFJS_WORKER };
+if (typeof module !== 'undefined' && module.exports) module.exports = API;
+else radacina.CITIRE_FISA = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
 /* ===== raport-pdf.js ===== */
 /* raport-pdf.js — raportul de lucrare in PDF, generat direct in telefon, fara internet.
    Foloseste jsPDF si fontul Ubuntu (cu diacritice), incluse in aplicatie.
@@ -4453,14 +4749,6 @@ async function linkFisa(cale) {
   if (error) throw new Error(mesajEroare(error));
   return data.signedUrl;
 }
-// Citirea fișei tehnice cu AI, pe server (funcția „fisa-tehnica”). Cheia AI stă doar pe server.
-async function citesteFisa(pdfBase64, tip, indiciu) {
-  const { data, error } = await client().functions.invoke('fisa-tehnica', { body: { pdf: pdfBase64, tip, indiciu } });
-  if (error) throw await eroareFunctie(error);
-  if (data && data.eroare) throw new Error(mesajEroare(data.eroare));
-  return data;
-}
-
 /* ------------------------------------------------------------------ */
 window.CONT = {
   get activ() { return ACTIV; },
@@ -4478,7 +4766,7 @@ window.CONT = {
   membriEchipei: (id) => oameni.profiluri.filter((p) => p.echipa_id === id && p.rol === 'membru' && p.activ !== false),
   numeOm: (id) => { const p = oameni.profiluri.find((x) => x.id === id); return p ? (p.nume || p.email) : ''; },
   catalogEditabil, aplicaCatalog, CATALOG_INCLUS, reaplica,
-  salveazaProdus, salveazaCorespondenta, incarcaFisa, linkFisa, citesteFisa,
+  salveazaProdus, salveazaCorespondenta, incarcaFisa, linkFisa,
   salveazaProfil, creeazaUtilizator, parolaUtilizator, stergeUtilizator, echipaNoua, redenumesteEchipa, salveazaCatalog,
   arhiva, arhiveaza, sterge,
 };
@@ -7187,7 +7475,7 @@ function deschideProdus(p) {
     : JSON.parse(JSON.stringify(Object.assign({}, p, { tehnic: p.tehnic || {} })));
   // invertoarele și bateriile din catalog legate deja de produs
   const legate = nou ? [] : modeleLegate(p);
-  stare.produs = { p: copie, nou, fisier: null, extras: null, varianta: null, dinAI: {}, legat: legate[0] || '', instantaneu: '' };
+  stare.produs = { p: copie, nou, fisier: null, extras: null, varianta: null, dinFisa: {}, legat: legate[0] || '', instantaneu: '' };
   stare.produs.instantaneu = JSON.stringify([copie, stare.produs.legat]);
   du('produs');
 }
@@ -7232,7 +7520,7 @@ function ecranProdus() {
     : p.tip === 'baterie' ? C.BATERII.map((b) => 'Baterie · ' + b.brand + ' ' + b.model) : [];
   const campTehnic = ([k, et, um, oblig, tip]) => {
     const val = tip === 'text' ? (t[k] || '') : nrRo(t[k]);
-    const ai = s.dinAI[k] ? ' style="background:#fff6d6"' : '';
+    const ai = s.dinFisa[k] ? ' style="background:#fff6d6"' : '';
     return `<div class="camp"><label for="f-nt_${k}">${E(et)}${um ? ` (${E(um)})` : ''}${oblig ? '' : ' <span style="font-weight:400;color:var(--slab)">— opțional</span>'}</label>
       <input id="f-nt_${k}" type="text"${tip === 'text' ? '' : ' inputmode="decimal"'} autocomplete="off" value="${E(val)}"${ai}></div>`;
   };
@@ -7253,8 +7541,8 @@ function ecranProdus() {
       <input id="f-np_fisa" type="file" accept="application/pdf,.pdf" hidden>
       ${s.fisier ? `<div style="margin-top:8px"><b>${E(s.fisier.name)}</b><span class="det">${Math.max(1, Math.round(s.fisier.size / 1024))} KB · se salvează odată cu produsul</span></div>` : ''}
       <div class="actiuni" style="margin-top:10px"><button type="button" class="buton gol" id="b-alege-fisa">${s.fisier ? 'Alege altă fișă' : p.fisa ? 'Înlocuiește fișa' : 'Alege fișa tehnică (PDF)'}</button></div>
-      ${panou ? `<div class="actiuni" style="margin-top:10px"><button class="buton" id="b-ai"${s.fisier ? '' : ' disabled'}>Citește fișa cu AI</button></div>
-        <div class="ajutor">AI-ul citește fișa pe server și completează datele de mai jos, pe galben. Verificați fiecare valoare cu PDF-ul înainte de salvare.</div>` : ''}
+      ${panou ? `<div class="actiuni" style="margin-top:10px"><button class="buton" id="b-citeste"${s.fisier || p.fisa ? '' : ' disabled'}>Citește fișa</button></div>
+        <div class="ajutor">Aplicația citește textul fișei și completează datele de mai jos, pe galben. Verificați fiecare valoare cu PDF-ul înainte de salvare. Fișele scanate (doar imagine) nu se pot citi: acolo datele se scriu de mână.</div>` : ''}
       ${ex && ex.observatii ? `<div class="mesaj info">Din fișă: ${E(ex.observatii)}</div>` : ''}
       ${variante.length > 1 ? `${campSelect('np_var', 'Fișa are mai multe puteri. Alegeți varianta recepționată', s.varianta == null ? '' : s.varianta,
         [{ v: '', t: '— alegeți —' }].concat(variante.map((x, i) => ({ v: String(i), t: `${x.putere_W} W${x.model ? ' · ' + x.model : ''}` }))))}` : ''}
@@ -7282,7 +7570,7 @@ function ecranProdus() {
     const c = $('#f-np_cod').value.trim().toLowerCase();
     $('#np-cod-avert').innerHTML = htmlCodExistent(c ? NOM.produse.filter((x) => x.cod.toLowerCase() === c && x.id !== p.id) : [], s.nou);
   };
-  CAMPURI_TEHNIC.forEach(([k]) => { const el = $('#f-nt_' + k); if (el) el.addEventListener('input', () => { if (s.dinAI[k]) { delete s.dinAI[k]; el.style.background = ''; } }); });
+  CAMPURI_TEHNIC.forEach(([k]) => { const el = $('#f-nt_' + k); if (el) el.addEventListener('input', () => { if (s.dinFisa[k]) { delete s.dinFisa[k]; el.style.background = ''; } }); });
   $('#b-alege-fisa').onclick = () => $('#f-np_fisa').click();
   $('#f-np_fisa').onchange = (ev) => {
     const f = ev.target.files && ev.target.files[0];
@@ -7295,14 +7583,20 @@ function ecranProdus() {
   if ($('#b-fisa-deschide')) $('#b-fisa-deschide').onclick = async () => {
     try { window.open(await K.linkFisa(p.fisa), '_blank', 'noopener'); } catch (e) { alert('Nu s-a putut deschide fișa: ' + e.message); }
   };
-  if ($('#b-ai')) $('#b-ai').onclick = async () => {
+  // citirea fișei, direct în aplicație (fără server): fișa aleasă acum, sau cea salvată deja la produs
+  if ($('#b-citeste')) $('#b-citeste').onclick = async () => {
     citesteProdusDinEcran();
-    if (!K.sync.online) return alert('Fără semnal. Citirea fișei se face pe server, cu internet.');
-    const b = $('#b-ai'); b.disabled = true; b.textContent = 'Se citește fișa…';
+    const b = $('#b-citeste'); b.disabled = true; b.textContent = 'Se citește fișa…';
     try {
-      const b64 = await new Promise((rez, rej) => { const r = new FileReader(); r.onload = () => rez(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error('Fișierul nu s-a putut citi.')); r.readAsDataURL(s.fisier); });
-      const raspuns = await K.citesteFisa(b64, p.tip, p.den || p.cod);
-      aplicaExtras(raspuns && raspuns.date);
+      let fisier = s.fisier;
+      if (!fisier) {
+        const r = await fetch(await K.linkFisa(p.fisa));
+        if (!r.ok) throw new Error('Fișa salvată nu s-a putut descărca.');
+        fisier = await r.blob();
+      }
+      const d = await window.CITIRE_FISA.citesteFisier(fisier);
+      aplicaExtras(d);
+      if (!d.variante.length && !d.lungime_mm) alert(d.observatii);
     } catch (e) { alert('Fișa nu s-a putut citi: ' + e.message + '\n\nPuteți completa datele de mână, din PDF.'); }
     ecranProdus();
   };
@@ -7315,7 +7609,7 @@ function aplicaExtras(d) {
   if (!d || typeof d !== 'object') throw new Error('Răspunsul serverului nu are date.');
   s.extras = d;
   const comune = { brand: d.brand, lungime_mm: d.lungime_mm, latime_mm: d.latime_mm, grosime_mm: d.grosime_mm, beta_Voc: d.beta_Voc, sigMax_A: d.sigMax_A, greutate_kg: d.greutate_kg };
-  Object.keys(comune).forEach((k) => { if (comune[k] != null && comune[k] !== '') { p.tehnic[k] = comune[k]; s.dinAI[k] = true; } });
+  Object.keys(comune).forEach((k) => { if (comune[k] != null && comune[k] !== '') { p.tehnic[k] = comune[k]; s.dinFisa[k] = true; } });
   const v = Array.isArray(d.variante) ? d.variante : [];
   // puterea din denumire („... 450W”) alege varianta; altfel, la o singură variantă, pe aceea
   const w = (String(p.den).match(/(\d{3})\s*W\b/i) || [])[1];
@@ -7327,8 +7621,8 @@ function alegeVarianta(i) {
   const s = stare.produs, p = s.p;
   s.varianta = i;
   const v = i != null && s.extras && s.extras.variante ? s.extras.variante[i] : null;
-  ['putere_W', 'voc_V', 'vmp_V', 'isc_A', 'imp_A'].forEach((k) => { if (v && v[k] != null) { p.tehnic[k] = v[k]; s.dinAI[k] = true; } });
-  if (v && v.model) { p.tehnic.model = v.model; s.dinAI.model = true; }
+  ['putere_W', 'voc_V', 'vmp_V', 'isc_A', 'imp_A'].forEach((k) => { if (v && v[k] != null) { p.tehnic[k] = v[k]; s.dinFisa[k] = true; } });
+  if (v && v.model) { p.tehnic.model = v.model; s.dinFisa.model = true; }
 }
 async function salveazaProdusEcran() {
   citesteProdusDinEcran();
@@ -7351,7 +7645,7 @@ async function salveazaProdusEcran() {
     if (n('isc_A') != null && (n('isc_A') < 5 || n('isc_A') > 25)) greseli.push('Isc (5–25 A)');
     if (n('beta_Voc') != null && (n('beta_Voc') >= 0 || n('beta_Voc') < -1)) greseli.push('coeficientul Voc (negativ, de ex. −0,25)');
     if (greseli.length) return alert('Verificați ' + greseli.join(', ') + '.');
-    if (Object.keys(s.dinAI).length && !confirm('Valorile pe galben sunt citite de AI. Le-ați verificat cu fișa PDF?')) return;
+    if (Object.keys(s.dinFisa).length && !confirm('Valorile pe galben sunt citite automat din fișă. Le-ați verificat cu PDF-ul?')) return;
     if (!NOM.panouComplet(t) && !confirm('Panoul nu are toate datele de calcul și nu va apărea în formularul de lucrare. Salvați așa?')) return;
   }
   const b = $('#b-np-salv'); b.disabled = true; b.textContent = 'Se salvează…';
