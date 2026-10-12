@@ -174,6 +174,12 @@ td{padding:9px 0;border-top:1px solid var(--linie);font-size:14.5px;vertical-ali
 td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:700}
 td.n .um{font-weight:400;color:var(--slab);font-size:13px;margin-left:3px}
 .det{display:block;font-size:12.5px;color:var(--slab);margin-top:2px;line-height:1.4}
+.cod{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.2px;background:var(--verde-deschis);color:var(--verde-text);border-radius:5px;padding:1px 6px;margin:0 0 3px;word-break:break-all;font-variant-numeric:tabular-nums}
+.cod.fara{background:#f1f1f2;color:var(--slab);font-weight:600}
+.den-nom{display:block}
+.eticheta{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;margin:0 0 3px 4px;background:#f1f1f2;color:var(--slab)}
+.eticheta.ok{background:var(--verde-deschis);color:var(--verde-text)}
+.eticheta.warn{background:var(--avert);color:var(--avert-text)}
 
 .mesaj{border-radius:10px;padding:11px 13px;margin-top:9px;font-size:14px;line-height:1.5;border:1px solid}
 .mesaj.ok{background:var(--verde-deschis);border-color:#b8e6cd;color:var(--verde-text)}
@@ -2418,7 +2424,7 @@ function calculeaza(intrare) {
   if (distDC > 10) {
     // CLC/TS 50539-12: la peste 10 m de traseu, încă un descărcător lângă panouri
     protectii.push({ den: `Descărcător DC ${tipSpdDC} la panouri`, um: 'buc', cant: nMPPT,
-      nota: `traseu DC de ${f(distDC)} m, peste 10 m: încă un descărcător lângă panouri, pe fiecare MPPT` });
+      nota: (vDC ? `tensiune de cel puțin ${Math.ceil(vDC / 100) * 100} V; ` : '') + `traseu DC de ${f(distDC)} m, peste 10 m: încă un descărcător lângă panouri, pe fiecare MPPT` });
     protectii.push({ den: 'Cutie IP65 pentru descărcătoarele de la panouri', um: 'buc', cant: 1 });
   }
   protectii.push({ den: `Siguranță fuzibilă gPV${sigGPV ? ` ${sigGPV} A` : ''}, 10×38`, um: 'buc', cant: 2 * nrStringuri,
@@ -2733,6 +2739,645 @@ else if (typeof window !== 'undefined') window.MOTOR = MOTOR;
 
 </script>
 <script>
+/* ===== nomenclator-date.js ===== */
+/* Nomenclatorul inoSOLAR (Nomenclator_Hala_2026.xlsx, foaia „Nomenclaror Hala”), inclus în aplicație.
+   Serverul are lista la zi (tabelul „nomenclator”); aceasta se folosește până la prima sincronizare
+   și în modul fără cont. Format: [id, cod, denumire, U.M., tip]. Generat din Excel, nu se editează de mână. */
+window.NOMENCLATOR_INCLUS = [
+  ["n001", "125ats4p", "4P 125A ATS", "buc", "altul"],
+  ["n002", "ATSGEYA2P63A", "ATS GEYA 2P63A - Monofazat", "buc", "altul"],
+  ["n003", "ATSOPEN4P125A", "ATS OPEN 4P - Trifazat 125A", "buc", "altul"],
+  ["n004", "ATSOPEN2P63A", "ATS OPEN 2P63A - Monofazat", "buc", "altul"],
+  ["n005", "ATSOPEN4P63A", "ATS OPEN 4P63A - Trifazat", "buc", "altul"],
+  ["n006", "ATSSUNTREE2P63A", "ATS SUNTREE 2P63A - Monofazat", "buc", "altul"],
+  ["n007", "ATSSUNTREE4P125A", "ATS SUNTREE 4P125A - Trifazat", "buc", "altul"],
+  ["n008", "ATSSUNTREE4P160A", "ATS SUNTREE 4P160A - Trifazat", "buc", "altul"],
+  ["n009", "ATSSUNTREE4P200A", "ATS SUNTREE 4P200A - Trifazat", "buc", "altul"],
+  ["n010", "ATSSUNTREE4P250A", "ATS SUNTREE 4P250A - Trifazat", "buc", "altul"],
+  ["n011", "ATSSUNTREE4P63A", "ATS SUNTREE 4P63A - Trifazat", "buc", "altul"],
+  ["n012", "ATSGEYA4P63A", "ATS GEYA 4P63A - Trifazat", "buc", "altul"],
+  ["n013", "ADBOS5.12", "Acumulator DEYE BOS 5.12 kWh", "buc", "baterie"],
+  ["n014", "deyeRWF16", "BATERIE DEYE 16KW", "buc", "baterie"],
+  ["n015", "GWB5KWHV", "BATERIE GOODWE 5kWh HIGH VOLTAGE", "buc", "baterie"],
+  ["n016", "BS10.0", "BATERIE SIGEN 10.0 KW", "buc", "baterie"],
+  ["n017", "BS12.0", "BATERIE SIGEN 12.0 KW", "buc", "baterie"],
+  ["n018", "BATSIG6.02KW", "BATERIE SIGEN 6.02 KW", "buc", "baterie"],
+  ["n019", "ISSEC10.0TP", "Invertor SIGEN STAR EC 10.0 Trifazat (all-in-one)", "buc", "invertor"],
+  ["n020", "SSIKG-M", "SIGEN STAR Installation Kit for Ground-mounted", "buc", "altul"],
+  ["n021", "BMSGWHV", "BMS GOODWE LYNX HIGH VOLTAGE", "buc", "altul"],
+  ["n022", "BMSSIG", "BMS SIGEN", "buc", "altul"],
+  ["n023", "BBM", "Back-up Box monofazat", "buc", "altul"],
+  ["n024", "BHT", "Back-up Huawei Trifazic", "buc", "altul"],
+  ["n025", "BTDY10.24", "Baterie DYNESS 10.24KW", "buc", "baterie"],
+  ["n026", "BTDY14.33", "Baterie DYNESS 14.33 kW", "buc", "baterie"],
+  ["n027", "BTDY16", "Baterie DYNESS 16 kW", "buc", "baterie"],
+  ["n028", "BTDY5.12", "Baterie DYNESS 5.12KW", "buc", "baterie"],
+  ["n029", "BTDY5.12HVST100", "Baterie DYNESS 5.12KW HV STACK 100", "buc", "baterie"],
+  ["n030", "BFEL16", "Baterie FELICITY 16 kW", "buc", "baterie"],
+  ["n031", "BTHA10IP65", "Baterie HAILEI 10 kW - IP65", "buc", "baterie"],
+  ["n032", "BTHA16", "Baterie HAILEI 16 kW", "buc", "baterie"],
+  ["n033", "BHL5", "Baterie HUAWEI LUNA 5 kw", "buc", "baterie"],
+  ["n034", "BTUH14.33", "Baterie UHOME 14.33 kW", "buc", "baterie"],
+  ["n035", "BTUH16", "Baterie UHOME 16 kW - IP21", "buc", "baterie"],
+  ["n036", "BTUH16M-P-IP65", "Baterie UHOME 16 kW M-PLUS - IP65", "buc", "baterie"],
+  ["n037", "BTUH5", "Baterie UHOME 5.12 kW", "buc", "baterie"],
+  ["n038", "BVT16.07", "Baterie V-TAC 16.07 KW", "buc", "baterie"],
+  ["n039", "BMPM", "Bloc de Masura si Protectie Monofazat (BMPM)", "buc", "altul"],
+  ["n040", "BMPT", "Bloc de Masura si Protectie Trifazat (BMPT)", "buc", "altul"],
+  ["n041", "CRVK1X35", "CABLU RV-K 1X35", "ml", "altul"],
+  ["n042", "CRVK1X50", "CABLU RV-K 1X50", "buc", "altul"],
+  ["n043", "CRV-K3X10", "CABLU RV-K 3X10", "ml", "altul"],
+  ["n044", "CRVK3X16", "CABLU RV-K 3X16", "ml", "altul"],
+  ["n045", "CRVK3X6", "CABLU RV-K 3X6", "buc", "altul"],
+  ["n046", "CRV-K3x240+120", "CABLU RV-K 3x240+120", "ml", "altul"],
+  ["n047", "CRV-K5X10", "CABLU RV-K 5X10", "ml", "altul"],
+  ["n048", "CRV-K5X16", "CABLU RV-K 5X16", "ml", "altul"],
+  ["n049", "CRV-K5X25", "CABLU RV-K 5X25", "ml", "altul"],
+  ["n050", "CRVK5X35", "CABLU RV-K 5X35", "buc", "altul"],
+  ["n051", "CRV-K5X50", "CABLU RV-K 5X50", "ml", "altul"],
+  ["n052", "CRVK5X6", "CABLU RV-K 5X6", "buc", "altul"],
+  ["n053", "CS10MMN", "CABLU SOLAR 10MM NEGRU", "ml", "altul"],
+  ["n054", "CS10MMR", "CABLU SOLAR 10MM ROSU", "ml", "altul"],
+  ["n055", "YL-PV-C1*4", "CABLU SOLAR 4MM ROSU YL-PV-C1*4", "ml", "altul"],
+  ["n056", "YL-PV-C1*6 - N", "CABLU SOLAR 6MM NEGRU YL-PV-C1*6", "ml", "altul"],
+  ["n057", "YL-PV-C1*6 - R", "CABLU SOLAR 6MM ROSU YL-PV-C1*6", "ml", "altul"],
+  ["n058", "MAF-L-28042025", "CLEME PRINDERE ACOPERIS SANDWICH", "buc", "altul"],
+  ["n059", "CPMM20A", "COMBI PRO MAX MONOFAZAT 20A", "buc", "altul"],
+  ["n060", "CPMM25A", "COMBI PRO MAX MONOFAZAT 25A", "buc", "altul"],
+  ["n061", "CPMM32A", "COMBI PRO MAX MONOFAZAT 32A", "buc", "altul"],
+  ["n062", "CPMM50A", "COMBI PRO MAX MONOFAZAT 50A", "buc", "altul"],
+  ["n063", "CPMT16A", "COMBI PRO MAX TRIFAZAT 16A", "buc", "altul"],
+  ["n064", "CPMT20A", "COMBI PRO MAX TRIFAZAT 20A", "buc", "altul"],
+  ["n065", "CPMT25A", "COMBI PRO MAX TRIFAZAT 25A", "buc", "altul"],
+  ["n066", "CPMT40A", "COMBI PRO MAX TRIFAZAT 40A", "buc", "altul"],
+  ["n067", "CEI", "CONECTOR ELECTROD IMPAMANTARE", "buc", "altul"],
+  ["n068", "COPEX16", "COPEX FI 16mm", "ml", "altul"],
+  ["n069", "COPEX25", "COPEX FI 25mm", "ml", "altul"],
+  ["n070", "COPEX25M", "COPEX FI 25mm METALIC", "ml", "altul"],
+  ["n071", "COPEX32", "COPEX FI 32mm", "ml", "altul"],
+  ["n072", "COPEX32M", "COPEX FI 32mm METALIC", "ml", "altul"],
+  ["n073", "COPEXFI40R", "COPEX FI 40mm ROSU", "ml", "altul"],
+  ["n074", "COPEXFI50R", "COPEX FI 50mm ROSU", "ml", "altul"],
+  ["n075", "CCBUH5KW", "Cablu Comunicare Baterii UHOME 5Kw", "buc", "altul"],
+  ["n076", "MYF 10mm", "Cablu impamantare MYF 10mm", "ml", "altul"],
+  ["n077", "MYF2.5mm", "Cablu impamantare MYF 2.5mm", "ml", "altul"],
+  ["n078", "MYF1x35GV", "Cablu impamantare MYF 1 x 35mm - GALBEN-VERDE", "ml", "altul"],
+  ["n079", "CC100x110-M", "Canal Cablu 100x110 - METALIC", "ml", "altul"],
+  ["n080", "CC100x60-M", "Canal Cablu 100x60 - METALIC", "ml", "altul"],
+  ["n081", "CCC", "Canal Cablu 40X40", "ml", "altul"],
+  ["n082", "CC60x40", "Canal Cablu 60x40", "ml", "altul"],
+  ["n083", "CC60x60-M", "Canal Cablu 60x50 - METALIC", "ml", "altul"],
+  ["n084", "CC60x60", "Canal Cablu 60x60", "ml", "altul"],
+  ["n085", "Carlig reglabil montaj tigla YL-RH-CT1A", "Carlig reglabil montaj tigla YL-RH-CT1A", "buc", "altul"],
+  ["n086", "CRCB", "Clema RCB", "buc", "altul"],
+  ["n087", "Clema capat YL-SC-35/40", "Clema capat YL-SC-35/40", "buc", "altul"],
+  ["n088", "CPTFAL60005", "Cleme Prindere TABLA FALTUITA AL6005-T5", "buc", "altul"],
+  ["n089", "CPM", "Cleme de prindere - Mijloc", "buc", "altul"],
+  ["n090", "YL-MC4-1000", "Conectori MC4 YL-MC4-1000", "buc", "altul"],
+  ["n091", "CVP", "Contravantuiri Panouri", "buc", "altul"],
+  ["n092", "DBGR12P", "DEYE BOS-G RACK 12P", "buc", "altul"],
+  ["n093", "DSPD1000V", "Descarcatoare SPD - 1000V", "buc", "altul"],
+  ["n094", "DSPD600V", "Descarcatoare SPD - 600V", "buc", "altul"],
+  ["n095", "SUN-8K-SG04LP3-EU", "Deye 8 LP3", "buc", "invertor"],
+  ["n096", "DPMBMSB", "Deye Power Module BMS BOS-G", "buc", "altul"],
+  ["n097", "DWS", "Dongle Wi-Fi Solis", "buc", "altul"],
+  ["n098", "DPMBMS5.12ST100", "Dyness Power module BMS 5.12KW STACK 100", "buc", "altul"],
+  ["n099", "EV2IP", "ELECTROD V2 IMPAMANTARE PRELUNGIRE", "buc", "altul"],
+  ["n100", "EV2IS", "ELECTROD V2 IMPAMANTARE START", "buc", "altul"],
+  ["n101", "FAIO5+10A", "FOX All-in-one 5kW + 10 kWh (Avocado)", "buc", "invertor"],
+  ["n102", "FHAIO5+10A", "FOX HUSE All-in-one 5kW + 10 kWh (Avocado)", "buc", "invertor"],
+  ["n103", "FSM63A3", "Fronius Smart Meter 63A-3", "buc", "altul"],
+  ["n104", "GPFL", "GAP FILLER", "buc", "altul"],
+  ["n105", "HSMCH7K", "HUAWEI SMART CHARGER 7KS S0", "buc", "altul"],
+  ["n106", "HSMG63M", "HUAWEI SMART GUARD 63A MONOFAZAT", "buc", "altul"],
+  ["n107", "HSMG63T", "HUAWEI SMART GUARD 63A TRIFAZAT", "buc", "altul"],
+  ["n108", "HD4G", "Huawei Dongle 4G", "buc", "altul"],
+  ["n109", "HDW", "Huawei Dongle Wi-Fi", "buc", "altul"],
+  ["n110", "HPML5", "Huawei Power module LUNA2000-5KW-C0", "buc", "altul"],
+  ["n111", "HSC22P", "Huawei SMART CHARGER 22KT-S0-3PHASE", "buc", "altul"],
+  ["n112", "ID10SG05LP3", "INVERTOR DEYE 10KW Trifazat SUN-10K-SG05LP3-EU-SM2", "buc", "invertor"],
+  ["n113", "IDH10THP3", "INVERTOR DEYE HIBRID 10KW trifazat SUN-10KSG01HP3-EU", "buc", "invertor"],
+  ["n114", "IDH10T", "INVERTOR DEYE HIBRID 10KW trifazat SUN-10KSG05LP3-EU", "buc", "invertor"],
+  ["n115", "GW10KN-ETHV", "INVERTOR GOODWE HIGH VOLTAGE 10kW TRIFAZAT", "buc", "invertor"],
+  ["n116", "IH15M5", "INVERTOR HUAWEI 15KTL-M5", "buc", "invertor"],
+  ["n117", "IH15MB0", "INVERTOR HUAWEI 15KTL-MB0", "buc", "invertor"],
+  ["n118", "IH20M", "INVERTOR HUAWEI 20KTL-M5", "buc", "invertor"],
+  ["n119", "IH25MB0", "INVERTOR HUAWEI 25KTL-MB0", "buc", "invertor"],
+  ["n120", "HIT30", "INVERTOR HUAWEI 30KTL-M3", "buc", "invertor"],
+  ["n121", "IH4L", "INVERTOR HUAWEI 4KTL-L1", "buc", "invertor"],
+  ["n122", "IH5", "INVERTOR HUAWEI 5KTL-L1", "buc", "invertor"],
+  ["n123", "IH5M", "INVERTOR HUAWEI 5KTL-M1", "buc", "invertor"],
+  ["n124", "IH60", "INVERTOR HUAWEI 60KTL-M0", "buc", "invertor"],
+  ["n125", "HIM6", "INVERTOR HUAWEI 6KTL-L1", "buc", "invertor"],
+  ["n126", "IH8LC0", "INVERTOR HUAWEI 8KTL-LC0", "buc", "invertor"],
+  ["n127", "IH8MAP0", "INVERTOR HUAWEI 8KTL-MAP0", "buc", "invertor"],
+  ["n128", "IH10M", "INVERTOR HUAWEI SUN2000-10KTL-M1", "buc", "invertor"],
+  ["n129", "INVSIG10TRIF", "INVERTOR SIGEN 10 KW TRIFAZAT TP", "buc", "invertor"],
+  ["n130", "INVSIG12TRIF", "INVERTOR SIGEN 12 KW TRIFAZAT TP2", "buc", "invertor"],
+  ["n131", "INVSIG125TRIF", "INVERTOR SIGEN 125 KW TRIFAZAT", "buc", "invertor"],
+  ["n132", "INVSIG6MONO", "INVERTOR SIGEN 6.0 KW MONOFAZAT SP2", "buc", "invertor"],
+  ["n133", "INVSIG8TRIF", "INVERTOR SIGEN 8 KW TRIFAZAT TP2", "buc", "invertor"],
+  ["n134", "INVSIG80M1TRIF", "INVERTOR SIGEN 80KW M1-HYB TRIFAZAT", "buc", "invertor"],
+  ["n135", "IVS10KT", "INVERTOR SOLIS 10KW TRIFAZAT", "buc", "invertor"],
+  ["n136", "IVS12KT", "INVERTOR SOLIS 12KW TRIFAZAT", "buc", "invertor"],
+  ["n137", "IVS15KT", "INVERTOR SOLIS 15KW TRIFAZAT", "buc", "invertor"],
+  ["n138", "IVS20KT", "INVERTOR SOLIS 20KW TRIFAZAT", "buc", "invertor"],
+  ["n139", "IVS50KT", "INVERTOR SOLIS 50KW TRIFAZAT", "buc", "invertor"],
+  ["n140", "IVS5KM", "INVERTOR SOLIS 5KW MONOFAZAT", "buc", "invertor"],
+  ["n141", "IVS6KM", "INVERTOR SOLIS 6KW MONOFAZAT", "buc", "invertor"],
+  ["n142", "IVS8KM", "INVERTOR SOLIS 8KW MONOFAZAT", "buc", "invertor"],
+  ["n143", "IVS8KT", "INVERTOR SOLIS 8KW TRIFAZAT", "buc", "invertor"],
+  ["n144", "ID12", "Invertor DEYE 12 kW LP3", "buc", "invertor"],
+  ["n145", "ID15LP3", "Invertor DEYE 15 kW LP3", "buc", "invertor"],
+  ["n146", "ID15KWHP3", "Invertor DEYE 15KW HP3", "buc", "invertor"],
+  ["n147", "ID20KW", "Invertor DEYE 20KW LP3", "buc", "invertor"],
+  ["n148", "ID20KW", "Invertor DEYE 20KW HP3", "buc", "invertor"],
+  ["n149", "ID25KWHP3", "Invertor DEYE 25KW HP3", "buc", "invertor"],
+  ["n150", "ID30KWHP3", "Invertor DEYE 30KW HP3", "buc", "invertor"],
+  ["n151", "ID50KWHP3", "Invertor DEYE 50KW HP3", "buc", "invertor"],
+  ["n152", "ID6M", "Invertor DEYE 6 kW Monofazat SUN-6K-SG05LP1-EU-AMP2-P", "buc", "invertor"],
+  ["n153", "ID8M", "Invertor DEYE 8 kW, Monofazat", "buc", "invertor"],
+  ["n154", "IDH15", "Invertor DEYE HIBRID 15KW LP3", "buc", "invertor"],
+  ["n155", "SUN-6K-SG05LP3-EU", "Invertor DEYE HIBRID 6kW Trifazat", "buc", "invertor"],
+  ["n156", "3.6kwsg03lp1", "Invertor DEYE Hibrid 3.6kw monofazat", "buc", "invertor"],
+  ["n157", "5kwsg03lp1", "Invertor DEYE Hibrid 5kw monofazat", "buc", "invertor"],
+  ["n158", "SUN-3K-SG03LP1-EU", "Invertor DEYE MONOFAZAT 3kW", "buc", "invertor"],
+  ["n159", "SPH5000UP", "Invertor Growatt HIBRID 5kW monofazat (SPH 5000 TL BL-UP)", "buc", "invertor"],
+  ["n160", "SPF5000ES", "Invertor Growatt OFF GRID 5kW", "buc", "invertor"],
+  ["n161", "MID20KTL3-X", "Invertor Growatt ON GRID 20kW trifazat", "buc", "invertor"],
+  ["n162", "MID30KTL3-X", "Invertor Growatt ON GRID 30kW trifazat", "buc", "invertor"],
+  ["n163", "MIN5000TL-X", "Invertor Growatt ON GRID 5kW monofazat", "buc", "invertor"],
+  ["n164", "MIN6000TL-X", "Invertor Growatt ON GRID 6kW monofazat", "buc", "invertor"],
+  ["n165", "MAX50KTL3-LV", "Invertor Growatt ON GRID 80kW trifazat", "buc", "invertor"],
+  ["n166", "MOD8000TL3-X", "Invertor Growatt ON GRID 8kW trifazat", "buc", "invertor"],
+  ["n167", "IHSS48V5", "Invertor HIBRID SERIES SMART 48V 5.0", "buc", "invertor"],
+  ["n168", "IH12M5", "Invertor HUAWEI 12KTL-M5", "buc", "invertor"],
+  ["n169", "IH12MB0", "Invertor HUAWEI 12KTL-MB0", "buc", "invertor"],
+  ["n170", "ISSEC8.0TP", "Invertor SIGEN STAR EC 8.0 Trifazat (all-in-one)", "buc", "invertor"],
+  ["n171", "IVSG10T", "Invertor SUNGROW 10KW TRIFAZAT", "buc", "invertor"],
+  ["n172", "IS6HM", "Invertor SUNGROW 6 kW Hibrid Monofazat", "buc", "invertor"],
+  ["n173", "IVSG6T", "Invertor SUNGROW 6KW TRIFAZAT", "buc", "invertor"],
+  ["n174", "KBH100A", "KIT BATERIE HUAWEI 100 kW + ACCESORII", "buc", "baterie"],
+  ["n175", "ENERGYT", "KIT INVERTOR TURBO ENERGY", "buc", "invertor"],
+  ["n176", "OD700", "Optimizator DEYE 700W", "buc", "altul"],
+  ["n177", "OH600", "Optimizator HUAWEI 600W", "buc", "altul"],
+  ["n178", "OT700", "Optimizator TIGO 700W", "buc", "altul"],
+  ["n179", "AIKO-600HL4-V", "PANOU FOTOVOLTAIC Aiko 600W", "buc", "panou"],
+  ["n180", "PFCS545", "PANOU FOTOVOLTAIC CANADIAN SOLAR 545W", "buc", "panou"],
+  ["n181", "PFCS445W", "PANOU FOTOVOLTAIC Canadian Solar 445W", "buc", "panou"],
+  ["n182", "JKM480N-60HL4-V", "PANOU FOTOVOLTAIC Jinko 480W", "buc", "panou"],
+  ["n183", "JKM490N-60HL4-V", "PANOU FOTOVOLTAIC Jinko 490W", "buc", "panou"],
+  ["n184", "JKM590N-60HL4-V", "PANOU FOTOVOLTAIC Jinko 590W", "buc", "panou"],
+  ["n185", "PAARK-552", "PICIOR ALUMINIU ARK-552", "buc", "altul"],
+  ["n186", "PAARK-553", "PIULITA ALUMINIU ARK-553", "buc", "altul"],
+  ["n187", "PFAE460", "Panou Fotovoltaic ASTRO ENERGY 460W", "buc", "panou"],
+  ["n188", "PFA520WB", "Panou Fotovoltaic ASTROENERGY 520W - BIFACIAL", "buc", "panou"],
+  ["n189", "PFCS405", "Panou Fotovoltaic CANADIAN SOLAR 405W", "buc", "panou"],
+  ["n190", "PFCS455ALLBK", "Panou Fotovoltaic CANADIAN SOLAR 455W ALL BLACK", "buc", "panou"],
+  ["n191", "PFCS455", "Panou Fotovoltaic CANADIAN SOLAR 455W", "buc", "panou"],
+  ["n192", "PFCS460W", "Panou Fotovoltaic CANADIAN SOLAR 460W", "buc", "panou"],
+  ["n193", "PFCS505", "Panou Fotovoltaic CANADIAN SOLAR 505W", "buc", "panou"],
+  ["n194", "PFCS510", "Panou Fotovoltaic CANADIAN SOLAR 510W", "buc", "panou"],
+  ["n195", "PFCS500", "Panou Fotovoltaic CANADIAN SOLAR 500W", "buc", "panou"],
+  ["n196", "PFCS555", "Panou Fotovoltaic CANADIAN SOLAR 555W", "buc", "panou"],
+  ["n197", "PFCS580", "Panou Fotovoltaic CANADIAN SOLAR 580W", "buc", "panou"],
+  ["n198", "PFDS580", "Panou Fotovoltaic DAH SOLAR 580W", "buc", "panou"],
+  ["n199", "PFJS500", "Panou Fotovoltaic JA SOLAR 500W", "buc", "panou"],
+  ["n200", "PFJS540", "Panou Fotovoltaic JA SOLAR 540W", "buc", "panou"],
+  ["n201", "PFJ420", "Panou Fotovoltaic JINKO 420W", "buc", "panou"],
+  ["n202", "PFJ450W", "Panou Fotovoltaic JINKO 450W", "buc", "panou"],
+  ["n203", "PFJ455", "Panou Fotovoltaic JINKO 455W", "buc", "panou"],
+  ["n204", "PFJ455TN", "Panou Fotovoltaic JINKO 455W Tiger Neo", "buc", "panou"],
+  ["n205", "PFJ500", "Panou Fotovoltaic JINKO 500W", "buc", "panou"],
+  ["n206", "PFJ580", "Panou Fotovoltaic JINKO 580W", "buc", "panou"],
+  ["n207", "PFJ435", "Panou Fotovoltaic JINKO, 435W", "buc", "panou"],
+  ["n208", "PNFJNK 585", "Panou Fotovoltaic Jinko 585W", "buc", "panou"],
+  ["n209", "PFL370W", "Panou Fotovoltaic LONGI 370W", "buc", "panou"],
+  ["n210", "PFL420", "Panou Fotovoltaic LONGI 420W", "buc", "panou"],
+  ["n211", "PFL425W", "Panou Fotovoltaic LONGI 425W", "buc", "panou"],
+  ["n212", "LR5-54HTH-435W", "Panou Fotovoltaic LONGI 435W", "buc", "panou"],
+  ["n213", "LR4-72HBD-440M", "Panou Fotovoltaic LONGI 440W", "buc", "panou"],
+  ["n214", "PFLONGI465", "Panou Fotovoltaic LONGI 465W", "buc", "panou"],
+  ["n215", "PFL525", "Panou Fotovoltaic LONGI 525W", "buc", "panou"],
+  ["n216", "PFL530", "Panou Fotovoltaic LONGI 530W", "buc", "panou"],
+  ["n217", "PFL540W", "Panou Fotovoltaic LONGI 540W", "buc", "panou"],
+  ["n218", "LR5-72HTD-575M", "Panou Fotovoltaic LONGI 575W", "buc", "panou"],
+  ["n219", "LR5-72HGD-595M", "Panou Fotovoltaic LONGI 595W", "buc", "panou"],
+  ["n220", "LR5-72HGD-610M", "Panou Fotovoltaic LONGI 610W", "buc", "panou"],
+  ["n221", "LR5-72HGD-615M", "Panou Fotovoltaic LONGI 615W", "buc", "panou"],
+  ["n222", "LR8-66HGD-620M", "Panou Fotovoltaic LONGI 620W", "buc", "panou"],
+  ["n223", "PFL645W", "Panou Fotovoltaic LONGI 645W", "buc", "panou"],
+  ["n224", "PFL650", "Panou Fotovoltaic LONGI 650W", "buc", "panou"],
+  ["n225", "PFL415", "Panou Fotovoltaic LONGI, 415W", "buc", "panou"],
+  ["n226", "TW725W", "Panou Fotovoltaic TONGWEI SOLAR 725W", "buc", "panou"],
+  ["n227", "TVT495W", "Panou Fotovoltaic TRINA SOLAR 495W", "buc", "panou"],
+  ["n228", "TVT505W", "Panou Fotovoltaic TRINA SOLAR 505W", "buc", "panou"],
+  ["n229", "TVT520W", "Panou Fotovoltaic TRINA SOLAR 520W", "buc", "panou"],
+  ["n230", "TVT510W", "Panou Fotovoltaic TRINA SOLAR 510W", "buc", "panou"],
+  ["n231", "TVT610W", "Panou Fotovoltaic TRINA SOLAR 610W", "buc", "panou"],
+  ["n232", "TVT625W", "Panou Fotovoltaic TRINA SOLAR 625W", "buc", "panou"],
+  ["n233", "PFL450W", "Panou fotovoltaic LONGI, 450 W", "buc", "panou"],
+  ["n234", "Piesa imbinare sina YL-R02-S", "Piesa imbinare sina YL-R02-S", "buc", "altul"],
+  ["n235", "PM10-200", "Prezon M10*200", "buc", "altul"],
+  ["n236", "Prindere L cu surub YL-TH-L-B", "Prindere L cu surub YL-TH-L-B", "buc", "altul"],
+  ["n237", "RBUH5KW", "Rack Baterii Uhome 5KW", "buc", "altul"],
+  ["n238", "SCMMD", "SIGEN CommMOD", "buc", "altul"],
+  ["n239", "SE22T2", "SIGEN EVAC 22 4G T2", "buc", "altul"],
+  ["n240", "SGT30K", "SIGEN GATEWAY TRIFAZAT 30K", "buc", "altul"],
+  ["n241", "SSSP-DH", "SIGEN SENSOR SP-DH", "buc", "altul"],
+  ["n242", "SSTPCT100", "SIGEN SENSOR TP-CT100", "buc", "altul"],
+  ["n243", "SSIKG-M", "SIGEN STAR Installation Kit for Ground-mounted", "buc", "altul"],
+  ["n244", "SSBM0.5C", "SIGENSTACK BASE MAIN-0.5C", "buc", "altul"],
+  ["n245", "SSBS0.5C", "SIGENSTACK BASE SUB-0.5C", "buc", "altul"],
+  ["n246", "SSBCC4M", "SIGENSTACK BC CABLES 4M", "buc", "altul"],
+  ["n247", "SUHBAL1600W", "SISTEM UHOME BALCONY 1600W", "buc", "altul"],
+  ["n248", "SMTGSGATEM", "SMART GUARD SIGEN GATEWAY MONOFAZAT SP", "buc", "altul"],
+  ["n249", "SMTGSGATET", "SMART GUARD SIGEN GATEWAY TRIFAZAT TP", "buc", "altul"],
+  ["n250", "SLSNGAST", "SMART LOGGER SUNGROW AST01273", "buc", "altul"],
+  ["n251", "SMDM", "SMART METER DEYE monofazat", "buc", "altul"],
+  ["n252", "SMHM", "SMART METER HUAWEI DDSU666-H (MONOFAZAT)", "buc", "altul"],
+  ["n253", "SMMSIGMONO", "SMART METER SIGEN SP MONOFAZAT", "buc", "altul"],
+  ["n254", "SIAMPV22KW", "STATIE INCARCARE AMPEVO 22KW", "buc", "altul"],
+  ["n255", "SIAMPV7KW", "STATIE INCARCARE AMPEVO 7KW", "buc", "altul"],
+  ["n256", "SIA7M", "STATIE INCARCARE AOLUOLA EV 7KW MONO", "buc", "altul"],
+  ["n257", "SILEK22KW", "STATIE INCARCARE LEKTRICO 22KW", "buc", "altul"],
+  ["n258", "SILEK7KW", "STATIE INCARCARE LEKTRICO 7KW", "buc", "altul"],
+  ["n259", "SIDEYE22KW", "STATIE INCARCARE DEYE 22KW", "buc", "altul"],
+  ["n260", "SLS2X3", "STRUCTURA LA SOL 2x3", "buc", "altul"],
+  ["n261", "SLS2X3-30G-DOL", "STRUCTURA LA SOL 2x3 - 30 GRADE - DOLADELA", "buc", "altul"],
+  ["n262", "SLS2X5", "STRUCTURA LA SOL 2x5", "buc", "altul"],
+  ["n263", "SLS2X5-30G-DOL", "STRUCTURA LA SOL 2x5 - 30 GRADE - DOLADELA", "buc", "altul"],
+  ["n264", "SLS2X5-DOL", "STRUCTURA LA SOL 2x5 - DOLADELA", "buc", "altul"],
+  ["n265", "SF", "Separatoare Fotovoltaice", "buc", "altul"],
+  ["n266", "SAC101P+NE", "Siguranta Automata C10 1P+N Eaton", "buc", "altul"],
+  ["n267", "SAC1004PSC", "Siguranta Automata C100 4P - Schrack", "buc", "altul"],
+  ["n268", "SAC1254PS", "Siguranta Automata C125 4P - Schrack", "buc", "altul"],
+  ["n269", "SAC161P+NE", "Siguranta Automata C16 1P+N Noark", "buc", "altul"],
+  ["n270", "SAC251P+NE", "Siguranta Automata C25 1P+N Eaton", "buc", "altul"],
+  ["n271", "SAC251P+NE", "Siguranta Automata C25 2P+N LEADER", "buc", "altul"],
+  ["n272", "SAC322PSS", "Siguranta Automata C32 2P - SCHRACK", "buc", "altul"],
+  ["n273", "SAC322PSIE", "Siguranta Automata C32 2P - Siemens", "buc", "altul"],
+  ["n274", "SAC322P+NS", "Siguranta Automata C32 2P+N Siemens", "buc", "altul"],
+  ["n275", "SAC40S", "Siguranta Automata C40 1P+N Noark", "buc", "altul"],
+  ["n276", "SAC402PS", "Siguranta Automata C40 2P Schrack", "buc", "altul"],
+  ["n277", "SAC50S", "Siguranta Automata C50 2P+N Noark", "buc", "altul"],
+  ["n278", "SAC253P+N", "Siguranta Automata C25 3P+N Schrack", "buc", "altul"],
+  ["n279", "SAC253P+NE", "Siguranta Automata C25 3P+N Eaton", "buc", "altul"],
+  ["n280", "SAC32", "Siguranta Automata C32 3P+N Schrack", "buc", "altul"],
+  ["n281", "SAC32S", "Siguranta Automata C32 3P+N Siemens", "buc", "altul"],
+  ["n282", "SAC40S", "Siguranta Automata C40 3P+N SCHRACK", "buc", "altul"],
+  ["n283", "SAC50S", "Siguranta Automata C50 3P+N SCHRACK", "buc", "altul"],
+  ["n284", "SAC63S", "Siguranta Automata C63 3P+N Leader", "buc", "altul"],
+  ["n285", "SAC804PS", "Siguranta Automata C80 4P - Schrack", "buc", "altul"],
+  ["n286", "SIGUSOL100", "Siguranta USOL 100A", "buc", "altul"],
+  ["n287", "SIGUSOL125", "Siguranta USOL 125A", "buc", "altul"],
+  ["n288", "SIGUSOL80", "Siguranta USOL 80A", "buc", "altul"],
+  ["n289", "SFUZ", "Sigurante fuzibile", "buc", "altul"],
+  ["n290", "SMMG", "Smart Meter GROWATT monofazat", "buc", "altul"],
+  ["n291", "DTSU666-H 100A", "Smart Meter HUAWEI - trifazat, 100A", "buc", "altul"],
+  ["n292", "DTSU666-H 80A", "Smart Meter HUAWEI - trifazat, 80A", "buc", "altul"],
+  ["n293", "SMS-ET", "Smart Meter SOLIS - Eastron Trifazat", "buc", "altul"],
+  ["n294", "smdeye3", "Smart meter DEYE trifazat", "buc", "altul"],
+  ["n295", "SIAD", "Statie Incarcare Auto Deye SUN-EVSE22K01", "buc", "altul"],
+  ["n296", "SLDWIFI", "Stick Logger Deye WIFI SOLARMAN LSW-3", "buc", "altul"],
+  ["n297", "SCARF", "Structura Carport - Fortza", "buc", "altul"],
+  ["n298", "SCECO", "Structura Carport ECO", "buc", "altul"],
+  ["n299", "SPFA", "Suport acoperis, tip K2/MiniRail", "buc", "altul"],
+  ["n300", "TABLOU METALIC", "TABLOU METALIC 400X300X200", "buc", "altul"],
+  ["n301", "TM600x400x200", "TABLOU METALIC 600x400x200", "buc", "altul"],
+  ["n302", "TM700x500x200", "TABLOU METALIC 700x500x200", "buc", "altul"],
+  ["n303", "T12P", "Tablou 12 posturi", "buc", "altul"],
+  ["n304", "T18P", "Tablou 18 posturi", "buc", "altul"],
+  ["n305", "T24P", "Tablou 24 posturi", "buc", "altul"],
+  ["n306", "T36M", "Tablou 36 posturi", "buc", "altul"],
+  ["n307", "T8P", "Tablou 8 posturi", "buc", "altul"],
+  ["n308", "TR18-30", "Trepied 18-30", "buc", "altul"],
+  ["n309", "Trepied YL-AFL / YL-ARL-30", "Trepied YL-AFL / YL-ARL-30", "buc", "altul"],
+  ["n310", "Tripod", "Tripod - inaltatoare panouri (100kW)", "buc", "altul"],
+  ["n311", "TALIM15", "Tripod ALIMEX 15 grade", "buc", "altul"],
+  ["n312", "VEM100A", "VICTRON ENERGY METER ET112 - 100A", "buc", "altul"],
+  ["n313", "YL-Z1", "Z Brackets", "buc", "altul"],
+  ["n314", "SN3.6", "sina 3.6m", "buc", "altul"],
+  ["n315", "TB", "Tablou Busbar", "buc", "altul"],
+  ["n316", "IVS18KT", "INVERTOR SOLIS 18KW TRIFAZAT", "buc", "invertor"],
+  ["n317", "SCTWDCT-01", "Smart CT Wireless DEYE CT-01", "buc", "altul"],
+  ["n318", "AL(STX)", "Antena Lora (Smart TX)", "buc", "altul"],
+  ["n319", "MYF 16mm", "Cablu impamantare MYF 16mm", "ml", "altul"],
+  ["n320", "HL215KW", "Huawei LUNA2000-215-2S10", "buc", "altul"],
+  ["n321", "HSL3000C01", "Huawei SmartLogger3000C01 - LUNA-215 KW", "buc", "altul"],
+  ["n322", "SMSM", "SMART METER SOLIS MONOFAZAT SDM120CTM", "buc", "altul"],
+  ["n323", "SK2-M", "Structura K2-Multirail", "buc", "altul"],
+  ["n324", "ID40KWHP3", "Invertor DEYE 40KW HP3", "buc", "invertor"],
+  ["n325", "BTDY1433ST280", "Baterie DYNESS 14.33KW STACK 280", "buc", "baterie"],
+  ["n326", "IVS30KTHV", "INVERTOR SOLIS 30KW TRIFAZAT - HV", "buc", "invertor"],
+  ["n327", "SFUZ20A", "Sigurante Fuzibile 20A", "buc", "altul"],
+  ["n328", "BHL7", "Baterie HUAWEI LUNA 7 kw", "buc", "baterie"],
+  ["n329", "HPML10", "Huawei Power module LUNA2000-10KW-C1", "buc", "altul"],
+  ["n330", "AI60KW", "Anti-Insularizare 60kw", "buc", "altul"],
+  ["n331", "ESCT-T24-250A/5A", "Bobina CT Transformator Curent ESCT-T24 250A/5A, EASTRON", "buc", "altul"],
+  ["n332", "CMH1X1.5maro", "Cablu MYF H07V-K 1x1.5maro", "ml", "altul"],
+  ["n333", "CMH1X1.5albastru", "Cablu MYF H07V-K 1x1.5albastru", "ml", "altul"],
+  ["n334", "CMH1X2.5rosu", "Cablu MYF H07V-K 1x2.5 rosu", "ml", "altul"],
+  ["n335", "CMH1X2.5albastru", "Cablu MYF H07V-K 1x2.5 albastru", "ml", "altul"],
+  ["n336", "SCARF7POST", "Structura Carport - Fortza - 7 posturi", "buc", "altul"],
+  ["n337", "IKA21410", "Clemă Al-Cu,1 p. gri, 95mmp / 70mmp cu pin", "buc", "altul"],
+  ["n338", "CORN404036000", "CORNIER 40X40X3X6000", "buc", "altul"],
+  ["n339", "DALBET40040060", "Dale beton 400x400x60", "buc", "altul"],
+  ["n340", "LTD31533", "Contactor ALEA II 75kW/400V, bobina la 230Vca", "buc", "altul"],
+  ["n341", "WSA8060260", "Cutie metalică+contrapanou, o uşă IP66 ÎxLxA=800x600x260mm", "buc", "altul"],
+  ["n342", "LTZ3D122", "Contact auxiliar frontal pt. contactor LT măr. 2-3, 2ND+2NÎ", "buc", "altul"],
+  ["n343", "AM617206", "Întreruptor automat modular (MCB) AMPARO 6kA, C 6A, 2-poli", "buc", "altul"],
+  ["n344", "DALBET40040060", "Dale beton 400x400x60", "buc", "altul"],
+  ["n345", "COVCAUC", "Covorase Cauciuc", "buc", "altul"],
+  ["n346", "PISTC", "Piesa imbinare sina Tip C", "buc", "altul"],
+  ["n347", "SIGUSOL250", "Siguranta USOL 250A", "buc", "altul"],
+  ["n348", "ID6T", "Invertor DEYE 6 kW Trifazat", "buc", "invertor"],
+  ["n349", "53060", "METAL DISTRIBUTION BOARD JXF 60/40/20 IP65 - CARPATIS", "buc", "altul"],
+  ["n350", "MKD20165R5", "Dulap, 2000x1600x500 - CARPATIS", "buc", "altul"],
+  ["n351", "METSECT5HG040", "SPLIT CORE CT, TYPE HG, CABLE, 400A/5A - CARPATIS", "buc", "altul"],
+  ["n352", "HLUNA161KWACC", "Huawei LUNA2000-161KWH-2S11 + ACCESORII", "buc", "altul"],
+  ["n353", "INVH20MB0", "INVERTOR HUAWEI SUN2000-20KTL-MB0", "buc", "invertor"],
+  ["n354", "ICS7.0MAIO", "Invertor CANADIAN SOLAR 7.6 Monofazat (all-in-one)", "buc", "invertor"],
+  ["n355", "BBCS5", "Baza baterie CANADIAN SOLAR 5KW", "buc", "altul"],
+  ["n356", "BCS5", "Baterie CANADIAN SOLAR 5KW - BBCS5", "buc", "baterie"],
+  ["n357", "MK2-55CM", "MINIRAIL K2 55CM", "buc", "altul"],
+  ["n358", "PFCS525", "Panou Fotovoltaic CANADIAN SOLAR 525W", "buc", "panou"],
+];
+
+</script>
+<script>
+/* ===== nomenclator.js ===== */
+/* nomenclator.js — codurile de produs inoSOLAR pe liniile listei de materiale.
+
+   Fiecare linie a fișei are o „cheie” (denumirea liniei; la invertor, baterie, panou, dongle și smart meter
+   cheia cuprinde și modelul). Codul din nomenclator se alege așa:
+     1. corespondența salvată pe server de Gestiune sau Admin (ecranul „Corespondențe”), dacă există;
+        una salvată fără produs înseamnă „fără cod”, intenționat;
+     2. corespondența implicită de mai jos, stabilită la integrarea nomenclatorului (8 octombrie 2026);
+     3. altfel linia apare „fără cod” și intră în lista de completat a Gestiunii.
+   Panourile recepționate (cu datele din fișa tehnică) au codul lor direct.
+
+   Denumirea de pe liniile listei rămâne cea a aplicației (raportul de consum e legat de ea);
+   codul și denumirea din nomenclator se adaugă la afișare, pe fișă, raport și PDF. */
+(function () {
+'use strict';
+
+const INCLUS = (window.NOMENCLATOR_INCLUS || []).map(([id, cod, den, um, tip]) => ({ id, cod, den, um, tip, activ: true }));
+let produse = INCLUS;
+let coresp = {};        // cheie -> id produs (sau null = fără cod, intenționat)
+let deLaServer = false;
+
+const fara = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/* ---------------------------------------------------------------- cheia ---- */
+function cheie(x, l) {
+  const den = String(x.den || '');
+  const det = String(x.det || '').trim();
+  if (den === 'Panouri fotovoltaice') return 'Panou · ' + det;
+  if (den === 'Invertor') return 'Invertor · ' + [l && l.invertorBrand, det].filter(Boolean).join(' ');
+  if (den === 'Baterie') return 'Baterie · ' + det;
+  if (den === 'Dongle de comunicație') return 'Dongle · ' + det;
+  if (/^Smart meter /.test(den)) return den + ' · ' + ((l && l.invertorBrand) || '');
+  return den;
+}
+
+/* ------------------------------------------- corespondențele implicite ---- */
+// Valoarea e codul din nomenclator; la codurile folosite de două produse diferite se adaugă după „|”
+// un fragment din denumire, care alege produsul.
+const EXACT = {
+  // 1. Panouri și structură
+  'Clemă de capăt': 'Clema capat YL-SC-35/40',
+  'Clemă de mijloc': 'CPM',
+  'Clemă de falț': 'CPTFAL60005',
+  'Îmbinare de șină': 'Piesa imbinare sina YL-R02-S',
+  'Cârlig acoperiș': 'Carlig reglabil montaj tigla YL-RH-CT1A',
+  'Covoraș de protecție sub picior': 'COVCAUC',
+  'Dală de beton pentru lest': 'DALBET40040060',
+  'Bare de șină de 3,6 m': 'SN3.6',
+  // 2. Invertor și stocare
+  'Modul de putere Huawei LUNA2000-5KW-C0': 'HPML5',
+  'Modul de putere Huawei LUNA2000-10KW-C1': 'HPML10',
+  'Cutie de control HV Deye BOS-G (BMU)': 'DPMBMSB',
+  'Unitate de control Dyness STACK100 (BMU)': 'DPMBMS5.12ST100',
+  'Dongle · Huawei Smart Dongle-WLAN-FE (SDongleA-05)': 'HDW',
+  'Dongle · Deye Wi-Fi stick logger (LSW-3)': 'SLDWIFI',
+  'Dongle · Solis S3-WIFI-ST': 'DWS',
+  // 3. Partea DC
+  'Cablu solar 4 mm² roșu': 'YL-PV-C1*4',
+  'Cablu solar 6 mm² roșu': 'YL-PV-C1*6 - R',
+  'Cablu solar 6 mm² negru': 'YL-PV-C1*6 - N',
+  'Cablu solar 10 mm² roșu': 'CS10MMR',
+  'Cablu solar 10 mm² negru': 'CS10MMN',
+  'Conectori MC4 (pereche)': 'YL-MC4-1000',
+  'Separator de sarcină DC': 'SF',
+  // 5. Tablouri și protecții
+  'Întreruptor AC 1P+N 10 A': 'SAC101P+NE',
+  'Întreruptor AC 1P+N 16 A': 'SAC161P+NE',
+  'Întreruptor AC 1P+N 25 A': 'SAC251P+NE|1P+N Eaton',
+  'Întreruptor AC 1P+N 40 A': 'SAC40S|1P+N',
+  'Smart meter monofazat · Huawei': 'SMHM',
+  'Smart meter trifazat · Huawei': 'DTSU666-H 100A',
+  'Smart meter monofazat · Deye': 'SMDM',
+  'Smart meter trifazat · Deye': 'smdeye3',
+  'Smart meter monofazat · Solis': 'SMSM',
+  'Smart meter trifazat · Solis': 'SMS-ET',
+  'Smart meter monofazat · Growatt': 'SMMG',
+  'Smart meter monofazat · Sigenergy': 'SMMSIGMONO',
+  // 6. Împământare
+  'Conductor MYF 2,5 mm²': 'MYF2.5mm',
+  'Conductor MYF 10 mm²': 'MYF 10mm',
+  'Conductor MYF 10 mm² pentru legătura între panouri': 'MYF 10mm',
+  'Conductor MYF 16 mm²': 'MYF 16mm',
+  'Conductor MYF 16 mm² pentru legătura între panouri': 'MYF 16mm',
+  'Clemă de legătură electrod–platbandă': 'CEI',
+  // invertoare (marca și modelul din catalog)
+  'Invertor · Huawei SUN2000-4KTL-L1': 'IH4L',
+  'Invertor · Huawei SUN2000-5KTL-L1': 'IH5',
+  'Invertor · Huawei SUN2000-5KTL-M1': 'IH5M',
+  'Invertor · Huawei SUN2000-6KTL-L1': 'HIM6',
+  'Invertor · Huawei SUN2000-8K-LC0': 'IH8LC0',
+  'Invertor · Huawei SUN2000-8K-MAP0': 'IH8MAP0',
+  'Invertor · Huawei SUN2000-10KTL-M1': 'IH10M',
+  'Invertor · Huawei SUN2000-12KTL-M5': 'IH12M5',
+  'Invertor · Huawei SUN2000-12K-MB0': 'IH12MB0',
+  'Invertor · Huawei SUN2000-15KTL-M5': 'IH15M5',
+  'Invertor · Huawei SUN2000-15K-MB0': 'IH15MB0',
+  'Invertor · Huawei SUN2000-20KTL-M5': 'IH20M',
+  'Invertor · Huawei SUN2000-20K-MB0': 'INVH20MB0',
+  'Invertor · Huawei SUN2000-25K-MB0': 'IH25MB0',
+  'Invertor · Deye SUN-3.6KW-LP1': '3.6kwsg03lp1',
+  'Invertor · Deye SUN-5KW-LP1': '5kwsg03lp1',
+  'Invertor · Deye SUN-5K-SG03LP1': '5kwsg03lp1',
+  'Invertor · Deye SUN-8KW-LP1': 'ID8M',
+  'Invertor · Deye SUN-6KW-LP3': 'SUN-6K-SG05LP3-EU',
+  'Invertor · Deye SUN-8K-SG04LP3': 'SUN-8K-SG04LP3-EU',
+  'Invertor · Deye SUN-10KW-LP3': 'IDH10T',
+  'Invertor · Deye SUN-12K-SG04LP3': 'ID12',
+  'Invertor · Deye SUN-15K-SG05LP3': 'IDH15',
+  'Invertor · Deye SUN-20K-SG05LP3': 'ID20KW|LP3',
+  'Invertor · Deye SUN-10KW-HP3': 'IDH10THP3',
+  'Invertor · Deye SUN-15K-SG01HP3': 'ID15KWHP3',
+  'Invertor · Deye SUN-20K-SG01HP3': 'ID20KW|HP3',
+  'Invertor · Deye SUN-25K-SG01HP3': 'ID25KWHP3',
+  'Invertor · Deye SUN-30K-SG01HP3': 'ID30KWHP3',
+  'Invertor · Growatt MIN 5000 TL-X': 'MIN5000TL-X',
+  'Invertor · Growatt MIN 6000 TL-X': 'MIN6000TL-X',
+  'Invertor · Growatt MOD 8000 TL3-X': 'MOD8000TL3-X',
+  'Invertor · Growatt MID 20 KTL3-X': 'MID20KTL3-X',
+  'Invertor · Growatt MID 30 KTL3-X': 'MID30KTL3-X',
+  'Invertor · Growatt SPF 5000 ES': 'SPF5000ES',
+  'Invertor · Solis S6-GR1P5K': 'IVS5KM',
+  'Invertor · Solis S6-GR1P6K': 'IVS6KM',
+  'Invertor · Solis S5-GR3P8K': 'IVS8KT',
+  'Invertor · Solis S5-GR3P10K': 'IVS10KT',
+  'Invertor · Solis S5-GR3P12K': 'IVS12KT',
+  'Invertor · Solis S5-GR3P15K': 'IVS15KT',
+  'Invertor · Solis S5-GR3P20K': 'IVS20KT',
+  'Invertor · Sigenergy SigenStor EC 8.0 TP': 'ISSEC8.0TP',
+  'Invertor · Sigenergy SigenStor EC 10.0 TP': 'ISSEC10.0TP',
+  // baterii (marca și modelul din catalog)
+  'Baterie · Huawei LUNA2000-5 kWh (modul)': 'BHL5',
+  'Baterie · Huawei LUNA2000-7 kWh (modul)': 'BHL7',
+  'Baterie · Sigenergy SigenStor BAT 6.0': 'BATSIG6.02KW',
+  'Baterie · Sigenergy SigenStor BAT 10.0': 'BS10.0',
+  'Baterie · Deye BOS-GM5.1, 5,12 kWh (modul)': 'ADBOS5.12',
+  'Baterie · Dyness PowerBox G2, 10,24 kWh': 'BTDY10.24',
+  'Baterie · Dyness PowerBrick, 14,33 kWh': 'BTDY14.33',
+  'Baterie · Dyness PowerBrick PLUS, 16 kWh': 'BTDY16',
+  'Baterie · Dyness STACK100 5,12 kWh (modul)': 'BTDY5.12HVST100',
+  'Baterie · Dyness STACK280, 14,34 kWh (modul)': 'BTDY1433ST280',
+  'Baterie · Uhome 5000B, 5,12 kWh': 'BTUH5',
+  'Baterie · Uhome 14,33 kWh': 'BTUH14.33',
+  'Baterie · Uhome 16 kWh': 'BTUH16',
+};
+
+// Cablul AC de cupru (CYY, nearmat) are ca echivalent cablul RV-K de aceeași formație (decizia din 8 octombrie).
+// Cablul de aluminiu armat (ACYABY) nu are echivalent în nomenclator.
+function implicitDupaRegula(k) {
+  let m = k.match(/^Cablu AC cupru (\d+)×(\d+(?:,\d+)?) mm²/);
+  if (m) {
+    const s = m[2].replace(',', '.');
+    const p = produse.find((x) => x.activ !== false && new RegExp(`^CABLU RV-K ${m[1]}X${s.replace('.', '\\.')}$`, 'i').test(x.den));
+    return p ? p.id : undefined;
+  }
+  return undefined;
+}
+
+// Descărcătorul DC: după tensiunea din notă (cel mult 600 V sau peste). Tipul 1+2 nu are echivalent.
+function implicitDupaNota(k, x) {
+  if (/^Descărcător DC tip II( la panouri)?$/.test(k)) {
+    const m = String(x.nota || '').match(/cel puțin (\d+) V/);
+    if (!m) return undefined;
+    return gaseste(+m[1] <= 600 ? 'DSPD600V' : 'DSPD1000V');
+  }
+  if (/^Siguranță fuzibilă gPV/.test(k)) return gaseste(/ 20 A,/.test(k) ? 'SFUZ20A' : 'SFUZ');
+  return undefined;
+}
+
+// Sugestii pentru liniile fără corespondență sigură: Gestiunea alege din ele (sau alt cod).
+const SUGESTII = [
+  [/^Mini-rail$/, ['MK2-55CM', 'SPFA']],
+  [/^Tripod balastat$/, ['Tripod', 'TALIM15', 'TR18-30', 'Trepied YL-AFL / YL-ARL-30']],
+  [/^Hanger bolt$/, ['PM10-200']],
+  [/^Picior de montaj balastat$/, ['PAARK-552']],
+  [/^Pilon$|^Grindă înclinată|^Conector grindă/, ['SLS2X3', 'SLS2X5', 'SLS2X5-DOL']],
+  [/^Tablou (AC|DC) IP65$|^Tablou de backup$/, ['T8P', 'T12P', 'T18P', 'T24P', 'TABLOU METALIC']],
+  [/^Cutie de backup|^Cutie pentru toată casa/, ['BBM', 'BHT', 'HSMG63M', 'HSMG63T']],
+  [/^ATS/, ['ATSSUNTREE2P63A', 'ATSSUNTREE4P63A', 'ATSOPEN2P63A', 'ATSOPEN4P63A']],
+  [/^Electrod de împământare/, ['EV2IS', 'EV2IP']],
+  [/^Copex/, ['COPEX16', 'COPEX25', 'COPEX32', 'CCC', 'CC60x40']],
+  [/^Întreruptor (AC|backup) 3P 25 A/, ['SAC253P+N', 'SAC253P+NE']],
+  [/^Întreruptor (AC|backup) 3P 32 A/, ['SAC32', 'SAC32S']],
+  [/^Întreruptor (AC|backup) 3P 40 A/, ['SAC40S|3P+N']],
+  [/^Întreruptor (AC|backup) 3P 50 A/, ['SAC50S|3P+N']],
+  [/^Întreruptor (AC|backup) 3P 63 A/, ['SAC63S']],
+  [/^Cablu AC aluminiu/, ['CRV-K5X16', 'CRV-K5X25']],
+  [/^Smart meter trifazat · Huawei/, ['DTSU666-H 80A']],
+  [/^Baterie · Huawei LUNA2000-5 kWh S1/, ['BHL5']],
+  [/^Baterie · Dyness (PowerDepot|DL5)/, ['BTDY5.12']],
+  [/^Invertor · Deye SUN-6KW-LP1/, ['ID6M']],
+  [/^Invertor · Deye SUN-6K-P3/, ['ID6T']],
+  [/^Invertor · Deye SUN-10KW-LP3/, ['ID10SG05LP3']],
+  [/^Invertor · Deye SUN-15K-SG05LP3/, ['ID15LP3']],
+  [/^Invertor · Sigenergy SigenStor EC (6|8|10|12)\.0 TP/, ['INVSIG8TRIF', 'INVSIG10TRIF', 'INVSIG12TRIF']],
+  [/^Conductor MYF 35/, ['MYF1x35GV']],
+];
+
+/* ------------------------------------------------------------ căutare ---- */
+// „COD” sau „COD|fragment din denumire” → id-ul produsului activ
+function gaseste(val) {
+  if (!val) return undefined;
+  const [cod, frag] = String(val).split('|');
+  let p = produse.filter((x) => x.cod === cod && x.activ !== false);
+  if (frag) p = p.filter((x) => fara(x.den).includes(fara(frag)));
+  return p.length ? p[0].id : undefined;
+}
+const dupaId = (id) => produse.find((x) => x.id === id) || null;
+
+// Codul pentru o linie a fișei. Întoarce { cheie, produs, sursa: 'salvat'|'implicit'|'panou'|null, sugestii }
+function pentruLinie(x, l) {
+  const k = cheie(x, l);
+  // panoul recepționat poartă produsul lui
+  if (x.den === 'Panouri fotovoltaice' && l && /^nom:/.test(l.panouId || '')) {
+    const p = dupaId(l.panouId.slice(4));
+    if (p) return { cheie: k, produs: p, sursa: 'panou', sugestii: [] };
+  }
+  if (Object.prototype.hasOwnProperty.call(coresp, k)) {
+    const p = coresp[k] ? dupaId(coresp[k]) : null;
+    if (p || !coresp[k]) return { cheie: k, produs: p, sursa: 'salvat', sugestii: p ? [] : sugestii(k) };
+  }
+  const id = EXACT[k] != null ? gaseste(EXACT[k]) : (implicitDupaRegula(k) || implicitDupaNota(k, x));
+  const p = id ? dupaId(id) : null;
+  return { cheie: k, produs: p, sursa: p ? 'implicit' : null, sugestii: p ? [] : sugestii(k) };
+}
+function sugestii(k) {
+  const s = SUGESTII.find(([re]) => re.test(k));
+  return s ? s[1].map(gaseste).filter(Boolean).map(dupaId) : [];
+}
+// Toate cheile cunoscute: cele implicite și cele salvate (ecranul de corespondențe le adaugă pe cele din lucrări)
+function cheiCunoscute() {
+  return [...new Set(Object.keys(EXACT).concat(Object.keys(coresp)))];
+}
+
+// Panourile recepționate, ca panouri de catalog (id „nom:<id produs>”). Le trebuie toate datele de calcul.
+const CAMPURI_PANOU = ['putere_W', 'lungime_mm', 'latime_mm', 'grosime_mm', 'voc_V', 'vmp_V', 'isc_A', 'beta_Voc'];
+function panouComplet(t) {
+  return !!t && CAMPURI_PANOU.every((c) => typeof t[c] === 'number' && isFinite(t[c]));
+}
+function panouri() {
+  return produse.filter((p) => p.tip === 'panou' && p.activ !== false && panouComplet(p.tehnic))
+    .map((p) => Object.assign({}, p.tehnic, {
+      id: 'nom:' + p.id, brand: p.tehnic.brand || '', model: p.tehnic.model || p.den, cod: p.cod, nomId: p.id, receptionat: true,
+    }))
+    .sort((a, b) => fara(a.brand).localeCompare(fara(b.brand)) || a.putere_W - b.putere_W);
+}
+
+/* --------------------------------------------------- date de la server ---- */
+function seteaza(lista, corespondente) {
+  if (Array.isArray(lista) && lista.length) {
+    produse = lista.map((p) => ({ id: p.id, cod: p.cod, den: p.den, um: p.um || 'buc', tip: p.tip || 'altul',
+      tehnic: p.tehnic || null, fisa: p.fisa || null, activ: p.activ !== false, modificat: p.modificat || null,
+      creat_de_nume: p.creat_de_nume || '', versiune: p.versiune || 1 }));
+    deLaServer = true;
+  } else {
+    produse = INCLUS; deLaServer = false;
+  }
+  coresp = {};
+  (corespondente || []).forEach((c) => { coresp[c.cheie] = c.produs_id || null; });
+}
+
+window.NOMENCLATOR = {
+  get produse() { return produse; },
+  get corespondente() { return coresp; },
+  get deLaServer() { return deLaServer; },
+  INCLUS, CAMPURI_PANOU,
+  cheie, pentruLinie, gaseste, dupaId, sugestii, cheiCunoscute, panouri, panouComplet, seteaza, fara,
+  implicitPentru: (k, x) => { const id = EXACT[k] != null ? gaseste(EXACT[k]) : (implicitDupaRegula(k) || implicitDupaNota(k, x || {})); return id ? dupaId(id) : null; },
+};
+})();
+
+</script>
+<script>
 /* ===== raport-pdf.js ===== */
 /* raport-pdf.js — raportul de lucrare in PDF, generat direct in telefon, fara internet.
    Foloseste jsPDF si fontul Ubuntu (cu diacritice), incluse in aplicatie.
@@ -2833,7 +3478,7 @@ function genereazaPDF(l, rez) {
   const cuCont = !!(window.CONT && window.CONT.activ);
   const ist = cuCont && Array.isArray(l.istoric) ? l.istoric : [];
   const ultim = (re) => ist.filter((e) => re.test((e && e.actiune) || '')).slice(-1)[0];
-  const ROL = { admin: 'Admin', lider: 'lider', membru: 'membru', sales: 'Sales' };
+  const ROL = { admin: 'Admin', lider: 'lider', membru: 'membru', sales: 'Sales', gestiune: 'Gestiune' };
   const cont = (e) => (e ? `${e.de || ''}${e.rol ? ' (' + (ROL[e.rol] || e.rol) + ')' : ''}, ${dataRo(e.data)}` : '');
   const eA = ultim(/^a făcut antecalculul$/), eR = ultim(/^a completat consumul$|^a trimis raportul$/), eV = ultim(/^a validat raportul$/);
   if (eA) date.push(['Antecalcul făcut din contul', cont(eA)]);
@@ -2919,12 +3564,14 @@ function genereazaPDF(l, rez) {
   }
 
   // ---------- tabelele pe sectiuni ----------
-  // coloane: pozitia de start (mat, um) si marginea dreapta a cifrelor (est, cons, dif)
-  const C = { mat: PAG.m, um: PAG.m + 92, est: PAG.m + 96, cons: PAG.m + 124, dif: PAG.w - PAG.m };
+  // coloane: pozitia de start (cod, mat, um) si marginea dreapta a cifrelor (est, cons, dif)
+  const C = { cod: PAG.m, mat: PAG.m + 27, um: PAG.m + 101, est: PAG.m + 110, cons: PAG.m + 134, dif: PAG.w - PAG.m };
+  const NOM = window.NOMENCLATOR;
   function capTabel() {
     doc.setFillColor(...CUL.gri); doc.rect(PAG.m, y - 4, LAT, 6, 'F');
     font('bold', 7.5, [255, 255, 255]);
-    doc.text('MATERIAL', C.mat + 2, y);
+    doc.text('COD', C.cod + 2, y);
+    doc.text('MATERIAL', C.mat, y);
     doc.text('U.M.', C.um, y);
     doc.text('ESTIMAT', C.est + 18, y, { align: 'right' });
     doc.text('CONSUMAT', C.cons + 20, y, { align: 'right' });
@@ -2940,13 +3587,22 @@ function genereazaPDF(l, rez) {
     y += 6;
     capTabel();
     s.linii.forEach((x, i) => {
-      const txt = doc.splitTextToSize(curat(x.den + (x.det ? ' — ' + x.det : '')), C.um - C.mat - 6);
-      const nota = x.nota ? doc.splitTextToSize(curat(x.nota), C.um - C.mat - 6) : [];
-      const h = Math.max(6, txt.length * 3.9 + nota.length * 3.2 + 2.4);
+      // codul și denumirea din nomenclator; dedesubt, denumirea liniei din aplicație
+      const c = NOM ? NOM.pentruLinie(x, l) : { produs: null };
+      const al = x.den + (x.det ? ' — ' + x.det : '');
+      font('normal', 8.5);
+      const txt = doc.splitTextToSize(curat(c.produs ? c.produs.den : al), C.um - C.mat - 4);
+      font('normal', 6.8);
+      const sub = doc.splitTextToSize(curat([c.produs ? al : '', x.nota || ''].filter(Boolean).join(' · ')), C.um - C.mat - 4);
+      if (!sub[0]) sub.length = 0;
+      font('bold', 7.2);
+      const cod = doc.splitTextToSize(curat(c.produs ? c.produs.cod : 'fără cod'), C.mat - C.cod - 4);
+      const h = Math.max(6, txt.length * 3.9 + sub.length * 3.2 + 2.4, cod.length * 3.3 + 2.4);
       if (loc(h)) capTabel();
       if (i % 2 === 1) { doc.setFillColor(...CUL.fundal); doc.rect(PAG.m, y - 3.9, LAT, h, 'F'); }
-      font('normal', 8.5); doc.text(txt, C.mat + 2, y);
-      if (nota.length) { font('normal', 6.8, CUL.slab); doc.text(nota, C.mat + 2, y + txt.length * 3.9 - 0.6); }
+      font(c.produs ? 'bold' : 'normal', 7.2, c.produs ? CUL.gri : CUL.slab); doc.text(cod, C.cod + 2, y, { lineHeightFactor: 1.2 });
+      font('normal', 8.5); doc.text(txt, C.mat, y);
+      if (sub.length) { font('normal', 6.8, CUL.slab); doc.text(sub, C.mat, y + txt.length * 3.9 - 0.6); }
       font('normal', 8.5, CUL.slab); doc.text(curat(x.um), C.um, y);
       font('bold', 8.5); doc.text(nr(x.cant), C.est + 18, y, { align: 'right' });
 
@@ -2977,7 +3633,7 @@ function genereazaPDF(l, rez) {
     const capExtra = () => {
       doc.setFillColor(...CUL.gri); doc.rect(PAG.m, y - 4, LAT, 6, 'F');
       font('bold', 7.5, [255, 255, 255]);
-      doc.text('MATERIAL', C.mat + 2, y); doc.text('U.M.', C.um, y); doc.text('CONSUMAT', C.cons + 20, y, { align: 'right' });
+      doc.text('MATERIAL', C.cod + 2, y); doc.text('U.M.', C.um, y); doc.text('CONSUMAT', C.cons + 20, y, { align: 'right' });
       y += 5.5;
     };
     capExtra();
@@ -2985,17 +3641,17 @@ function genereazaPDF(l, rez) {
     randuri.forEach((x, i) => {
       // denumirile lungi se împart pe rânduri, iar rândul tabelului crește după ele
       font('normal', 8.5);
-      const den = x ? doc.splitTextToSize(sauLinie(x.den), C.um - C.mat - 6) : [];
+      const den = x ? doc.splitTextToSize(sauLinie(x.den), C.um - C.cod - 6) : [];
       const um = x ? doc.splitTextToSize(curat(x.um || ''), C.cons - C.um - 2) : [];
       const h = Math.max(6, Math.max(den.length, um.length) * 3.9 + 2.4);
       if (loc(h)) capExtra();
       if (i % 2 === 1) { doc.setFillColor(...CUL.fundal); doc.rect(PAG.m, y - 3.9, LAT, h, 'F'); }
       if (x) {
-        font('normal', 8.5); doc.text(den, C.mat + 2, y);
+        font('normal', 8.5); doc.text(den, C.cod + 2, y);
         font('normal', 8.5, CUL.slab); doc.text(um, C.um, y);
         font('bold', 8.5); doc.text(nr(x.cant), C.cons + 20, y, { align: 'right' });
       } else {
-        doc.setDrawColor(...CUL.linie); doc.setLineWidth(0.3); doc.line(C.mat + 2, y + 0.8, C.dif - 2, y + 0.8);
+        doc.setDrawColor(...CUL.linie); doc.setLineWidth(0.3); doc.line(C.cod + 2, y + 0.8, C.dif - 2, y + 0.8);
       }
       y += h;
     });
@@ -3086,9 +3742,11 @@ const CHEIE_PROFIL = 'ino_profil_v1';
 const CHEIE_OAMENI = 'ino_oameni_v1';
 const CHEIE_CATALOG = 'ino_catalog_v1';
 const CHEIE_SYNC = 'ino_sync_v1';
+const CHEIE_NOMENCLATOR = 'ino_nomenclator_v1';
+const BUCKET_FISE = 'fise-tehnice';
 
 const ROLURI = {
-  admin: 'Admin', lider: 'Lider echipă', membru: 'Membru echipă', sales: 'Membru Sales', local: 'Fără cont',
+  admin: 'Admin', lider: 'Lider echipă', membru: 'Membru echipă', sales: 'Membru Sales', gestiune: 'Gestiune și achiziții', local: 'Fără cont',
 };
 
 let sb = null;
@@ -3118,7 +3776,8 @@ const MODELE_INCLUSE = CATALOG_INCLUS.INVERTOARE.map(({ brand, model, kW, retea,
 function catalogEditabil() {
   const C = window.CATALOG;
   return {
-    PANOURI: C.PANOURI,
+    // panourile recepționate stau în nomenclator, nu în catalogul Adminului
+    PANOURI: C.PANOURI.filter((p) => !p.receptionat),
     MODELE_INVERTOR: C.INVERTOARE.map(({ brand, model, kW, retea, hibrid, serie, imaxAC_A }) => ({ brand, model, kW, retea, hibrid, serie, imaxAC_A: imaxAC_A || null })),
     SERII_INVERTOR: C.SERII_INVERTOR,
     BATERII: C.BATERII,
@@ -3147,7 +3806,8 @@ function aplicaCatalog(date) {
   const C = window.CATALOG;
   const d = date || {};
   const baza = JSON.parse(JSON.stringify(CATALOG_INCLUS));
-  C.PANOURI = d.PANOURI || baza.PANOURI;
+  C.PANOURI = (d.PANOURI || baza.PANOURI).filter((p) => !p.receptionat)
+    .concat(window.NOMENCLATOR ? window.NOMENCLATOR.panouri() : []);
   // un catalog salvat înainte de câmpurile noi (limite de module, controler) le primește din catalogul inclus
   C.BATERII = (d.BATERII || baza.BATERII).map((b) => {
     const inclus = baza.BATERII.find((x) => x.brand === b.brand && x.model === b.model);
@@ -3271,7 +3931,7 @@ const areConsumRap = (r) => !!r && (Object.values(r.valori || {}).some((v) => v 
 function poate(actiune, l) {
   const r = rol();
   // fără cont: un singur om pe telefon, deci fără validare, alocare și administrare; poate șterge lucrări
-  if (r === 'local') return !['valideaza', 'finalizeaza', 'redeschide', 'aloca', 'echipa', 'admin', 'arhiveaza'].includes(actiune);
+  if (r === 'local') return !['valideaza', 'finalizeaza', 'redeschide', 'aloca', 'echipa', 'admin', 'arhiveaza', 'nomenclator'].includes(actiune);
   if (!r) return false;
   const admin = r === 'admin';
   const aEchipei = !!l && r === 'lider' && (!l._echipa_id || l._echipa_id === profil.echipa_id);
@@ -3293,6 +3953,8 @@ function poate(actiune, l) {
     case 'aloca': return admin || aEchipei;
     case 'echipa': return admin;
     case 'admin': case 'arhiveaza': case 'sterge': return admin;
+    // nomenclatorul: recepția produselor noi și corespondențele cu liniile listei
+    case 'nomenclator': return admin || r === 'gestiune';
     default: return false;
   }
 }
@@ -3311,6 +3973,7 @@ function client() {
 
 // 'local' | 'login' | 'fara_rol' | 'gata'
 async function porneste() {
+  aplicaNomenclator(citesteJSON(CHEIE_NOMENCLATOR, null));
   aplicaCatalog(citesteJSON(CHEIE_CATALOG, {}).date);
   if (!ACTIV) return 'local';
   client();
@@ -3357,7 +4020,7 @@ async function iesire() {
   const netrimise = citesteTot().filter((l) => l._murdar);
   try {
     if (netrimise.length) scrieTot(netrimise); else localStorage.removeItem(cheieLucrari());
-    ['ino_sesiune', CHEIE_PROFIL, CHEIE_OAMENI, CHEIE_SYNC, 'ino_ciorna_v1'].forEach((k) => localStorage.removeItem(k));
+    ['ino_sesiune', CHEIE_PROFIL, CHEIE_OAMENI, CHEIE_SYNC, CHEIE_NOMENCLATOR, 'ino_ciorna_v1'].forEach((k) => localStorage.removeItem(k));
   } catch (e) { /* */ }
   profil = null;
   oameni = { echipe: [], profiluri: [] };
@@ -3557,11 +4220,13 @@ async function aduce() {
 
   let q = sb.from('lucrari').select('*');
   if (profil.rol === 'admin') q = q.eq('arhivat', false);
-  const [lu, ec, pr, ca] = await Promise.all([
+  const [lu, ec, pr, ca, no, co] = await Promise.all([
     q.order('modificat', { ascending: false }),
     sb.from('echipe').select('*').order('nume'),
     sb.from('profiluri').select('*').order('nume'),
     sb.from('catalog').select('*').maybeSingle(),
+    sb.from('nomenclator').select('*').order('den'),
+    sb.from('corespondente').select('*'),
   ]);
   for (const r of [lu, ec, pr, ca]) if (r.error) throw r.error;
 
@@ -3585,7 +4250,11 @@ async function aduce() {
 
   const cat = citesteJSON(CHEIE_CATALOG, {});
   const vNou = ca.data ? ca.data.versiune : null;
-  if (cat.versiune !== vNou) {
+  // nomenclatorul de pe server; până la instalarea tabelelor (sau fără drept de citire) rămâne cel inclus
+  const nomNou = !no.error && !co.error ? { produse: no.data || [], corespondente: co.data || [] } : null;
+  const nomSchimbat = !!nomNou && JSON.stringify(nomNou) !== JSON.stringify(citesteJSON(CHEIE_NOMENCLATOR, null));
+  if (nomSchimbat) { scrieJSON(CHEIE_NOMENCLATOR, nomNou); aplicaNomenclator(nomNou); }
+  if (cat.versiune !== vNou || nomSchimbat) {
     scrieJSON(CHEIE_CATALOG, { versiune: vNou, date: ca.data ? ca.data.date : null });
     aplicaCatalog(ca.data ? ca.data.date : null);
     anunta('catalog');
@@ -3742,6 +4411,56 @@ async function sterge(l) {
   anunta('lucrari');
 }
 
+/* ------------------------------------------------------------------ *
+ * Nomenclatorul și recepția produselor (Admin și Gestiune; serverul verifică oricum)
+ * ------------------------------------------------------------------ */
+function aplicaNomenclator(n) {
+  if (!window.NOMENCLATOR) return;
+  window.NOMENCLATOR.seteaza(n && n.produse, n && n.corespondente);
+}
+const reaplica = () => aplicaCatalog(citesteJSON(CHEIE_CATALOG, {}).date);
+
+// Produs nou sau modificat. Modificarea pleacă doar peste versiunea văzută (alt om poate fi salvat între timp).
+async function salveazaProdus(p) {
+  const campuri = { cod: String(p.cod || '').trim(), den: String(p.den || '').replace(/\s+/g, ' ').trim(), um: p.um || 'buc',
+    tip: p.tip || 'altul', tehnic: p.tehnic || null, fisa: p.fisa || null, activ: p.activ !== false };
+  let r;
+  if (p.id && p.versiune != null) {
+    r = await asteapta(sb.from('nomenclator').update(campuri).eq('id', p.id).eq('versiune', p.versiune).select());
+    if (!r || !r.length) { await sincronizeaza(); throw new Error('Produsul a fost modificat de altcineva între timp. Am încărcat versiunea nouă; refaceți modificarea.'); }
+  } else {
+    r = await asteapta(sb.from('nomenclator').insert(Object.assign(p.id ? { id: p.id } : {}, campuri)).select());
+  }
+  await sincronizeaza();
+  return r[0];
+}
+// Corespondența unei linii: id de produs, null (fără cod, intenționat) sau undefined (revine la cea implicită)
+async function salveazaCorespondenta(cheie, produsId) {
+  if (produsId === undefined) await asteapta(sb.from('corespondente').delete().eq('cheie', cheie).select());
+  else await asteapta(sb.from('corespondente').upsert({ cheie, produs_id: produsId }).select());
+  await sincronizeaza();
+}
+// Fișa tehnică (PDF) în spațiul de stocare al serverului, lângă produs
+async function incarcaFisa(fisier, produsId) {
+  const nume = String(fisier.name || 'fisa.pdf').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
+  const cale = `${produsId}/${Date.now()}_${nume}`;
+  const { error } = await client().storage.from(BUCKET_FISE).upload(cale, fisier, { contentType: 'application/pdf', upsert: false });
+  if (error) throw new Error(mesajEroare(error));
+  return cale;
+}
+async function linkFisa(cale) {
+  const { data, error } = await client().storage.from(BUCKET_FISE).createSignedUrl(cale, 600);
+  if (error) throw new Error(mesajEroare(error));
+  return data.signedUrl;
+}
+// Citirea fișei tehnice cu AI, pe server (funcția „fisa-tehnica”). Cheia AI stă doar pe server.
+async function citesteFisa(pdfBase64, tip, indiciu) {
+  const { data, error } = await client().functions.invoke('fisa-tehnica', { body: { pdf: pdfBase64, tip, indiciu } });
+  if (error) throw await eroareFunctie(error);
+  if (data && data.eroare) throw new Error(mesajEroare(data.eroare));
+  return data;
+}
+
 /* ------------------------------------------------------------------ */
 window.CONT = {
   get activ() { return ACTIV; },
@@ -3758,7 +4477,8 @@ window.CONT = {
   numeEchipa: (id) => { const e = oameni.echipe.find((x) => x.id === id); return e ? e.nume : ''; },
   membriEchipei: (id) => oameni.profiluri.filter((p) => p.echipa_id === id && p.rol === 'membru' && p.activ !== false),
   numeOm: (id) => { const p = oameni.profiluri.find((x) => x.id === id); return p ? (p.nume || p.email) : ''; },
-  catalogEditabil, aplicaCatalog, CATALOG_INCLUS,
+  catalogEditabil, aplicaCatalog, CATALOG_INCLUS, reaplica,
+  salveazaProdus, salveazaCorespondenta, incarcaFisa, linkFisa, citesteFisa,
   salveazaProfil, creeazaUtilizator, parolaUtilizator, stergeUtilizator, echipaNoua, redenumesteEchipa, salveazaCatalog,
   arhiva, arhiveaza, sterge,
 };
@@ -4039,7 +4759,7 @@ const finalizata = (l) => !!(l.raportat && (l.raportat.finalizat || l.raportat.v
 function carduriVizibile() {
   const r = K.rol();
   if (!K.activ) return CARDURI.map((c) => (c.k === 'raportat' ? Object.assign({}, c, { s: 'consum raportat' }) : c));
-  const k = r === 'membru' ? ['antecalculat', 'raportat'] : r === 'sales' ? ['raportat'] : ['lucru', 'antecalculat', 'raportat'];
+  const k = r === 'membru' || r === 'gestiune' ? ['antecalculat', 'raportat'] : r === 'sales' ? ['raportat'] : ['lucru', 'antecalculat', 'raportat'];
   return CARDURI.filter((c) => k.includes(c.k));
 }
 function cardCurent() {
@@ -4160,6 +4880,7 @@ function ecranLista() {
     lider: 'Nicio lucrare a echipei încă.<br>Apăsați „Lucrare nouă” ca să începeți.',
     membru: 'Nicio lucrare alocată vouă.<br>Liderul echipei vă alocă lucrările.',
     sales: 'Nicio lucrare raportată încă.<br>Aici apar lucrările după raportarea consumului.',
+    gestiune: 'Nicio lucrare antecalculată încă.<br>Aici apar fișele de materiale de comandat și rapoartele de consum.',
   }[r] || '';
   const deValidatToate = toate.filter((l) => poate('valideaza', l) && finalizata(l));
   const deValidat = deValidatToate.length;
@@ -4186,12 +4907,14 @@ function ecranLista() {
       ${card.k !== 'raportat' || deLaValidare < dataDeLa() ? '<br><button type="button" class="link-buton" id="b-devalidat">Vezi rapoartele de validat</button>' : ''}</div>` : '')
     + corp;
   $('#bara-in').innerHTML = (poate('admin') ? '<button class="buton gol" id="b-admin">Administrare</button>' : '')
+    + (poate('nomenclator') && !poate('admin') ? '<button class="buton" id="b-nomenclator">Nomenclator și recepție</button>' : '')
     + (poate('creeaza') ? '<button class="buton" id="b-nou">Lucrare nouă</button>' : '');
   $('#bara').hidden = !$('#bara-in').innerHTML;
 
   if ($('#b-nou')) $('#b-nou').onclick = () => du('form', lucrareNoua());
   legaInstalare();
   if ($('#b-admin')) $('#b-admin').onclick = () => du('admin');
+  if ($('#b-nomenclator')) $('#b-nomenclator').onclick = () => du('nomenclator');
   if ($('#b-cont')) $('#b-cont').onclick = () => du('cont');
   if ($('#b-devalidat')) $('#b-devalidat').onclick = () => {
     stare.card = 'raportat';
@@ -4240,6 +4963,8 @@ function deseneazaListaFiltrata(toate) {
 function deschide(l) {
   stare.rezultat = null;
   if (K.rol() === 'sales') return du('raport', l);
+  // Gestiunea vede fișa de materiale (cu consumul, la cele raportate), doar în citire
+  if (K.rol() === 'gestiune') return du('rezultat', l);
   // lucrarea cu antecalcul înghețat se deschide la rezultat; cu conturi, și cea doar calculată
   // (stare, alocare, raport). „Modifică” duce la formular.
   stare.rezultatDinLista = true;
@@ -4257,9 +4982,16 @@ function campText(cheie, eticheta, val, tip, extra) {
     <input id="f-${cheie}" data-camp="${cheie}" type="${tip || 'text'}" value="${E(val == null ? '' : val)}" ${extra || ''}></div>`;
 }
 function campSelect(cheie, eticheta, val, optiuni, ajutor) {
+  // opțiunile cu „g” se grupează (optgroup), în ordinea în care vin
+  const opt = (o) => `<option value="${E(o.v)}"${String(o.v) === String(val) ? ' selected' : ''}${o.dezactivat ? ' disabled' : ''}>${E(o.t)}</option>`;
+  let corp = '';
+  if (optiuni.some((o) => o.g)) {
+    const grupuri = [];
+    optiuni.forEach((o) => { const g = grupuri[grupuri.length - 1]; if (g && g.g === (o.g || '')) g.o.push(o); else grupuri.push({ g: o.g || '', o: [o] }); });
+    corp = grupuri.map((g) => (g.g ? `<optgroup label="${E(g.g)}">${g.o.map(opt).join('')}</optgroup>` : g.o.map(opt).join(''))).join('');
+  } else corp = optiuni.map(opt).join('');
   return `<div class="camp"><label for="f-${cheie}">${E(eticheta)}</label>
-    <select id="f-${cheie}" data-camp="${cheie}">${optiuni.map((o) =>
-      `<option value="${E(o.v)}"${String(o.v) === String(val) ? ' selected' : ''}${o.dezactivat ? ' disabled' : ''}>${E(o.t)}</option>`).join('')}</select>
+    <select id="f-${cheie}" data-camp="${cheie}">${corp}</select>
     ${ajutor ? `<div class="ajutor">${E(ajutor)}</div>` : ''}</div>`;
 }
 function campSeg(cheie, eticheta, val, optiuni) {
@@ -4422,7 +5154,9 @@ function ecranForm() {
     ${campText('putereContract_kWp', 'Puterea sistemului, din contract (kWp)', l.putereContract_kWp == null ? '' : String(l.putereContract_kWp).replace('.', ','), 'text', 'inputmode="decimal" autocomplete="off" placeholder="de ex. 10,35"')}
     <div class="ajutor">Puterea totală a instalației, cum scrie în contract. Nu e puterea unui panou și nici a invertorului.</div>
     ${campSelect('panouId', 'Panoul folosit (puterea unui panou, în W)', l.panouId, C.PANOURI.map((p) => ({
-      v: p.id, t: `${p.putere_W} W pe panou · ${p.lungime_mm}×${p.latime_mm} mm · ${p.model}` }))
+      v: p.id, t: p.receptionat ? `${p.putere_W} W · ${p.brand} ${p.model} · ${p.lungime_mm}×${p.latime_mm} mm · cod ${p.cod}` : `${p.putere_W} W pe panou · ${p.lungime_mm}×${p.latime_mm} mm · ${p.model}`,
+      g: C.PANOURI.some((x) => x.receptionat) ? (p.receptionat ? 'Recepționate (din nomenclator)' : 'Format generic, fără cod') : '' }))
+      .sort((a, b) => (a.g === b.g ? 0 : a.g.startsWith('Rec') ? -1 : 1))
       .concat(panouScos ? [{ v: panou.id, t: `${panou.putere_W} W pe panou · ${panou.model} — scos din catalog` }] : []))}
     <div id="contract-box">${htmlContract(l)}</div>
     ${panouScos ? '<div class="rosu">Panoul acestei lucrări a fost scos din catalog. Calculul folosește datele lui de la ultimul calcul; puteți alege alt panou.</div>' : ''}
@@ -5182,7 +5916,7 @@ function ecranRezultat() {
     <section class="card"><h2>${E(s.nume)}</h2><div class="corp"><table${cuRap ? ' class="rap fisa-rap"' : ''}>
       ${cuRap ? '<tr><th>Material</th><th>Estimat</th><th>Consumat</th><th>Dif.</th></tr>' : '<tr><th>Material</th><th>Cantitate</th></tr>'}
       ${s.linii.map((x) => {
-        const material = `<td>${E(x.den)}${x.det ? `<span class="det">${E(x.det)}</span>` : ''}${x.nota ? `<span class="det">${E(x.nota)}</span>` : ''}${cuRap ? `<span class="det">${E(x.um)}</span>` : ''}</td>`;
+        const material = `<td>${htmlMaterial(x, l)}${x.nota ? `<span class="det">${E(x.nota)}</span>` : ''}${cuRap ? `<span class="det">${E(x.um)}</span>` : ''}</td>`;
         if (!cuRap) return `<tr>${material}<td class="n">${nr(x.cant)}<span class="um">${E(x.um)}</span></td></tr>`;
         // linia lăsată goală în raport e egală cu estimarea
         const v = consumLinie(l.raportat, s.nume, x);
@@ -5409,7 +6143,7 @@ function ecranRaport() {
         const cheie = s.nume + '|' + x.den;
         const v = rap.valori[cheie];
         return `<tr>
-          <td>${E(x.den)}${x.det ? `<span class="det">${E(x.det)}</span>` : ''}<span class="det">${E(x.um)}</span></td>
+          <td>${htmlMaterial(x, l)}<span class="det">${E(x.um)}</span></td>
           <td class="n" style="color:var(--slab)">${nr(x.cant)}</td>
           <td style="width:88px"><input type="text" inputmode="decimal" autocomplete="off" aria-label="Consumat" data-rap="${E(cheie)}" data-est="${x.cant}" data-um="${E(x.um || '')}" value="${v == null ? '' : E(String(v).replace('.', ','))}"${dz}></td>
           <td class="n"><span class="dif ${difClasa(v, x.cant)}" data-dif="${E(cheie)}">${!editabil && (v == null || v === '') ? '0' : difText(v, x.cant)}</span></td>
@@ -5566,6 +6300,15 @@ function exportaPDF(l) {
   }
 }
 
+// Codul și denumirea din nomenclatorul inoSOLAR, deasupra denumirii liniei din aplicație.
+// Linia fără corespondență apare „fără cod”; Gestiunea o completează din „Corespondențe”.
+function htmlMaterial(x, l) {
+  const c = window.NOMENCLATOR.pentruLinie(x, l);
+  const al = x.den + (x.det ? ' — ' + x.det : '');
+  return c.produs
+    ? `<span class="cod" data-den="${E(x.den)}">${E(c.produs.cod)}</span><span class="den-nom">${E(c.produs.den)}</span><span class="det">${E(al)}</span>`
+    : `<span class="cod fara" data-den="${E(x.den)}">fără cod</span><span class="den-nom">${E(x.den)}</span>${x.det ? `<span class="det">${E(x.det)}</span>` : ''}`;
+}
 // Consumul raportat se arată pe fișa de materiale când raportul e trimis sau validat
 // (fără cont: când consumul e salvat, adică lucrarea e pe cardul „Raportat”).
 function arataConsum(l) {
@@ -5710,7 +6453,7 @@ function ecranCont() {
 /* ------------------------------------------------------------------ *
  * Administrare: utilizatori, echipe, catalog, arhivă
  * ------------------------------------------------------------------ */
-const optiuniRol = [{ v: '', t: '— fără rol —' }].concat(['admin', 'lider', 'membru', 'sales'].map((r) => ({ v: r, t: K.ROLURI[r] })));
+const optiuniRol = [{ v: '', t: '— fără rol —' }].concat(['admin', 'lider', 'membru', 'sales', 'gestiune'].map((r) => ({ v: r, t: K.ROLURI[r] })));
 const optiuniEchipa = () => [{ v: '', t: '— fără echipă —' }].concat(K.oameni.echipe.map((e) => ({ v: e.id, t: e.nume })));
 function parolaSugerata() {
   const a = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -5720,7 +6463,7 @@ function parolaSugerata() {
 
 // Lista tuturor echipelor cu oamenii lor (liderii primii), apoi cei fără echipă (Admin, Sales, conturi noi).
 function htmlEchipeOameni(profiluri, echipe) {
-  const ordine = { lider: 0, membru: 1, admin: 2, sales: 3 };
+  const ordine = { lider: 0, membru: 1, admin: 2, sales: 3, gestiune: 4 };
   const sorteaza = (lista) => lista.slice().sort((a, b) => ((ordine[a.rol] ?? 9) - (ordine[b.rol] ?? 9)) || String(a.nume || a.email).localeCompare(String(b.nume || b.email)));
   const om = (p) => `<li><b>${E(p.nume || p.email)}</b> · ${E(K.ROLURI[p.rol] || 'fără rol')}${p.activ === false ? ' · <span style="color:var(--rosu)">dezactivat</span>' : ''}
     <span class="cand">${E(p.email || '')}</span></li>`;
@@ -5806,7 +6549,7 @@ function ecranAdmin() {
     </div></section>
 
     <section class="card"><h2>Date</h2><div class="corp">
-      <div class="actiuni"><button class="buton gol" id="b-catalog">Catalog de echipamente</button><button class="buton gol" id="b-arhiva">Lucrări arhivate</button></div>
+      <div class="actiuni"><button class="buton gol" id="b-catalog">Catalog de echipamente</button><button class="buton gol" id="b-nomenclator">Nomenclator și recepție</button><button class="buton gol" id="b-arhiva">Lucrări arhivate</button></div>
     </div></section>
     ${panou}`;
   $('#bara-in').innerHTML = '<button class="buton gol" id="b-lista">Înapoi la lucrări</button>';
@@ -5919,6 +6662,7 @@ function ecranAdmin() {
   }, (id) => id === 'f-e_noua');
   $('#b-catalog').onclick = () => { stare.catalog = catalogDeEditat(); du('catalog'); };
   $('#b-arhiva').onclick = () => du('arhiva');
+  $('#b-nomenclator').onclick = () => du('nomenclator');
 }
 
 // Copia de lucru a catalogului, cu versiunea serverului din momentul deschiderii.
@@ -6263,6 +7007,373 @@ function deseneaza() {
   else if (e === 'arhiva') ecranArhiva();
   else if (e === 'catalog') ecranCatalog();
   else if (e === 'catalogItem') ecranCatalogItem();
+  else if (e === 'nomenclator') ecranNomenclator();
+  else if (e === 'produs') ecranProdus();
+  else if (e === 'coresp') ecranCoresp();
+}
+
+/* ------------------------------------------------------------------ *
+ * Nomenclatorul inoSOLAR: produse, recepția unui produs nou (cu fișa tehnică),
+ * corespondențele dintre liniile listei de materiale și codurile de produs.
+ * Pentru Admin și Gestiune; serverul verifică oricum dreptul.
+ * ------------------------------------------------------------------ */
+const NOM = window.NOMENCLATOR;
+const TIPURI = { panou: 'Panou fotovoltaic', invertor: 'Invertor', baterie: 'Baterie', altul: 'Alt produs' };
+const TIPURI_PL = { toate: 'Toate', panou: 'Panouri', invertor: 'Invertoare', baterie: 'Baterii', altul: 'Altele' };
+// datele tehnice ale panoului: [cheie, etichetă, unitate, obligatoriu pentru calcul]
+const CAMPURI_TEHNIC = [
+  ['brand', 'Marca', '', false, 'text'], ['model', 'Modelul (codul producătorului)', '', false, 'text'],
+  ['putere_W', 'Puterea', 'W', true], ['lungime_mm', 'Lungimea', 'mm', true], ['latime_mm', 'Lățimea', 'mm', true],
+  ['grosime_mm', 'Grosimea ramei', 'mm', true], ['voc_V', 'Tensiunea în gol (Voc)', 'V', true], ['vmp_V', 'Tensiunea la putere maximă (Vmp)', 'V', true],
+  ['isc_A', 'Curentul de scurtcircuit (Isc)', 'A', true], ['imp_A', 'Curentul la putere maximă (Imp)', 'A', false],
+  ['beta_Voc', 'Coeficientul de temperatură al Voc', '%/°C', true], ['sigMax_A', 'Siguranța maximă în serie', 'A', false],
+  ['greutate_kg', 'Greutatea', 'kg', false],
+];
+const nrRo = (v) => (v == null || v === '' ? '' : String(v).replace('.', ','));
+// căutare pe cuvinte, fără diacritice și semne: „longi 450” găsește „LONGI, 450 W”
+const cuvinte = (t) => fara(t).replace(/[^a-z0-9.*+/-]+/g, ' ').trim();
+const potriveste = (text, q) => { const t = ' ' + cuvinte(text).replace(/\s+/g, ' ') + ' '; return cuvinte(q).split(/\s+/).filter(Boolean).every((c) => t.includes(c) || t.replace(/ /g, '').includes(c)); };
+
+function lucrariCuLinii() {
+  // liniile din lucrările de pe telefon, ca să apară în corespondențe și cele care nu sunt în lista implicită
+  const linii = {};
+  for (const l of citesteTot().slice(0, 300)) {
+    let rez = null;
+    try { rez = l.antecalcul && l.antecalcul.sectiuni ? l.antecalcul : (l.rezumatSalvat ? calculeazaLucrarea(l) : null); } catch (e) { rez = null; }
+    if (!rez) continue;
+    rez.sectiuni.forEach((s) => s.linii.forEach((x) => {
+      const k = NOM.cheie(x, l);
+      if (!linii[k]) linii[k] = { x, l, n: 0 };
+      linii[k].n++;
+    }));
+  }
+  return linii;
+}
+
+function ecranNomenclator() {
+  const n = stare.nom || (stare.nom = { tab: 'produse', tip: 'toate', cauta: '', filtruCo: 'fara' });
+  const tab = n.tab;
+  let corp = '';
+  if (tab === 'produse') {
+    const q = n.cauta || '';
+    const toate = NOM.produse.filter((p) => n.tip === 'toate' || p.tip === n.tip);
+    const gasite = toate.filter((p) => !q.trim() || potriveste(p.cod + ' ' + p.den, q));
+    const arata = gasite.slice(0, 80);
+    corp = `
+      <div class="tab-cat" style="margin-top:12px">${campSeg('nom_tip', '', n.tip, Object.keys(TIPURI_PL).map((k) => ({ v: k, t: TIPURI_PL[k] })))}</div>
+      <div class="camp"><label for="f-nom_cauta">Caută cod sau denumire</label><input type="search" id="f-nom_cauta" value="${E(n.cauta || '')}" placeholder="de ex. LONGI 450, CPM, RV-K 5X6"></div>
+      ${NOM.deLaServer ? '' : '<div class="mesaj info">Lista inclusă în aplicație (Nomenclator Hala 2026). Lista de pe server apare după instalarea ei și prima sincronizare.</div>'}
+      <div class="ajutor">${gasite.length} ${gasite.length === 1 ? 'produs' : 'produse'}${gasite.length > arata.length ? `; se văd primele ${arata.length}, căutați mai precis` : ''}. Apăsați pe un produs ca să-l deschideți.</div>
+      ${arata.map((p) => {
+        const panouOk = p.tip === 'panou' && NOM.panouComplet(p.tehnic);
+        return `<button class="lucrare" data-produs="${E(p.id)}">
+          <span class="cod">${E(p.cod)}</span>${p.activ === false ? '<span class="eticheta">inactiv</span>' : ''}
+          ${p.tip === 'panou' ? (panouOk ? '<span class="eticheta ok">date de calcul</span>' : '<span class="eticheta warn">fără fișă tehnică</span>') : ''}
+          ${p.fisa && p.tip !== 'panou' ? '<span class="eticheta ok">fișă</span>' : ''}
+          <div class="titlu">${E(p.den)}</div><div class="info">${E(TIPURI[p.tip] || '')} · ${E(p.um)}</div></button>`;
+      }).join('') || '<div class="gol-text" style="padding:20px">Niciun produs nu se potrivește.</div>'}`;
+  } else {
+    const linii = lucrariCuLinii();
+    const chei = new Set(NOM.cheiCunoscute().concat(Object.keys(linii)));
+    C.INVERTOARE.forEach((i) => chei.add('Invertor · ' + i.brand + ' ' + i.model));
+    C.BATERII.forEach((b) => chei.add('Baterie · ' + b.brand + ' ' + b.model));
+    const randuri = [...chei].map((k) => {
+      const ex = linii[k];
+      const x = ex ? ex.x : { den: k };
+      const c = ex ? NOM.pentruLinie(ex.x, ex.l) : cheieCatalog(k);
+      return { k, c, n: ex ? ex.n : 0, x };
+    }).filter((r) => !/^Panou · /.test(r.k));
+    // „Fără cod”: liniile din lucrări rămase fără corespondență (modelele de catalog nefolosite apar la „Toate”)
+    const faraCod = randuri.filter((r) => !r.c.produs && r.n > 0);
+    const q = n.cauta || '';
+    const vizibile = (n.filtruCo === 'fara' ? faraCod : randuri).filter((r) => !q.trim() || potriveste(r.k + ' ' + (r.c.produs ? r.c.produs.cod + ' ' + r.c.produs.den : ''), q))
+      .sort((a, b) => b.n - a.n || a.k.localeCompare(b.k, 'ro'));
+    stare.nomLinii = linii;
+    corp = `
+      <div class="tab-cat" style="margin-top:12px">${campSeg('co_filtru', '', n.filtruCo, [{ v: 'fara', t: `Fără cod, din lucrări (${faraCod.length})` }, { v: 'toate', t: `Toate liniile (${randuri.length})` }])}</div>
+      <div class="camp"><label for="f-co_cauta">Caută linie sau cod</label><input type="search" id="f-co_cauta" value="${E(n.cauta || '')}" placeholder="de ex. cablu, invertor Huawei, CPM"></div>
+      <div class="ajutor">Fiecare linie a listei de materiale primește un cod din nomenclator. Liniile din lucrări apar primele, cu numărul de lucrări în care sunt. Apăsați pe o linie ca să-i alegeți codul.</div>
+      ${vizibile.map((r) => `
+        <button class="lucrare" data-coresp="${E(r.k)}">
+          <div class="titlu">${E(r.k)}</div>
+          <div style="margin-top:5px">${r.c.produs ? `<span class="cod">${E(r.c.produs.cod)}</span> <span class="info" style="display:inline">${E(r.c.produs.den)}</span>` : '<span class="cod fara">fără cod</span>'}
+          ${r.c.sursa === 'salvat' ? '<span class="eticheta ok">ales de gestiune</span>' : r.c.sursa === 'implicit' ? '<span class="eticheta">implicit</span>' : ''}</div>
+          ${r.n ? `<div class="info">în ${r.n} ${r.n === 1 ? 'lucrare' : 'lucrări'}</div>` : ''}</button>`).join('') || '<div class="gol-text" style="padding:20px">Toate liniile din lucrări au cod.</div>'}`;
+  }
+  $('#titlu').innerHTML = 'Nomenclator<span class="sub">coduri inoSOLAR, recepție, corespondențe</span>';
+  $('#btn-inapoi').hidden = false;
+  $('#ecran').innerHTML = `<div class="tab-cat" style="margin-top:14px">${campSeg('nom_tab', '', tab, [{ v: 'produse', t: 'Produse' }, { v: 'coresp', t: 'Corespondențe' }])}</div>` + corp;
+  $('#bara-in').innerHTML = '<button class="buton" id="b-receptie">Recepție produs nou</button>';
+  $('#bara').hidden = false;
+  document.querySelectorAll('[data-seg="nom_tab"] button').forEach((b) => { b.onclick = () => { n.tab = b.dataset.val; n.cauta = ''; ecranNomenclator(); }; });
+  document.querySelectorAll('[data-seg="nom_tip"] button').forEach((b) => { b.onclick = () => { n.tip = b.dataset.val; ecranNomenclator(); }; });
+  document.querySelectorAll('[data-seg="co_filtru"] button').forEach((b) => { b.onclick = () => { n.filtruCo = b.dataset.val; ecranNomenclator(); }; });
+  const cauta = $('#f-nom_cauta') || $('#f-co_cauta');
+  if (cauta) cauta.oninput = () => {
+    n.cauta = cauta.value;
+    clearTimeout(stare.tNom);
+    stare.tNom = setTimeout(() => { const id = cauta.id, poz = cauta.selectionStart; ecranNomenclator(); const c2 = $('#' + id); if (c2) { c2.focus(); try { c2.setSelectionRange(poz, poz); } catch (e) { /* */ } } }, 250);
+  };
+  document.querySelectorAll('[data-produs]').forEach((b) => { b.onclick = () => deschideProdus(NOM.dupaId(b.dataset.produs)); });
+  document.querySelectorAll('[data-coresp]').forEach((b) => { b.onclick = () => { stare.coresp = { k: b.dataset.coresp, cauta: '' }; du('coresp'); }; });
+  $('#b-receptie').onclick = () => deschideProdus(null);
+}
+function cheieCatalog(k) {
+  // „Invertor · Marca Model”, „Baterie · Marca Model”, „Dongle · …”: linia se reconstruiește ca în motor
+  let m = k.match(/^Invertor · (\S+) (.+)$/);
+  if (m) return NOM.pentruLinie({ den: 'Invertor', det: m[2] }, { invertorBrand: m[1] });
+  m = k.match(/^Baterie · (.+)$/);
+  if (m) return NOM.pentruLinie({ den: 'Baterie', det: m[1] }, {});
+  m = k.match(/^Dongle · (.+)$/);
+  if (m) return NOM.pentruLinie({ den: 'Dongle de comunicație', det: m[1] }, {});
+  m = k.match(/^(Smart meter \S+) · (.*)$/);
+  if (m) return NOM.pentruLinie({ den: m[1] }, { invertorBrand: m[2] });
+  return NOM.pentruLinie({ den: k }, {});
+}
+
+/* ---------------------------------------------- corespondența unei linii ---- */
+function ecranCoresp() {
+  const s = stare.coresp;
+  const ex = (stare.nomLinii || {})[s.k];
+  const c = ex ? NOM.pentruLinie(ex.x, ex.l) : cheieCatalog(s.k);
+  const implicit = NOM.implicitPentru(s.k, ex && ex.x);
+  const q = (s.cauta || '').trim();
+  const cand = q ? NOM.produse.filter((p) => p.activ !== false && potriveste(p.cod + ' ' + p.den, q)).slice(0, 40) : [];
+  const rand = (p, eticheta) => `<button class="lucrare" data-alege="${E(p.id)}">
+    <span class="cod">${E(p.cod)}</span>${eticheta ? `<span class="eticheta">${E(eticheta)}</span>` : ''}<div class="titlu">${E(p.den)}</div><div class="info">${E(TIPURI[p.tip] || '')} · ${E(p.um)}</div></button>`;
+  $('#titlu').innerHTML = 'Corespondență<span class="sub">codul unei linii din lista de materiale</span>';
+  $('#btn-inapoi').hidden = false;
+  $('#ecran').innerHTML = `
+    <section class="card" style="margin-top:14px"><h2>Linia din aplicație</h2><div class="corp">
+      <b style="font-size:16px">${E(s.k)}</b>
+      ${ex && ex.x.um ? `<div class="det">unitate în aplicație: ${E(ex.x.um)}${ex.n ? ` · în ${ex.n} ${ex.n === 1 ? 'lucrare' : 'lucrări'}` : ''}</div>` : ''}
+      <div style="margin-top:10px">Acum: ${c.produs ? `<span class="cod">${E(c.produs.cod)}</span> ${E(c.produs.den)}` : '<span class="cod fara">fără cod</span>'}
+        ${c.sursa === 'salvat' ? '<span class="eticheta ok">ales de gestiune</span>' : c.sursa === 'implicit' ? '<span class="eticheta">implicit</span>' : ''}</div>
+      ${c.produs && c.produs.um && ex && ex.x.um && !umPotrivita(ex.x.um, c.produs.um) ? `<div class="mesaj warn">Unitatea diferă: aplicația numără în „${E(ex.x.um)}”, nomenclatorul are „${E(c.produs.um)}”. Verificați la comandă.</div>` : ''}
+      <div class="actiuni" style="margin-top:12px">
+        ${c.sursa === 'salvat' ? `<button class="buton gol" id="b-co-implicit">${implicit ? `Revino la implicit (${E(implicit.cod)})` : 'Revino la implicit (fără cod)'}</button>` : ''}
+        ${c.produs ? '<button class="buton gol" id="b-co-fara">Fără cod</button>' : ''}
+      </div>
+    </div></section>
+    ${c.sugestii.length ? `<div class="sectiune-titlu">Sugestii</div>${c.sugestii.map((p) => rand(p, 'sugestie')).join('')}` : ''}
+    <div class="sectiune-titlu">Alege din nomenclator</div>
+    <div class="camp"><label for="f-co_alege">Caută cod sau denumire</label><input type="search" id="f-co_alege" value="${E(s.cauta || '')}" placeholder="de ex. RV-K, clema, LUNA"></div>
+    ${cand.map((p) => rand(p)).join('') || (q ? '<div class="ajutor">Niciun produs nu se potrivește. Dacă produsul e nou, faceți întâi recepția lui.</div>' : '')}`;
+  $('#bara-in').innerHTML = '<button class="buton gol" id="b-co-inapoi">Înapoi la corespondențe</button>';
+  $('#b-co-inapoi').onclick = () => du('nomenclator');
+  const salv = async (id) => {
+    if (!K.sync.online) return alert('Fără semnal. Corespondențele se salvează pe server, cu internet.');
+    try { await K.salveazaCorespondenta(s.k, id); du('coresp'); }
+    catch (e) { alert('Nu s-a putut salva: ' + e.message); }
+  };
+  const inp = $('#f-co_alege');
+  inp.oninput = () => {
+    s.cauta = inp.value; clearTimeout(stare.tNom);
+    stare.tNom = setTimeout(() => { const poz = inp.selectionStart; ecranCoresp(); const i2 = $('#f-co_alege'); i2.focus(); try { i2.setSelectionRange(poz, poz); } catch (e) { /* */ } }, 250);
+  };
+  document.querySelectorAll('[data-alege]').forEach((b) => { b.onclick = () => salv(b.dataset.alege); });
+  if ($('#b-co-fara')) $('#b-co-fara').onclick = () => salv(null);
+  if ($('#b-co-implicit')) $('#b-co-implicit').onclick = () => salv(undefined);
+}
+const umPotrivita = (a, b) => {
+  const n = (u) => ({ m: 'ml', ml: 'ml', buc: 'buc' })[String(u || '').toLowerCase().replace(/\.$/, '')] || String(u || '').toLowerCase();
+  return n(a) === n(b);
+};
+
+/* ------------------------------------------------------- produsul / recepția ---- */
+function deschideProdus(p) {
+  const nou = !p;
+  const copie = nou ? { id: null, cod: '', den: '', um: 'buc', tip: 'panou', tehnic: {}, fisa: null, activ: true }
+    : JSON.parse(JSON.stringify(Object.assign({}, p, { tehnic: p.tehnic || {} })));
+  // invertoarele și bateriile din catalog legate deja de produs
+  const legate = nou ? [] : modeleLegate(p);
+  stare.produs = { p: copie, nou, fisier: null, extras: null, varianta: null, dinAI: {}, legat: legate[0] || '', instantaneu: '' };
+  stare.produs.instantaneu = JSON.stringify([copie, stare.produs.legat]);
+  du('produs');
+}
+function modeleLegate(p) {
+  const lista = p.tip === 'invertor' ? C.INVERTOARE.map((i) => 'Invertor · ' + i.brand + ' ' + i.model)
+    : p.tip === 'baterie' ? C.BATERII.map((b) => 'Baterie · ' + b.brand + ' ' + b.model) : [];
+  return lista.filter((k) => { const c = cheieCatalog(k); return c.produs && c.produs.id === p.id; });
+}
+function produsModificat() {
+  const s = stare.produs;
+  return !!s && (!!s.fisier || JSON.stringify([s.p, s.legat]) !== s.instantaneu);
+}
+function citesteProdusDinEcran() {
+  const s = stare.produs, p = s.p;
+  const v = (id) => { const el = $('#' + id); return el ? el.value : undefined; };
+  if (v('f-np_cod') !== undefined) p.cod = v('f-np_cod').trim();
+  if (v('f-np_den') !== undefined) p.den = v('f-np_den').replace(/\s+/g, ' ').trim();
+  if ($('#f-np_activ')) p.activ = $('#f-np_activ').checked;
+  if (v('f-np_legat') !== undefined) s.legat = v('f-np_legat');
+  if (p.tip === 'panou') {
+    CAMPURI_TEHNIC.forEach(([k, , , , tip]) => {
+      const x = v('f-nt_' + k);
+      if (x === undefined) return;
+      if (tip === 'text') { if (x.trim()) p.tehnic[k] = x.trim(); else delete p.tehnic[k]; return; }
+      const n = citesteNumar(x);
+      if (n == null) delete p.tehnic[k]; else p.tehnic[k] = n;
+    });
+  }
+}
+const htmlCodExistent = (lista, nou) => (lista.length ? `<div class="mesaj warn">Codul există deja: ${lista.map((x) => E(x.den)).join('; ')}. ${nou
+  ? 'Dacă e același produs, deschideți-l din listă și adăugați-i fișa tehnică acolo.' : 'Două produse cu același cod se confundă la comandă.'}</div>` : '');
+function ecranProdus() {
+  const s = stare.produs, p = s.p;
+  const existent = !s.nou ? NOM.dupaId(p.id) : null;
+  const acelasiCod = p.cod ? NOM.produse.filter((x) => x.cod.toLowerCase() === p.cod.toLowerCase() && x.id !== p.id) : [];
+  const t = p.tehnic || {};
+  const panou = p.tip === 'panou';
+  const lipsa = panou ? NOM.CAMPURI_PANOU.filter((k) => typeof t[k] !== 'number' || !isFinite(t[k])) : [];
+  const ex = s.extras;
+  const variante = ex && Array.isArray(ex.variante) ? ex.variante : [];
+  const optiuniLegat = p.tip === 'invertor' ? C.INVERTOARE.map((i) => 'Invertor · ' + i.brand + ' ' + i.model)
+    : p.tip === 'baterie' ? C.BATERII.map((b) => 'Baterie · ' + b.brand + ' ' + b.model) : [];
+  const campTehnic = ([k, et, um, oblig, tip]) => {
+    const val = tip === 'text' ? (t[k] || '') : nrRo(t[k]);
+    const ai = s.dinAI[k] ? ' style="background:#fff6d6"' : '';
+    return `<div class="camp"><label for="f-nt_${k}">${E(et)}${um ? ` (${E(um)})` : ''}${oblig ? '' : ' <span style="font-weight:400;color:var(--slab)">— opțional</span>'}</label>
+      <input id="f-nt_${k}" type="text"${tip === 'text' ? '' : ' inputmode="decimal"'} autocomplete="off" value="${E(val)}"${ai}></div>`;
+  };
+  $('#titlu').innerHTML = (s.nou ? 'Recepție produs nou' : E(p.cod)) + `<span class="sub">${s.nou ? 'cod, denumire, fișa tehnică' : E(p.den)}</span>`;
+  $('#btn-inapoi').hidden = false;
+  $('#ecran').innerHTML = `
+    <section class="card" style="margin-top:14px"><h2>Produsul</h2><div class="corp">
+      ${campSeg('np_tip', 'Tipul produsului', p.tip, Object.keys(TIPURI).map((k) => ({ v: k, t: TIPURI[k] })))}
+      <div class="camp"><label for="f-np_cod">Cod produs (din nomenclator)</label><input id="f-np_cod" type="text" autocomplete="off" value="${E(p.cod)}" placeholder="de ex. PFL450W"></div>
+      <div id="np-cod-avert">${htmlCodExistent(acelasiCod, s.nou)}</div>
+      <div class="camp"><label for="f-np_den">Denumire produs</label><input id="f-np_den" type="text" autocomplete="off" value="${E(p.den)}" placeholder="de ex. Panou Fotovoltaic LONGI 450W"></div>
+      ${campSeg('np_um', 'Unitatea de măsură', p.um, [{ v: 'buc', t: 'buc' }, { v: 'ml', t: 'ml' }, { v: 'set', t: 'set' }, { v: 'kg', t: 'kg' }])}
+      ${!s.nou ? `<label class="bifa" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="f-np_activ"${p.activ !== false ? ' checked' : ''}> Produs activ (apare în liste și în formular)</label>` : ''}
+    </div></section>
+
+    <section class="card"><h2>Fișa tehnică (PDF)</h2><div class="corp">
+      ${p.fisa ? `<div>Fișa salvată: <button type="button" class="link-buton" id="b-fisa-deschide">deschide fișa</button></div>` : ''}
+      <input id="f-np_fisa" type="file" accept="application/pdf,.pdf" hidden>
+      ${s.fisier ? `<div style="margin-top:8px"><b>${E(s.fisier.name)}</b><span class="det">${Math.max(1, Math.round(s.fisier.size / 1024))} KB · se salvează odată cu produsul</span></div>` : ''}
+      <div class="actiuni" style="margin-top:10px"><button type="button" class="buton gol" id="b-alege-fisa">${s.fisier ? 'Alege altă fișă' : p.fisa ? 'Înlocuiește fișa' : 'Alege fișa tehnică (PDF)'}</button></div>
+      ${panou ? `<div class="actiuni" style="margin-top:10px"><button class="buton" id="b-ai"${s.fisier ? '' : ' disabled'}>Citește fișa cu AI</button></div>
+        <div class="ajutor">AI-ul citește fișa pe server și completează datele de mai jos, pe galben. Verificați fiecare valoare cu PDF-ul înainte de salvare.</div>` : ''}
+      ${ex && ex.observatii ? `<div class="mesaj info">Din fișă: ${E(ex.observatii)}</div>` : ''}
+      ${variante.length > 1 ? `${campSelect('np_var', 'Fișa are mai multe puteri. Alegeți varianta recepționată', s.varianta == null ? '' : s.varianta,
+        [{ v: '', t: '— alegeți —' }].concat(variante.map((x, i) => ({ v: String(i), t: `${x.putere_W} W${x.model ? ' · ' + x.model : ''}` }))))}` : ''}
+    </div></section>
+
+    ${panou ? `<section class="card"><h2>Date pentru calcul</h2><div class="corp">
+      ${lipsa.length ? `<div class="mesaj warn">Lipsesc: ${lipsa.map((k) => E((CAMPURI_TEHNIC.find((c) => c[0] === k) || [k, k])[1])).join(', ')}. Panoul apare în formularul de lucrare doar cu toate datele de calcul.</div>`
+        : '<div class="mesaj ok">Datele de calcul sunt complete: după salvare, panoul apare în formular, cu codul lui.</div>'}
+      ${CAMPURI_TEHNIC.map(campTehnic).join('')}
+      <div class="ajutor">Valorile la STC, din tabelul electric al fișei. Coeficientul Voc e negativ (de ex. −0,25 %/°C). Siguranța maximă în serie apare în fișă ca „Max. series fuse rating”.</div>
+    </div></section>` : ''}
+
+    ${optiuniLegat.length ? `<section class="card"><h2>Modelul din catalogul aplicației</h2><div class="corp">
+      ${campSelect('np_legat', p.tip === 'invertor' ? 'Invertorul din catalog cu acest cod' : 'Bateria din catalog cu acest cod', s.legat,
+        [{ v: '', t: '— niciunul —' }].concat(optiuniLegat.map((k) => ({ v: k, t: k.replace(/^(Invertor|Baterie) · /, '') }))))}
+      <div class="ajutor">Pe fișa lucrărilor cu acest model apare codul produsului. Dacă modelul nu e în catalog, cereți Adminului să-l adauge (Administrare → Catalog de echipamente), cu datele din fișa tehnică.</div>
+    </div></section>` : ''}
+    ${existent && existent.modificat ? `<div class="ajutor">Ultima modificare: ${E(new Date(existent.modificat).toLocaleString('ro-RO'))}</div>` : ''}`;
+  $('#bara-in').innerHTML = '<button class="buton gol" id="b-np-renunta">Renunță</button><button class="buton" id="b-np-salv">Salvează produsul</button>';
+
+  document.querySelectorAll('[data-seg="np_tip"] button').forEach((b) => { b.onclick = () => { citesteProdusDinEcran(); p.tip = b.dataset.val; ecranProdus(); }; });
+  document.querySelectorAll('[data-seg="np_um"] button').forEach((b) => { b.onclick = () => { citesteProdusDinEcran(); p.um = b.dataset.val; ecranProdus(); }; });
+  // avertismentul de cod existent se actualizează pe loc, fără redesenare (ar pierde câmpul în care se scrie)
+  $('#f-np_cod').oninput = () => {
+    const c = $('#f-np_cod').value.trim().toLowerCase();
+    $('#np-cod-avert').innerHTML = htmlCodExistent(c ? NOM.produse.filter((x) => x.cod.toLowerCase() === c && x.id !== p.id) : [], s.nou);
+  };
+  CAMPURI_TEHNIC.forEach(([k]) => { const el = $('#f-nt_' + k); if (el) el.addEventListener('input', () => { if (s.dinAI[k]) { delete s.dinAI[k]; el.style.background = ''; } }); });
+  $('#b-alege-fisa').onclick = () => $('#f-np_fisa').click();
+  $('#f-np_fisa').onchange = (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    if (!/pdf$/i.test(f.type) && !/\.pdf$/i.test(f.name)) { alert('Alegeți fișa tehnică în format PDF.'); ev.target.value = ''; return; }
+    if (f.size > 10 * 1024 * 1024) { alert('Fișa are peste 10 MB. Alegeți varianta de fișă tehnică a producătorului (de obicei 1–3 MB).'); ev.target.value = ''; return; }
+    citesteProdusDinEcran(); s.fisier = f; ecranProdus();
+  };
+  if ($('#f-np_var')) $('#f-np_var').onchange = (ev) => { citesteProdusDinEcran(); alegeVarianta(ev.target.value === '' ? null : +ev.target.value); ecranProdus(); };
+  if ($('#b-fisa-deschide')) $('#b-fisa-deschide').onclick = async () => {
+    try { window.open(await K.linkFisa(p.fisa), '_blank', 'noopener'); } catch (e) { alert('Nu s-a putut deschide fișa: ' + e.message); }
+  };
+  if ($('#b-ai')) $('#b-ai').onclick = async () => {
+    citesteProdusDinEcran();
+    if (!K.sync.online) return alert('Fără semnal. Citirea fișei se face pe server, cu internet.');
+    const b = $('#b-ai'); b.disabled = true; b.textContent = 'Se citește fișa…';
+    try {
+      const b64 = await new Promise((rez, rej) => { const r = new FileReader(); r.onload = () => rez(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error('Fișierul nu s-a putut citi.')); r.readAsDataURL(s.fisier); });
+      const raspuns = await K.citesteFisa(b64, p.tip, p.den || p.cod);
+      aplicaExtras(raspuns && raspuns.date);
+    } catch (e) { alert('Fișa nu s-a putut citi: ' + e.message + '\n\nPuteți completa datele de mână, din PDF.'); }
+    ecranProdus();
+  };
+  $('#b-np-renunta').onclick = () => { if (produsModificat() && !confirm('Renunțați la modificări?')) return; du('nomenclator'); };
+  $('#b-np-salv').onclick = () => salveazaProdusEcran();
+}
+// Rezultatul citirii: datele comune (dimensiuni, coeficienți) și varianta de putere potrivită denumirii
+function aplicaExtras(d) {
+  const s = stare.produs, p = s.p;
+  if (!d || typeof d !== 'object') throw new Error('Răspunsul serverului nu are date.');
+  s.extras = d;
+  const comune = { brand: d.brand, lungime_mm: d.lungime_mm, latime_mm: d.latime_mm, grosime_mm: d.grosime_mm, beta_Voc: d.beta_Voc, sigMax_A: d.sigMax_A, greutate_kg: d.greutate_kg };
+  Object.keys(comune).forEach((k) => { if (comune[k] != null && comune[k] !== '') { p.tehnic[k] = comune[k]; s.dinAI[k] = true; } });
+  const v = Array.isArray(d.variante) ? d.variante : [];
+  // puterea din denumire („... 450W”) alege varianta; altfel, la o singură variantă, pe aceea
+  const w = (String(p.den).match(/(\d{3})\s*W\b/i) || [])[1];
+  let i = w ? v.findIndex((x) => Math.round(+x.putere_W) === +w) : -1;
+  if (i < 0 && v.length === 1) i = 0;
+  alegeVarianta(i >= 0 ? i : null);
+}
+function alegeVarianta(i) {
+  const s = stare.produs, p = s.p;
+  s.varianta = i;
+  const v = i != null && s.extras && s.extras.variante ? s.extras.variante[i] : null;
+  ['putere_W', 'voc_V', 'vmp_V', 'isc_A', 'imp_A'].forEach((k) => { if (v && v[k] != null) { p.tehnic[k] = v[k]; s.dinAI[k] = true; } });
+  if (v && v.model) { p.tehnic.model = v.model; s.dinAI.model = true; }
+}
+async function salveazaProdusEcran() {
+  citesteProdusDinEcran();
+  const s = stare.produs, p = s.p;
+  if (!p.cod) return alert('Scrieți codul produsului, din nomenclator.');
+  if (!p.den) return alert('Scrieți denumirea produsului.');
+  if (!K.sync.online) return alert('Fără semnal. Produsele se salvează pe server, cu internet.');
+  const t = p.tehnic || {};
+  if (p.tip === 'panou') {
+    const gresit = CAMPURI_TEHNIC.filter(([k, , , , tip]) => tip !== 'text' && t[k] != null && (typeof t[k] !== 'number' || !isFinite(t[k])));
+    if (gresit.length) return alert('Valori care nu sunt numere: ' + gresit.map((c) => c[1]).join(', ') + '.');
+    const n = (k) => t[k];
+    const greseli = [];
+    if (n('putere_W') != null && (n('putere_W') < 100 || n('putere_W') > 1000)) greseli.push('puterea (100–1000 W)');
+    if (n('lungime_mm') != null && (n('lungime_mm') < 1000 || n('lungime_mm') > 2600)) greseli.push('lungimea (1000–2600 mm)');
+    if (n('latime_mm') != null && (n('latime_mm') < 600 || n('latime_mm') > 1400)) greseli.push('lățimea (600–1400 mm)');
+    if (n('grosime_mm') != null && (n('grosime_mm') < 20 || n('grosime_mm') > 50)) greseli.push('grosimea (20–50 mm)');
+    if (n('voc_V') != null && (n('voc_V') < 20 || n('voc_V') > 80)) greseli.push('Voc (20–80 V)');
+    if (n('vmp_V') != null && n('voc_V') != null && n('vmp_V') >= n('voc_V')) greseli.push('Vmp, care trebuie să fie sub Voc');
+    if (n('isc_A') != null && (n('isc_A') < 5 || n('isc_A') > 25)) greseli.push('Isc (5–25 A)');
+    if (n('beta_Voc') != null && (n('beta_Voc') >= 0 || n('beta_Voc') < -1)) greseli.push('coeficientul Voc (negativ, de ex. −0,25)');
+    if (greseli.length) return alert('Verificați ' + greseli.join(', ') + '.');
+    if (Object.keys(s.dinAI).length && !confirm('Valorile pe galben sunt citite de AI. Le-ați verificat cu fișa PDF?')) return;
+    if (!NOM.panouComplet(t) && !confirm('Panoul nu are toate datele de calcul și nu va apărea în formularul de lucrare. Salvați așa?')) return;
+  }
+  const b = $('#b-np-salv'); b.disabled = true; b.textContent = 'Se salvează…';
+  try {
+    const id = p.id || (window.crypto && crypto.randomUUID ? crypto.randomUUID() : 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+    let fisa = p.fisa;
+    if (s.fisier) fisa = await K.incarcaFisa(s.fisier, id);
+    const tehnic = Object.keys(t).length ? t : null;
+    const salvat = await K.salveazaProdus(Object.assign({}, p, { id, fisa, tehnic, versiune: s.nou ? null : p.versiune }));
+    // legătura cu modelul din catalog (invertor, baterie): cea veche se scoate, cea nouă se pune
+    const vechi = s.nou ? [] : modeleLegate(Object.assign({}, p, { id: salvat.id }));
+    for (const k of vechi) if (k !== s.legat) await K.salveazaCorespondenta(k, undefined);
+    if (s.legat && !vechi.includes(s.legat)) await K.salveazaCorespondenta(s.legat, salvat.id);
+    stare.produs = null;
+    alert(p.tip === 'panou' && NOM.panouComplet(t) ? 'Produsul e salvat. Panoul apare acum în formularul de lucrare, cu codul lui.' : 'Produsul e salvat.');
+    // lista de produse, cu produsul salvat găsit
+    stare.nom = Object.assign(stare.nom || {}, { tab: 'produse', tip: 'toate', cauta: p.cod });
+    du('nomenclator');
+  } catch (e) {
+    alert('Nu s-a putut salva: ' + e.message);
+    b.disabled = false; b.textContent = 'Salvează produsul';
+  }
 }
 
 $('#logo').src = window.LOGO_INOSOLAR;
@@ -6307,6 +7418,9 @@ function inapoi() {
   }
   else if (e === 'raport') du(K.rol() === 'sales' ? 'lista' : 'rezultat', stare.lucrare);
   else if (e === 'arhiva') du('admin');
+  else if (e === 'nomenclator') du(poate('admin') ? 'admin' : 'lista');
+  else if (e === 'produs') { if (produsModificat() && !confirm('Produsul are modificări nesalvate. Renunțați la ele?')) return; du('nomenclator'); }
+  else if (e === 'coresp') du('nomenclator');
   else if (e === 'catalogItem') renuntaLaElementNou();
   else if (e === 'catalog') {
     if (stare.catalog.modificat && !confirm('Catalogul are modificări nesalvate. Renunțați la ele?')) return;
@@ -6326,6 +7440,7 @@ function acasa() {
     stare.alocareNesalvata = false;
   }
   if ((e === 'catalog' || e === 'catalogItem') && stare.catalog && stare.catalog.modificat && !confirm('Catalogul are modificări nesalvate. Renunțați la ele?')) return;
+  if (e === 'produs' && produsModificat() && !confirm('Produsul are modificări nesalvate. Renunțați la ele?')) return;
   if (e === 'login' || e === 'fara_rol') return;   // fără cont deschis, nu există meniu
   du('lista');
 }
@@ -6377,6 +7492,14 @@ K.laSchimbare((motiv) => {
       alert('Contul dvs. nu mai are rolul de Admin. Administrarea s-a închis.');
       return du('lista');
     }
+    if (['nomenclator', 'produs', 'coresp'].includes(e) && !poate('nomenclator')) {
+      alert('Contul dvs. nu mai are acces la nomenclator.');
+      return du('lista');
+    }
+  }
+  // nomenclatorul adus de sincronizare: lista de produse se redesenează (formularul de produs nu)
+  if (motiv === 'catalog' && (e === 'nomenclator' || e === 'coresp') && !(document.activeElement && /^f-nom_cauta|^f-co_cauta/.test(document.activeElement.id || ''))) {
+    return deseneaza();
   }
   if (e === 'lista') {
     // cât timp se scrie în căutare, se redesenează doar lista, ca tastatura să rămână deschisă
