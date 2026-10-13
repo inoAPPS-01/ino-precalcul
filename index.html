@@ -3122,7 +3122,7 @@ window.NOMENCLATOR_INCLUS = [
 (function () {
 'use strict';
 
-const INCLUS = (window.NOMENCLATOR_INCLUS || []).map(([id, cod, den, um, tip]) => ({ id, cod, den, um, tip, activ: true }));
+const INCLUS = (window.NOMENCLATOR_INCLUS || []).map(([id, cod, den, um, tip]) => ({ id, cod, den, um, tip, activ: true, in_selectie: true }));
 let produse = INCLUS;
 let coresp = {};        // cheie -> id produs (sau null = fără cod, intenționat)
 let deLaServer = false;
@@ -3344,19 +3344,33 @@ const CAMPURI_PANOU = ['putere_W', 'lungime_mm', 'latime_mm', 'grosime_mm', 'voc
 function panouComplet(t) {
   return !!t && CAMPURI_PANOU.every((c) => typeof t[c] === 'number' && isFinite(t[c]));
 }
+// Produsele active (modulul „Produse active” al Gestiunii): doar ele apar la selecția panoului, invertorului și bateriei
+// într-o lucrare. Cele inactive rămân în nomenclator, cu codurile lor pe fișe.
 function panouri() {
-  return produse.filter((p) => p.tip === 'panou' && p.activ !== false && panouComplet(p.tehnic))
+  return produse.filter((p) => p.tip === 'panou' && p.activ !== false && p.in_selectie !== false && panouComplet(p.tehnic))
     .map((p) => Object.assign({}, p.tehnic, {
       id: 'nom:' + p.id, brand: p.tehnic.brand || '', model: p.tehnic.model || p.den, cod: p.cod, nomId: p.id, receptionat: true,
     }))
     .sort((a, b) => fara(a.brand).localeCompare(fara(b.brand)) || a.putere_W - b.putere_W);
 }
 
+// Un model din catalogul aplicației (invertor sau baterie) se poate alege dacă produsul lui din nomenclator e activ.
+// Modelele fără cod în nomenclator rămân mereu de ales (Adminul le poate scoate din catalog).
+function produsModel(tip, brand, model) {
+  const r = tip === 'invertor' ? pentruLinie({ den: 'Invertor', det: model }, { invertorBrand: brand })
+    : pentruLinie({ den: 'Baterie', det: brand + ' ' + model }, {});
+  return r.produs || null;
+}
+function modelActiv(tip, brand, model) {
+  const p = produsModel(tip, brand, model);
+  return !p || p.in_selectie !== false;
+}
+
 /* --------------------------------------------------- date de la server ---- */
 function seteaza(lista, corespondente) {
   if (Array.isArray(lista) && lista.length) {
     produse = lista.map((p) => ({ id: p.id, cod: p.cod, den: p.den, um: p.um || 'buc', tip: p.tip || 'altul',
-      tehnic: p.tehnic || null, fisa: p.fisa || null, activ: p.activ !== false, modificat: p.modificat || null,
+      tehnic: p.tehnic || null, fisa: p.fisa || null, activ: p.activ !== false, in_selectie: p.in_selectie !== false, modificat: p.modificat || null,
       creat_de_nume: p.creat_de_nume || '', versiune: p.versiune || 1 }));
     deLaServer = true;
   } else {
@@ -3371,7 +3385,7 @@ window.NOMENCLATOR = {
   get corespondente() { return coresp; },
   get deLaServer() { return deLaServer; },
   INCLUS, CAMPURI_PANOU,
-  cheie, pentruLinie, gaseste, dupaId, sugestii, cheiCunoscute, panouri, panouComplet, seteaza, fara,
+  cheie, pentruLinie, gaseste, dupaId, sugestii, cheiCunoscute, panouri, panouComplet, seteaza, fara, produsModel, modelActiv,
   implicitPentru: (k, x) => { const id = EXACT[k] != null ? gaseste(EXACT[k]) : (implicitDupaRegula(k) || implicitDupaNota(k, x || {})); return id ? dupaId(id) : null; },
 };
 })();
@@ -4730,6 +4744,14 @@ async function salveazaProdus(p) {
   await sincronizeaza();
   return r[0];
 }
+// Modulul „Produse active”: produsele bifate apar la selecția din formularul de lucrare
+async function seteazaActive(ids, activ) {
+  const lista = [...new Set(ids || [])];
+  for (let i = 0; i < lista.length; i += 100) {
+    await asteapta(sb.from('nomenclator').update({ in_selectie: !!activ }).in('id', lista.slice(i, i + 100)).select());
+  }
+  await sincronizeaza();
+}
 // Corespondența unei linii: id de produs, null (fără cod, intenționat) sau undefined (revine la cea implicită)
 async function salveazaCorespondenta(cheie, produsId) {
   if (produsId === undefined) await asteapta(sb.from('corespondente').delete().eq('cheie', cheie).select());
@@ -4766,7 +4788,7 @@ window.CONT = {
   membriEchipei: (id) => oameni.profiluri.filter((p) => p.echipa_id === id && p.rol === 'membru' && p.activ !== false),
   numeOm: (id) => { const p = oameni.profiluri.find((x) => x.id === id); return p ? (p.nume || p.email) : ''; },
   catalogEditabil, aplicaCatalog, CATALOG_INCLUS, reaplica,
-  salveazaProdus, salveazaCorespondenta, incarcaFisa, linkFisa,
+  salveazaProdus, salveazaCorespondenta, incarcaFisa, linkFisa, seteazaActive,
   salveazaProfil, creeazaUtilizator, parolaUtilizator, stergeUtilizator, echipaNoua, redenumesteEchipa, salveazaCatalog,
   arhiva, arhiveaza, sterge,
 };
@@ -5299,7 +5321,8 @@ function invertorLucrare(l) {
 }
 // Bateriile care se potrivesc cu marca și clasa de tensiune a invertorului.
 function bateriiPentru(l, inv) {
-  return C.BATERII.filter((b) => (!b.compatibil || !b.compatibil.length || b.compatibil.includes(l.invertorBrand)) && (!inv || !inv.baterie || b.clasa === inv.baterie));
+  return C.BATERII.filter((b) => (!b.compatibil || !b.compatibil.length || b.compatibil.includes(l.invertorBrand)) && (!inv || !inv.baterie || b.clasa === inv.baterie)
+    && bateriaSelectabila(l, b));
 }
 // „Altă baterie…”: la Deye și Solis (decizie client), și oriunde catalogul nu are nicio baterie potrivită.
 const permiteAltaBaterie = (l, inv) => ['Deye', 'Solis'].includes(l.invertorBrand) || (!!inv && !!inv.baterie && !bateriiPentru(l, inv).length);
@@ -5319,7 +5342,7 @@ function htmlBaterie(l, inv) {
   // bateriile mărcii de cealaltă tensiune: alese, mută propunerea pe un invertor potrivit
   // (dacă invertorul nu e ales de mână); altfel apar marcate cu roșu
   const alte = inv && inv.baterie ? C.BATERII.filter((b) => (!b.compatibil || b.compatibil.includes(l.invertorBrand))
-    && b.clasa !== inv.baterie && b.model !== l.baterieModel) : [];
+    && b.clasa !== inv.baterie && b.model !== l.baterieModel && bateriaSelectabila(l, b)) : [];
   if (alte.length) {
     opt.push({ v: '__x', t: '— cer alt invertor —', dezactivat: true });
     alte.forEach((b) => opt.push({ v: b.model, t: `${b.brand} ${b.model} (${b.clasa === 'LV' ? '48 V' : 'HV'})` }));
@@ -5352,6 +5375,9 @@ function htmlBaterie(l, inv) {
 // Lucrările vechi, fără alegerea asta, păstrează invertorul hibrid ales deja.
 const acceptaHibrid = (l) => !!l.hibrid || (l.acceptHibrid != null ? !!l.acceptHibrid : !!(invertorLucrare(l) || {}).hibrid);
 const invertorPermis = (l, i) => i.retea === l.retea && (l.hibrid ? !!i.hibrid : (acceptaHibrid(l) || !i.hibrid));
+// Produsele dezactivate de Gestiune („Produse active”) nu se mai pot alege; cel ales deja la lucrare rămâne în listă.
+const invertorSelectabil = (l, i) => window.NOMENCLATOR.modelActiv('invertor', i.brand, i.model) || (i.brand === l.invertorBrand && i.model === l.invertorModel);
+const bateriaSelectabila = (l, b) => window.NOMENCLATOR.modelActiv('baterie', b.brand, b.model) || b.model === l.baterieModel || b.model === l.baterieModel2;
 
 // Toată casa pe backup: siguranța generală a casei (opțional) și curentul de trecere din fișă
 function htmlToataCasa(l, inv) {
@@ -5378,7 +5404,7 @@ function ecranForm() {
   // ca schimbarea mărcii sau a bifei „Sistem hibrid” să n-o mai schimbe singură
   if (l.acceptHibrid == null) l.acceptHibrid = !!(invertorLucrare(l) || {}).hibrid;
   // marca se alege prima; modelele se filtreaza dupa marca, branșament si hibrid
-  const potrivite = C.INVERTOARE.filter((i) => invertorPermis(l, i));
+  const potrivite = C.INVERTOARE.filter((i) => invertorPermis(l, i) && invertorSelectabil(l, i));
   const marci = [...new Set(potrivite.map((i) => i.brand))].sort();
   if (!marci.includes(l.invertorBrand)) l.invertorBrand = marci[0] || '';
   const invertoare = potrivite.filter((i) => i.brand === l.invertorBrand);   // sortate dupa putere, din catalog
@@ -5635,7 +5661,7 @@ const intregPozitiv = (v) => { const x = typeof v === 'number' ? v : (/^\s*\d+\s
 const numarPanouri = (c) => intregPozitiv(c.randuri) * intregPozitiv(c.panouriPeRand);
 
 function propuneInvertor(l) {
-  const invertoare = C.INVERTOARE.filter((i) => invertorPermis(l, i) && i.brand === l.invertorBrand);
+  const invertoare = C.INVERTOARE.filter((i) => invertorPermis(l, i) && invertorSelectabil(l, i) && i.brand === l.invertorBrand);
   const panou = panouLucrare(l) || C.PANOURI[0];
   // câmpurile goale nu contează: nici la putere, nici la est-vest (la fel ca motorul)
   // doar câmpurile valabile (întregi, pozitive), la fel ca motorul și eticheta de sus
@@ -7360,6 +7386,8 @@ function ecranNomenclator() {
           ${p.fisa && p.tip !== 'panou' ? '<span class="eticheta ok">fișă</span>' : ''}
           <div class="titlu">${E(p.den)}</div><div class="info">${E(TIPURI[p.tip] || '')} · ${E(p.um)}</div></button>`;
       }).join('') || '<div class="gol-text" style="padding:20px">Niciun produs nu se potrivește.</div>'}`;
+  } else if (tab === 'active') {
+    corp = htmlProduseActive(n);
   } else {
     const linii = lucrariCuLinii();
     const chei = new Set(NOM.cheiCunoscute().concat(Object.keys(linii)));
@@ -7390,7 +7418,7 @@ function ecranNomenclator() {
   }
   $('#titlu').innerHTML = 'Nomenclator<span class="sub">coduri inoSOLAR, recepție, corespondențe</span>';
   $('#btn-inapoi').hidden = false;
-  $('#ecran').innerHTML = `<div class="tab-cat" style="margin-top:14px">${campSeg('nom_tab', '', tab, [{ v: 'produse', t: 'Produse' }, { v: 'coresp', t: 'Corespondențe' }])}</div>` + corp;
+  $('#ecran').innerHTML = `<div class="tab-cat" style="margin-top:14px">${campSeg('nom_tab', '', tab, [{ v: 'produse', t: 'Produse' }, { v: 'active', t: 'Produse active' }, { v: 'coresp', t: 'Corespondențe' }])}</div>` + corp;
   $('#bara-in').innerHTML = '<button class="buton" id="b-receptie">Recepție produs nou</button>';
   $('#bara').hidden = false;
   document.querySelectorAll('[data-seg="nom_tab"] button').forEach((b) => { b.onclick = () => { n.tab = b.dataset.val; n.cauta = ''; ecranNomenclator(); }; });
@@ -7405,6 +7433,68 @@ function ecranNomenclator() {
   document.querySelectorAll('[data-produs]').forEach((b) => { b.onclick = () => deschideProdus(NOM.dupaId(b.dataset.produs)); });
   document.querySelectorAll('[data-coresp]').forEach((b) => { b.onclick = () => { stare.coresp = { k: b.dataset.coresp, cauta: '' }; du('coresp'); }; });
   $('#b-receptie').onclick = () => deschideProdus(null);
+  if (tab === 'active') legaProduseActive(n);
+}
+
+/* ---------------------------------------------------- produsele active ---- *
+ * Gestiunea (și Adminul) bifează ce produse se pot alege într-o lucrare: panourile recepționate,
+ * invertoarele și bateriile. Cele debifate rămân în nomenclator, cu codurile lor pe fișe și rapoarte;
+ * lucrările care le au deja le păstrează. */
+const TIPURI_ACTIVE = { panou: 'Panouri', invertor: 'Invertoare', baterie: 'Baterii' };
+function produseActiveFiltrate(n) {
+  const q = n.cauta || '';
+  return NOM.produse.filter((p) => p.tip === n.atip && p.activ !== false && (!q.trim() || potriveste(p.cod + ' ' + p.den + ' ' + ((p.tehnic && p.tehnic.model) || ''), q)));
+}
+function htmlProduseActive(n) {
+  if (!TIPURI_ACTIVE[n.atip]) n.atip = 'panou';
+  const toate = NOM.produse.filter((p) => p.tip === n.atip && p.activ !== false);
+  const lista = produseActiveFiltrate(n);
+  const nrActive = toate.filter((p) => p.in_selectie !== false).length;
+  const rand = (p) => {
+    let info = '';
+    if (p.tip === 'panou') {
+      info = NOM.panouComplet(p.tehnic)
+        ? `${E((p.tehnic.brand || '') + ' ' + (p.tehnic.model || ''))} · ${nr(p.tehnic.putere_W)} W · ${nr(p.tehnic.lungime_mm)}×${nr(p.tehnic.latime_mm)} mm`
+        : '<span style="color:var(--rosu)">fără date tehnice: nu apare în formular până la recepție</span>';
+    } else {
+      const leg = modeleLegate(p).map((k) => k.replace(/^(Invertor|Baterie) · /, ''));
+      info = leg.length ? 'în formular: ' + E(leg.join(', ')) : 'nu e legat de un model din catalogul aplicației: bifa nu schimbă formularul';
+    }
+    return `<label class="bifa produs-activ" style="align-items:flex-start;border-bottom:1px solid var(--linie,#e5e5e5);padding:8px 0">
+      <input type="checkbox" data-activ="${E(p.id)}" ${p.in_selectie !== false ? 'checked' : ''}>
+      <span><span class="cod">${E(p.cod)}</span> ${E(p.den)}<span class="info" style="display:block">${info}</span></span></label>`;
+  };
+  // modelele din catalog fără produs în nomenclator: apar mereu (nu au ce bifa)
+  const faraProdus = n.atip === 'invertor' ? C.INVERTOARE.filter((i) => !NOM.produsModel('invertor', i.brand, i.model)).map((i) => i.brand + ' ' + i.model)
+    : n.atip === 'baterie' ? C.BATERII.filter((b) => !NOM.produsModel('baterie', b.brand, b.model)).map((b) => b.brand + ' ' + b.model) : [];
+  return `
+    <div class="tab-cat" style="margin-top:12px">${campSeg('nom_atip', '', n.atip, Object.keys(TIPURI_ACTIVE).map((k) => ({ v: k, t: TIPURI_ACTIVE[k] })))}</div>
+    <div class="ajutor">Bifat = se poate alege la o lucrare nouă. Debifat = nu mai apare la selecție, dar rămâne în nomenclator, cu codul lui pe fișe; lucrările care îl au deja îl păstrează. Bifa se salvează imediat.</div>
+    <div class="camp"><label for="f-nom_cauta">Caută cod, denumire sau model</label><input type="search" id="f-nom_cauta" value="${E(n.cauta || '')}" placeholder="de ex. LONGI, 450, Huawei"></div>
+    <div class="ajutor"><b>${nrActive}</b> active din ${toate.length}${lista.length !== toate.length ? ` · se văd ${lista.length}` : ''}.</div>
+    <div class="randuri2" style="margin:6px 0 10px"><button class="buton gol" id="b-act-toate">Activează cele afișate</button><button class="buton gol" id="b-act-niciuna">Dezactivează cele afișate</button></div>
+    ${lista.map(rand).join('') || '<div class="gol-text" style="padding:20px">Niciun produs nu se potrivește.</div>'}
+    ${faraProdus.length ? `<details style="margin-top:14px"><summary>${faraProdus.length} modele din catalogul aplicației nu au produs în nomenclator și apar mereu</summary>
+      <div class="ajutor">${E(faraProdus.join(', '))}.<br>Le legați de un cod din Nomenclator → produsul → „Invertorul (Bateria) din catalog cu acest cod”, sau din Corespondențe. Adminul le poate scoate din catalog.</div></details>` : ''}`;
+}
+function legaProduseActive(n) {
+  document.querySelectorAll('[data-seg="nom_atip"] button').forEach((b) => { b.onclick = () => { n.atip = b.dataset.val; n.cauta = ''; ecranNomenclator(); }; });
+  const schimba = async (ids, activ, el) => {
+    if (!K.sync.online) { alert('Fără semnal. Produsele active se salvează pe server, cu internet.'); ecranNomenclator(); return; }
+    if (el) el.disabled = true;
+    try { await K.seteazaActive(ids, activ); }
+    catch (e) { alert('Nu s-a salvat: ' + e.message); }
+    ecranNomenclator();
+  };
+  document.querySelectorAll('[data-activ]').forEach((c) => { c.onchange = () => schimba([c.dataset.activ], c.checked, c); });
+  const toate = (activ) => {
+    const ids = produseActiveFiltrate(n).filter((p) => (p.in_selectie !== false) !== activ).map((p) => p.id);
+    if (!ids.length) return;
+    if (!confirm(`${activ ? 'Activați' : 'Dezactivați'} ${ids.length} ${ids.length === 1 ? 'produs' : 'produse'}?`)) return;
+    schimba(ids, activ, null);
+  };
+  $('#b-act-toate').onclick = () => toate(true);
+  $('#b-act-niciuna').onclick = () => toate(false);
 }
 function cheieCatalog(k) {
   // „Invertor · Marca Model”, „Baterie · Marca Model”, „Dongle · …”: linia se reconstruiește ca în motor
