@@ -176,6 +176,7 @@ td.n .um{font-weight:400;color:var(--slab);font-size:13px;margin-left:3px}
 .det{display:block;font-size:12.5px;color:var(--slab);margin-top:2px;line-height:1.4}
 .cod{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.2px;background:var(--verde-deschis);color:var(--verde-text);border-radius:5px;padding:1px 6px;margin:0 0 3px;word-break:break-all;font-variant-numeric:tabular-nums}
 .cod.fara{background:#f1f1f2;color:var(--slab);font-weight:600}
+.cod-alege{display:block;width:100%;max-width:100%;font:inherit;font-size:13px;padding:5px 6px;margin:0 0 3px;border:1px solid var(--linie,#d9d9d9);border-radius:8px;background:#fffbe6}
 .den-nom{display:block}
 .eticheta{display:inline-block;font-size:11px;font-weight:700;border-radius:5px;padding:1px 6px;margin:0 0 3px 4px;background:#f1f1f2;color:var(--slab)}
 .eticheta.ok{background:var(--verde-deschis);color:var(--verde-text)}
@@ -3173,8 +3174,14 @@ const EXACT = {
   // 5. Tablouri și protecții
   'Întreruptor AC 1P+N 10 A': 'SAC101P+NE',
   'Întreruptor AC 1P+N 16 A': 'SAC161P+NE',
-  'Întreruptor AC 1P+N 25 A': 'SAC251P+NE|1P+N Eaton',
-  'Întreruptor AC 1P+N 40 A': 'SAC40S|1P+N',
+  // decizii din 13 octombrie (interogarea produs cu produs)
+  'Întreruptor AC 3P 40 A': 'SAC40S|3P+N',
+  'Întreruptor AC 3P 50 A': 'SAC50S|3P+N',
+  'Întreruptor AC 3P 63 A': 'SAC63S',
+  'Întreruptor AC 1P+N 50 A': 'SAC50S|2P+N',
+  'Întreruptor AC 1P+N 80 A': 'SAC804PS',
+  'Întreruptor AC 1P+N 100 A': 'SAC1004PSC',
+  'Întreruptor DC pentru baterie 250 A': 'SIGUSOL250',
   'Smart meter monofazat · Huawei': 'SMHM',
   'Smart meter trifazat · Huawei': 'DTSU666-H 100A',
   'Smart meter monofazat · Deye': 'SMDM',
@@ -3190,7 +3197,15 @@ const EXACT = {
   'Conductor MYF 16 mm²': 'MYF 16mm',
   'Conductor MYF 16 mm² pentru legătura între panouri': 'MYF 16mm',
   'Clemă de legătură electrod–platbandă': 'CEI',
+  // 6. Împământare și structură (13 octombrie)
+  'Electrod de împământare 1,5 m': 'EV2IS',
+  'Hanger bolt': 'PM10-200',
+  'Placă adaptoare pentru hanger bolt': 'Prindere L cu surub YL-TH-L-B',
+  'Mini-rail': 'MK2-55CM',
   // invertoare (marca și modelul din catalog)
+  'Invertor · Deye SUN-6KW-LP1': 'ID6M',
+  'Invertor · Sigenergy SigenStor EC 6.0 SP': 'INVSIG6MONO',
+  'Invertor · Sigenergy SigenStor EC 12.0 TP': 'INVSIG12TRIF',
   'Invertor · Huawei SUN2000-4KTL-L1': 'IH4L',
   'Invertor · Huawei SUN2000-5KTL-L1': 'IH5',
   'Invertor · Huawei SUN2000-5KTL-M1': 'IH5M',
@@ -3236,6 +3251,8 @@ const EXACT = {
   'Invertor · Sigenergy SigenStor EC 8.0 TP': 'ISSEC8.0TP',
   'Invertor · Sigenergy SigenStor EC 10.0 TP': 'ISSEC10.0TP',
   // baterii (marca și modelul din catalog)
+  'Baterie · Dyness DL5.0C, 5 kWh': 'BTDY5.12',
+  'Baterie · Dyness PowerDepot G2, 5,12 kWh': 'BTDY5.12',
   'Baterie · Huawei LUNA2000-5 kWh (modul)': 'BHL5',
   'Baterie · Huawei LUNA2000-7 kWh (modul)': 'BHL7',
   'Baterie · Sigenergy SigenStor BAT 6.0': 'BATSIG6.02KW',
@@ -3250,6 +3267,45 @@ const EXACT = {
   'Baterie · Uhome 14,33 kWh': 'BTUH14.33',
   'Baterie · Uhome 16 kWh': 'BTUH16',
 };
+
+Object.keys(EXACT).forEach((k) => { if (/^Întreruptor AC /.test(k)) EXACT[k.replace('Întreruptor AC ', 'Întreruptor backup ')] = EXACT[k]; });
+
+// Linii cu mai multe produse echivalente (decizia din 13 octombrie): pe fișa lucrării se alege varianta;
+// fără alegere, se folosește corespondența salvată de Gestiune sau, altfel, prima variantă.
+const TABLOURI = ['T8P', 'T12P', 'T18P', 'T24P', 'T36M', 'TABLOU METALIC', 'TM600x400x200', 'TM700x500x200', '53060'];
+const COPEX = ['COPEX16', 'COPEX25', 'COPEX32', 'COPEX25M', 'COPEX32M'];
+const VARIANTE = {
+  'Tripod balastat': ['TALIM15', 'TR18-30', 'Trepied YL-AFL / YL-ARL-30'],
+  // montajul la sol: pe linia Pilon se alege kitul de structură; grinda și conectorul sunt în kit
+  'Pilon': ['SLS2X3', 'SLS2X5', 'SLS2X3-30G-DOL', 'SLS2X5-30G-DOL', 'SLS2X5-DOL'],
+  'Copex pentru cablurile DC': COPEX,
+  'Copex sau canal cablu': COPEX.concat(['CCC', 'CC60x40']),
+  'Tablou AC IP65': TABLOURI,
+  'Tablou DC IP65': TABLOURI,
+  'Tablou de backup': TABLOURI,
+  'Întreruptor AC 3P 25 A': ['SAC253P+N', 'SAC253P+NE'],
+  'Întreruptor AC 3P 32 A': ['SAC32', 'SAC32S'],
+  'Întreruptor AC 1P+N 25 A': ['SAC251P+NE|1P+N Eaton', 'SAC251P+NE|2P+N LEADER'],
+  'Întreruptor AC 1P+N 32 A': ['SAC322P+NS', 'SAC322PSS', 'SAC322PSIE'],
+  'Întreruptor AC 1P+N 40 A': ['SAC40S|1P+N', 'SAC402PS'],
+};
+Object.keys(VARIANTE).forEach((k) => { if (/^Întreruptor AC /.test(k)) VARIANTE[k.replace('Întreruptor AC ', 'Întreruptor backup ')] = VARIANTE[k]; });
+
+// Linii fără produs în nomenclator: unele așteaptă un cod nou de la Ino, altele rămân fără cod, intenționat
+// (decizia din 13 octombrie). Cele intenționate nu mai apar ca „fără cod” de completat.
+const FARA_COD_INTENTIONAT = [/^Set de etichete de avertizare PV$/, /^Schemă monofilară/, /^Verificare PRAM$/, /^Grindă înclinată pentru cadru$/, /^Conector grindă–șină$/];
+const COD_DE_CREAT = [
+  /^Colier UV$/, /^Șurub /, /^Piuliță și șaibă$/, /^Diblu /, /^Etanșant butil$/, /^Garnitură EPDM$/, /^Trecere etanșă /,
+  /^Suport cu etanșare pentru șindrilă$/, /^Presetupă /, /^Pin pentru /, /^Papuc pentru conductorul de împământare$/,
+  /^Clemă de împământare$/, /^Platbandă de împământare$/, /^Cutie de control priză de pământ$/, /^Conductor PE 6 mm²/,
+  /^Cutie IP65 pentru descărcătoare/, /^Cutie de joncțiune AC/, /^Soclu dublu pentru siguranțe$/,
+  /^Cârlig pentru țiglă solzi$/, /^Papuc bimetalic Cu-Al/,
+  /^Cablu baterie /, /^Cablu de comunicație BMS/, /^Cablu AC cupru \d+×(25|50) mm²/, /^Cablu AC aluminiu /,
+  /^Întreruptor (AC|backup) 1P\+N 20 A$/, /^Întreruptor (AC|backup) 3P (10|16|20) A$/, /^Întreruptor DC pentru baterie (150|200|300) A$/,
+];
+const stareFaraCod = (k) => (FARA_COD_INTENTIONAT.some((re) => re.test(k)) ? 'intentionat' : COD_DE_CREAT.some((re) => re.test(k)) ? 'de_creat' : null);
+const variante = (k) => (VARIANTE[k] || []).map(gasesteLazy).filter(Boolean);
+function gasesteLazy(v) { const id = gaseste(v); return id ? dupaId(id) : null; }
 
 // Cablul AC de cupru (CYY, nearmat) are ca echivalent cablul RV-K de aceeași formație (decizia din 8 octombrie).
 // Cablul de aluminiu armat (ACYABY) nu are echivalent în nomenclator.
@@ -3316,17 +3372,29 @@ const dupaId = (id) => produse.find((x) => x.id === id) || null;
 
 // Codul pentru o linie a fișei. Întoarce { cheie, produs, sursa: 'salvat'|'implicit'|'panou'|null, sugestii }
 function pentruLinie(x, l) {
+  const r = pentruLinie0(x, l);
+  r.variante = variante(r.cheie);
+  r.faraCod = r.produs ? null : stareFaraCod(r.cheie);
+  return r;
+}
+function pentruLinie0(x, l) {
   const k = cheie(x, l);
   // panoul recepționat poartă produsul lui
   if (x.den === 'Panouri fotovoltaice' && l && /^nom:/.test(l.panouId || '')) {
     const p = dupaId(l.panouId.slice(4));
     if (p) return { cheie: k, produs: p, sursa: 'panou', sugestii: [] };
   }
+  // varianta aleasă pe fișa lucrării (la liniile cu mai multe produse echivalente)
+  const ales = l && l.coduri && l.coduri[k];
+  if (ales) {
+    const p = dupaId(ales);
+    if (p) return { cheie: k, produs: p, sursa: 'lucrare', sugestii: [] };
+  }
   if (Object.prototype.hasOwnProperty.call(coresp, k)) {
     const p = coresp[k] ? dupaId(coresp[k]) : null;
     if (p || !coresp[k]) return { cheie: k, produs: p, sursa: 'salvat', sugestii: p ? [] : sugestii(k) };
   }
-  const id = EXACT[k] != null ? gaseste(EXACT[k]) : (implicitDupaRegula(k) || implicitDupaNota(k, x));
+  const id = EXACT[k] != null ? gaseste(EXACT[k]) : VARIANTE[k] ? gaseste(VARIANTE[k][0]) : (implicitDupaRegula(k) || implicitDupaNota(k, x));
   const p = id ? dupaId(id) : null;
   return { cheie: k, produs: p, sursa: p ? 'implicit' : null, sugestii: p ? [] : sugestii(k) };
 }
@@ -3336,7 +3404,7 @@ function sugestii(k) {
 }
 // Toate cheile cunoscute: cele implicite și cele salvate (ecranul de corespondențe le adaugă pe cele din lucrări)
 function cheiCunoscute() {
-  return [...new Set(Object.keys(EXACT).concat(Object.keys(coresp)))];
+  return [...new Set(Object.keys(EXACT).concat(Object.keys(VARIANTE), Object.keys(coresp)))];
 }
 
 // Panourile recepționate, ca panouri de catalog (id „nom:<id produs>”). Le trebuie toate datele de calcul.
@@ -3386,7 +3454,8 @@ window.NOMENCLATOR = {
   get deLaServer() { return deLaServer; },
   INCLUS, CAMPURI_PANOU,
   cheie, pentruLinie, gaseste, dupaId, sugestii, cheiCunoscute, panouri, panouComplet, seteaza, fara, produsModel, modelActiv,
-  implicitPentru: (k, x) => { const id = EXACT[k] != null ? gaseste(EXACT[k]) : (implicitDupaRegula(k) || implicitDupaNota(k, x || {})); return id ? dupaId(id) : null; },
+  implicitPentru: (k, x) => { const id = EXACT[k] != null ? gaseste(EXACT[k]) : VARIANTE[k] ? gaseste(VARIANTE[k][0]) : (implicitDupaRegula(k) || implicitDupaNota(k, x || {})); return id ? dupaId(id) : null; },
+  variante, stareFaraCod,
 };
 })();
 
@@ -6230,7 +6299,7 @@ function ecranRezultat() {
     <section class="card"><h2>${E(s.nume)}</h2><div class="corp"><table${cuRap ? ' class="rap fisa-rap"' : ''}>
       ${cuRap ? '<tr><th>Material</th><th>Estimat</th><th>Consumat</th><th>Dif.</th></tr>' : '<tr><th>Material</th><th>Cantitate</th></tr>'}
       ${s.linii.map((x) => {
-        const material = `<td>${htmlMaterial(x, l)}${x.nota ? `<span class="det">${E(x.nota)}</span>` : ''}${cuRap ? `<span class="det">${E(x.um)}</span>` : ''}</td>`;
+        const material = `<td>${htmlMaterial(x, l, poate('editeaza', l))}${x.nota ? `<span class="det">${E(x.nota)}</span>` : ''}${cuRap ? `<span class="det">${E(x.um)}</span>` : ''}</td>`;
         if (!cuRap) return `<tr>${material}<td class="n">${nr(x.cant)}<span class="um">${E(x.um)}</span></td></tr>`;
         // linia lăsată goală în raport e egală cu estimarea
         const v = consumLinie(l.raportat, s.nume, x);
@@ -6271,6 +6340,14 @@ function ecranRezultat() {
     du('lista');
   };
   $('#b-pdf').onclick = () => exportaPDF(l);
+  // varianta de produs aleasă pe o linie se salvează pe lucrare (pe fișă, raport și PDF apare codul ales)
+  document.querySelectorAll('[data-varianta]').forEach((sel) => {
+    sel.onchange = () => {
+      l.coduri = Object.assign({}, l.coduri || {}, { [sel.dataset.varianta]: sel.value });
+      salveaza(l);
+      deseneaza();
+    };
+  });
   if ($('#b-la-verificari')) $('#b-la-verificari').onclick = () => { const v = $('#verificari'); if (v) v.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   if ($('#b-gata')) $('#b-gata').onclick = () => { salveaza(l); du('lista'); };
   if ($('#b-inapoi2')) $('#b-inapoi2').onclick = () => {
@@ -6616,11 +6693,20 @@ function exportaPDF(l) {
 
 // Codul și denumirea din nomenclatorul inoSOLAR, deasupra denumirii liniei din aplicație.
 // Linia fără corespondență apare „fără cod”; Gestiunea o completează din „Corespondențe”.
-function htmlMaterial(x, l) {
+// alege = true pe fișa lucrării, pentru cine o poate modifica: la liniile cu mai multe produse echivalente
+// (tablouri, copex, tripozi, întrerupătoare) varianta se alege dintr-o listă
+function htmlMaterial(x, l, alege) {
   const c = window.NOMENCLATOR.pentruLinie(x, l);
   const al = x.den + (x.det ? ' — ' + x.det : '');
-  return c.produs
-    ? `<span class="cod" data-den="${E(x.den)}">${E(c.produs.cod)}</span><span class="den-nom">${E(c.produs.den)}</span><span class="det">${E(al)}</span>`
+  if (alege && c.produs && c.variante && c.variante.length > 1 && (c.sursa === 'lucrare' || c.variante.some((p) => p.id === c.produs.id))) {
+    return `<select class="cod-alege" data-varianta="${E(c.cheie)}" aria-label="Produsul din nomenclator pentru ${E(x.den)}">
+      ${c.variante.map((p) => `<option value="${E(p.id)}"${p.id === c.produs.id ? ' selected' : ''}>${E(p.cod)} · ${E(p.den)}</option>`).join('')}</select>
+      <span class="cod" data-den="${E(x.den)}" hidden>${E(c.produs.cod)}</span><span class="det">${E(al)}</span>`;
+  }
+  if (c.produs) return `<span class="cod" data-den="${E(x.den)}">${E(c.produs.cod)}</span><span class="den-nom">${E(c.produs.den)}</span><span class="det">${E(al)}</span>`;
+  // fără cod: intenționat (servicii, etichete) — nu se mai semnalează; altfel „fără cod”
+  return c.faraCod === 'intentionat'
+    ? `<span class="den-nom" data-den="${E(x.den)}">${E(x.den)}</span>${x.det ? `<span class="det">${E(x.det)}</span>` : ''}`
     : `<span class="cod fara" data-den="${E(x.den)}">fără cod</span><span class="den-nom">${E(x.den)}</span>${x.det ? `<span class="det">${E(x.det)}</span>` : ''}`;
 }
 // Consumul raportat se arată pe fișa de materiale când raportul e trimis sau validat
@@ -7400,7 +7486,7 @@ function ecranNomenclator() {
       return { k, c, n: ex ? ex.n : 0, x };
     }).filter((r) => !/^Panou · /.test(r.k));
     // „Fără cod”: liniile din lucrări rămase fără corespondență (modelele de catalog nefolosite apar la „Toate”)
-    const faraCod = randuri.filter((r) => !r.c.produs && r.n > 0);
+    const faraCod = randuri.filter((r) => !r.c.produs && r.n > 0 && r.c.faraCod !== 'intentionat');
     const q = n.cauta || '';
     const vizibile = (n.filtruCo === 'fara' ? faraCod : randuri).filter((r) => !q.trim() || potriveste(r.k + ' ' + (r.c.produs ? r.c.produs.cod + ' ' + r.c.produs.den : ''), q))
       .sort((a, b) => b.n - a.n || a.k.localeCompare(b.k, 'ro'));
@@ -7413,7 +7499,9 @@ function ecranNomenclator() {
         <button class="lucrare" data-coresp="${E(r.k)}">
           <div class="titlu">${E(r.k)}</div>
           <div style="margin-top:5px">${r.c.produs ? `<span class="cod">${E(r.c.produs.cod)}</span> <span class="info" style="display:inline">${E(r.c.produs.den)}</span>` : '<span class="cod fara">fără cod</span>'}
-          ${r.c.sursa === 'salvat' ? '<span class="eticheta ok">ales de gestiune</span>' : r.c.sursa === 'implicit' ? '<span class="eticheta">implicit</span>' : ''}</div>
+          ${r.c.sursa === 'salvat' ? '<span class="eticheta ok">ales de gestiune</span>' : r.c.sursa === 'implicit' ? '<span class="eticheta">implicit</span>' : ''}
+          ${r.c.variante && r.c.variante.length > 1 ? `<span class="eticheta">${r.c.variante.length} variante, se aleg pe fișă</span>` : ''}
+          ${r.c.faraCod === 'de_creat' ? '<span class="eticheta warn">cod de creat de Ino</span>' : r.c.faraCod === 'intentionat' ? '<span class="eticheta">fără cod, intenționat</span>' : ''}</div>
           ${r.n ? `<div class="info">în ${r.n} ${r.n === 1 ? 'lucrare' : 'lucrări'}</div>` : ''}</button>`).join('') || '<div class="gol-text" style="padding:20px">Toate liniile din lucrări au cod.</div>'}`;
   }
   $('#titlu').innerHTML = 'Nomenclator<span class="sub">coduri inoSOLAR, recepție, corespondențe</span>';
