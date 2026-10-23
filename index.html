@@ -5069,7 +5069,7 @@ const E = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '
 const $ = (sel) => document.querySelector(sel);
 const nr = (x) => (x == null || x === '' || !isFinite(x) ? '' : (Math.round(x * 100) / 100).toLocaleString('ro-RO'));
 const lei = (x) => (Math.round((x || 0) * 100) / 100).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
-const azi = () => new Date().toISOString().slice(0, 10);
+const azi = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };   // data locală, nu UTC
 const dataRo = (d) => (d ? new Date(d).toLocaleDateString('ro-RO') : '');
 const oraRo = (d) => (d ? new Date(d).toLocaleString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 const tipL = (l) => (l && l.tip) || 'montaj_nou';
@@ -5408,7 +5408,7 @@ function ecranTipNou() {
   const r = K.rol();
   const planifica = K.activ && (r === 'planificare' || r === 'admin');
   const d = st.nou || (st.nou = { tip: r === 'mentenanta' ? 'interventie' : 'montaj_nou', partener_id: '', prosumatorSolicitat: false, tipFinantare: 'Non Casa Verde',
-    client: '', adresa: '', telefon: '', echipa: (K.profil && K.profil.echipa_id) || '', data: '', client_id: '', inRegistru: true });
+    client: '', adresa: '', telefon: '', echipa: (K.profil && K.profil.echipa_id) || '', data: azi(), client_id: '', inRegistru: true });
   // din fișa clientului („+ Lucrare pentru client”): datele vin din registru
   if (st.clientNou) { const c = (K.clienti || []).find((x) => x.id === st.clientNou); st.clientNou = null; if (c) alegeClient(d, c); }
   const cuRegistru = K.activ && K.serverV3 && (K.clienti || []).length + (poateClienti() ? 1 : 0) > 0;
@@ -5710,7 +5710,7 @@ function htmlDateClient(l) {
       ${(K.parteneri || []).length ? alege('dc-partener', 'Partener', l.partener_id || '', optParteneri(l.partener_id)) : ''}
       ${alege('dc-finantare', 'Tipul proiectului', l.tipFinantare || 'Non Casa Verde', FINANTARI)}
       ${CU_PROSUMATOR.includes(tipL(l)) ? bifa('dc-prosumator', 'Clientul a cerut dosar de prosumator', l.prosumatorSolicitat) : ''}` : ''}
-    ${planifica ? `<div class="randuri2">${alege('dc-echipa', 'Echipa', l._echipa_id || '', optEchipe())}${camp('dc-data', 'Data planificată', (l.planificare || {}).data || '', '', 'date')}</div>
+    ${planifica ? `<div class="randuri2">${alege('dc-echipa', 'Echipa', l._echipa_id || '', optEchipe())}${camp('dc-data', 'Data planificată', (l.planificare || {}).data || azi(), '', 'date')}</div>
       <button class="adauga" id="x-planifica">Salvează planificarea</button>` : ''}
   </div></section>`;
 }
@@ -5901,7 +5901,7 @@ function htmlVerificari(l) {
         ${bifa('vp-verificat', 'Lucrarea e verificată pentru dosarul de prosumator', vp.verificat)}
         ${bifa('vp-depus', 'Dosarul e depus la distribuitor', vp.depus)}
         ${bifa('vp-actualizare', 'Dosarul necesită actualizare', vp.actualizare)}
-        <div class="randuri2">${camp('vp-nr', 'Nr. certificat de prosumator', cert ? cert.nr : '')}${camp('vp-data', 'Data certificatului', cert ? cert.dataCert : '', '', 'date')}</div>
+        <div class="randuri2">${camp('vp-nr', 'Nr. certificat de prosumator', cert ? cert.nr : '')}${camp('vp-data', 'Data certificatului', cert ? cert.dataCert : azi(), '', 'date')}</div>
         ${zona('vp-obs', 'Observații prosumator', vp.obs)}
         <button class="adauga" id="x-vp-salv">Salvează prosumatorul</button>
         <div class="ajutor">Cu certificatul trecut, lucrarea se închide definitiv.${cine(vp)}</div></div>`
@@ -5951,7 +5951,7 @@ function legaVerificari(l) {
   };
   if ($('#x-vp-salv')) $('#x-vp-salv').onclick = () => {
     const nrC = v('vp-nr').trim(), dc = v('vp-data');
-    if ((nrC && !dc) || (!nrC && dc)) { alert('Pentru certificat completați și numărul, și data.'); return; }
+    if (nrC && !dc) { alert('Pentru certificat completați și data.'); return; }
     const vp = { verificat: !!v('vp-verificat'), depus: !!v('vp-depus'), actualizare: !!v('vp-actualizare'), obs: v('vp-obs').trim() };
     if (nrC) vp.certificat = Object.assign({}, ((l.verificari || {}).prosumator || {}).certificat || {}, { nr: nrC, dataCert: dc });
     scrie('prosumator', vp, nrC ? 'Certificatul e trecut: lucrarea se închide.' : null);
@@ -6778,7 +6778,7 @@ function ecranClienti() {
   const c0 = $('#x-cl-cauta');
   c0.oninput = () => { st.cautaClient = c0.value; clearTimeout(st.tCl); st.tCl = setTimeout(() => { const p = c0.selectionStart; ecranClienti(); const c2 = $('#x-cl-cauta'); c2.focus(); try { c2.setSelectionRange(p, p); } catch (e) { /* */ } }, 250); };
   document.querySelectorAll('[data-client]').forEach((b) => { b.onclick = () => { st.client = Object.assign({}, (K.clienti || []).find((c) => c.id === b.dataset.client)); st.clientCitit = null; A().du('client'); }; });
-  if ($('#x-cl-nou')) $('#x-cl-nou').onclick = () => { st.client = { nume: '' }; st.clientCitit = null; A().du('client'); };
+  if ($('#x-cl-nou')) $('#x-cl-nou').onclick = () => { st.client = { nume: '', data_contract: azi() }; st.clientCitit = null; A().du('client'); };
   if ($('#x-cl-pdf')) $('#x-cl-pdf').onchange = async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
     st.client = { nume: '' }; st.clientPdf = f;
@@ -8714,7 +8714,7 @@ function ecranRaport() {
   <section class="card"><h2>Cine raportează</h2><div class="corp">
     <div class="randuri2">
       ${campText('rap_persoana', 'Nume', rap.persoana, 'text', dz)}
-      ${campText('rap_data', 'Data terminării', rap.data, 'date', dz)}
+      ${campText('rap_data', 'Data terminării', rap.data || (dz ? '' : ziISO(Date.now())), 'date', dz)}
     </div>
   </div></section>
 
@@ -8825,8 +8825,11 @@ function ecranRaport() {
   };
   // și ieșirea cu „Salvați?” trece prin aceeași verificare
   stare.verificaRaport = editabil ? consumValid : null;
+  // data terminării: implicit azi (câmpul vine completat); se ia la salvare / trimitere / validare
+  const dataDinCamp = () => { const d = $('#f-rap_data'); if (!rap.data && d && /^\d{4}-\d{2}-\d{2}$/.test(d.value)) rap.data = d.value; };
   if ($('#b-salvrap')) $('#b-salvrap').onclick = () => {
     if (!consumValid()) return;
+    dataDinCamp();
     // fără cont, lucrarea trece pe „Raportat” când raportul are data terminării (liniile goale = cât s-a estimat)
     if (!K.activ && !rap.data && !confirm('Lucrarea trece pe „Raportat” când completați data terminării. Salvați acum fără dată? Rămâne „raportare începută”.')) {
       const d = $('#f-rap_data'); if (d) { d.classList.add('lipsa'); d.focus(); }
@@ -8837,6 +8840,7 @@ function ecranRaport() {
   const cine = () => (K.profil && (K.profil.nume || K.profil.email)) || rap.persoana || '';
   if ($('#b-finalizez')) $('#b-finalizez').onclick = () => {
     if (!consumValid()) return;
+    dataDinCamp();
     if (!rap.persoana || !rap.data) { alert('Completați numele și data terminării înainte de trimitere.'); return; }
     // inoINSTALL: raportul pleacă doar cu pozele obligatorii și procesul verbal semnat
     if (window.EXT && !window.EXT.gataDeTrimis(l)) return;
@@ -8853,6 +8857,7 @@ function ecranRaport() {
   };
   if ($('#b-valid')) $('#b-valid').onclick = () => {
     if (editabil && !consumValid()) return;
+    dataDinCamp();
     if (!rap.persoana || !rap.data) { alert('Completați numele și data terminării înainte de validare.'); return; }
     if (window.EXT && !window.EXT.gataDeTrimis(l)) return;
     if (!confirm('Validați raportul? După validare consumul nu se mai modifică decât dacă îl redeschideți.')) return;
