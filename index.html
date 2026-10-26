@@ -4139,6 +4139,7 @@ const CHEIE_NOMENCLATOR = 'ino_nomenclator_v1';
 const BUCKET_FISE = 'fise-tehnice';
 const BUCKET_POZE = 'poze';
 const BUCKET_CONTRACTE = 'contracte';
+const BUCKET_PROBLEME = 'probleme';
 const CHEIE_EXTRA = 'ino_extra_v1';   // partenerii și prețurile materialelor cumpărate de parteneri
 
 const ROLURI = {
@@ -4662,7 +4663,7 @@ async function aduce() {
 
   let q = sb.from('lucrari').select('*');
   if (profil.rol === 'admin') q = q.eq('arhivat', false);
-  const [lu, ec, pr, ca, no, co, pa, pm, se, cl, mp] = await Promise.all([
+  const [lu, ec, pr, ca, no, co, pa, pm, se, cl, mp, pb] = await Promise.all([
     q.order('modificat', { ascending: false }),
     sb.from('echipe').select('*').order('nume'),
     sb.from('profiluri').select('*').order('nume'),
@@ -4675,6 +4676,8 @@ async function aduce() {
     sb.from('setari').select('*'),
     sb.from('clienti').select('*').order('nume'),
     sb.from('materiale_propuse').select('*').order('den'),
+    // v2.3: problemele raportate (fiecare le vede pe ale lui; Adminul pe toate)
+    sb.from('probleme').select('*').order('creat', { ascending: false }),
   ]);
   for (const r of [lu, ec, pr, ca]) if (r.error) throw r.error;
 
@@ -4699,7 +4702,9 @@ async function aduce() {
   // serverul are migrarea din 22 octombrie dacă există tabelul partenerilor
   const extraNou = { parteneri: pa.error ? [] : pa.data || [], preturi: pm.error ? [] : pm.data || [], v2: !pa.error,
     setari: se.error ? {} : Object.fromEntries((se.data || []).map((x) => [x.cheie, x.valoare])), clienti: cl.error ? [] : cl.data || [],
-    propuse: mp.error ? [] : mp.data || [], v3: !se.error };
+    propuse: mp.error ? [] : mp.data || [], v3: !se.error,
+    probleme: pb.error ? [] : pb.data || [], v4: !pb.error, config: extra.config || null };
+  if (extraNou.v4) await aflaConfigurare(extraNou);
   serverV2 = extraNou.v2 ? true : false;
   if (JSON.stringify(extraNou) !== JSON.stringify(extra)) { extra = extraNou; scrieJSON(CHEIE_EXTRA, extra); anunta('extra'); }
 
@@ -4936,22 +4941,30 @@ async function stergePret(cheie) {
 }
 // O poză (deja micșorată pe telefon) în spațiul „poze”, în folderul lucrării. Fără cont, poza rămâne pe telefon.
 async function incarcaPoza(lucrareId, etapa, blob, tip) {
+  // cu R2 pornit pe server, pozele noi merg acolo; cele vechi rămân unde sunt
+  if (serverV4() && config().r2) return { cale: await incarcaPozaR2(lucrareId, etapa, blob, tip), loc: 'r2' };
   const ext = /png/.test(tip || '') ? 'png' : /pdf/.test(tip || '') ? 'pdf' : 'jpg';
   const cale = `${lucrareId}/${String(etapa).replace(/[^A-Za-z0-9_-]+/g, '_')}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${ext}`;
   const { error } = await client().storage.from(BUCKET_POZE).upload(cale, blob, { contentType: tip || 'image/jpeg', upsert: false });
   if (error) throw new Error(mesajEroare(error));
-  return cale;
+  return { cale, loc: null };
 }
 const linkuriPoze = new Map();
-async function linkPoza(cale) {
+async function linkPoza(cale, loc) {
   const c = linkuriPoze.get(cale);
   if (c && c.pana > Date.now()) return c.url;
-  const { data, error } = await client().storage.from(BUCKET_POZE).createSignedUrl(cale, 3600);
-  if (error) throw new Error(mesajEroare(error));
-  linkuriPoze.set(cale, { url: data.signedUrl, pana: Date.now() + 50 * 60000 });
-  return data.signedUrl;
+  let url;
+  if (loc === 'r2') url = await linkR2(cale);
+  else {
+    const { data, error } = await client().storage.from(BUCKET_POZE).createSignedUrl(cale, 3600);
+    if (error) throw new Error(mesajEroare(error));
+    url = data.signedUrl;
+  }
+  linkuriPoze.set(cale, { url, pana: Date.now() + 50 * 60000 });
+  return url;
 }
-async function stergePoza(cale) {
+async function stergePoza(cale, loc) {
+  if (loc === 'r2') { await invoca('poze-r2', { actiune: 'sterge', cheie: cale }); return; }
   const { error } = await client().storage.from(BUCKET_POZE).remove([cale]);
   if (error) throw new Error(mesajEroare(error));
 }
@@ -4994,14 +5007,10 @@ async function salveazaPropunere(x) {
   await sincronizeaza();
 }
 // Codul de confirmare al PV-ului (M3): funcția „cod-pv” îl trimite clientului; serverul îl verifică
-async function trimiteCodPV(id, email) {
+async function trimiteCodPV(id, destinatie, canal) {
   await sincronizeaza();
-  const { data, error } = await sb.functions.invoke('cod-pv', { body: { lucrare_id: id, email } });
-  let e = null;
-  if (error) e = await eroareFunctie(error);
-  else if (data && data.eroare) e = new Error(mesajEroare(data.eroare));
-  if (e) { if (/neconfigurat/i.test(e.message) || (error && error.context && error.context.status === 503)) e.neconfigurat = true; throw e; }
-  return data;
+  const c = canal || 'email';
+  return invoca('cod-pv', c === 'email' ? { lucrare_id: id, canal: c, email: destinatie } : { lucrare_id: id, canal: c, telefon: destinatie });
 }
 async function confirmaCodPV(id, cod) {
   const { data, error } = await sb.rpc('confirma_cod_pv', { p_id: id, p_cod: String(cod || '').trim() });
@@ -5013,6 +5022,83 @@ async function salveazaClasa(ids, clasa) {
   const lista = [...new Set(ids || [])];
   for (let i = 0; i < lista.length; i += 100) await asteapta(sb.from('nomenclator').update({ clasa: clasa || null }).in('id', lista.slice(i, i + 100)).select());
   await sincronizeaza();
+}
+/* ------------------------------------------------------------------ *
+ * v2.3: ce servicii sunt pornite pe server, poze în R2, verificarea AI, problemele raportate
+ * ------------------------------------------------------------------ */
+const serverV4 = () => !!extra.v4;
+// „configurare” spune doar da / nu pentru e-mail, SMS, WhatsApp, R2 și AI; se întreabă cel mult o dată la 10 minute
+let configLa = 0;
+async function aflaConfigurare(tinta) {
+  if (Date.now() - configLa < 10 * 60000 && tinta.config) return;
+  try {
+    const { data, error } = await sb.functions.invoke('configurare', { body: {} });
+    if (!error && data && typeof data === 'object') { tinta.config = { email: !!data.email, sms: !!data.sms, whatsapp: !!data.whatsapp, r2: !!data.r2, ai: !!data.ai }; configLa = Date.now(); }
+  } catch (e) { /* funcția lipsește: rămâne ce era (pe un server fără ea, totul e oprit) */ }
+}
+const config = () => extra.config || {};
+async function invoca(nume, corp) {
+  const { data, error } = await sb.functions.invoke(nume, { body: corp });
+  let e = null;
+  if (error) e = await eroareFunctie(error);
+  else if (data && data.eroare) e = new Error(mesajEroare(data.eroare));
+  if (e) { if (/neconfigurat/i.test(e.message) || (error && error.context && error.context.status === 503)) e.neconfigurat = true; throw e; }
+  return data;
+}
+// Poze în R2: serverul dă un link semnat, telefonul urcă direct acolo
+async function incarcaPozaR2(lucrareId, etapa, blob, tip) {
+  const r = await invoca('poze-r2', { actiune: 'urca', lucrare_id: lucrareId, etapa: String(etapa), tip: tip || 'image/jpeg' });
+  const raspuns = await fetch(r.url, { method: 'PUT', body: blob, headers: { 'Content-Type': tip || 'image/jpeg' } });
+  if (!raspuns.ok) throw new Error('Poza nu s-a putut urca (R2 ' + raspuns.status + ').');
+  return r.cheie;
+}
+// linkurile R2 se cer grupat: o fișă cu 30 de poze face o singură cerere
+let cozaR2 = null;
+function linkR2(cheie) {
+  if (!cozaR2) {
+    cozaR2 = { chei: new Set(), asteapta: [] };
+    setTimeout(async () => {
+      const c = cozaR2; cozaR2 = null;
+      try {
+        const r = await invoca('poze-r2', { actiune: 'citeste', chei: [...c.chei] });
+        c.asteapta.forEach(([k, ok, rau]) => (r.urls && r.urls[k] ? ok(r.urls[k]) : rau(new Error('Poza nu mai există sau nu aveți acces la ea.'))));
+      } catch (e) { c.asteapta.forEach(([, , rau]) => rau(e)); }
+    }, 30);
+  }
+  cozaR2.chei.add(cheie);
+  return new Promise((ok, rau) => cozaR2.asteapta.push([cheie, ok, rau]));
+}
+async function verificaPozeAI(lucrareId, etape) {
+  await sincronizeaza();
+  return invoca('verifica-poze-ai', { lucrare_id: lucrareId, etape });
+}
+async function ultimaVerificareAI(lucrareId) {
+  if (!serverV4()) return null;
+  const { data, error } = await sb.from('verificari_ai').select('*').eq('lucrare_id', lucrareId).order('creat', { ascending: false });
+  if (error) throw new Error(mesajEroare(error));
+  return (data || [])[0] || null;
+}
+async function raporteazaProblema(p, captura) {
+  let cale = null;
+  if (captura) {
+    cale = `${profil.id}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}.${/png/.test(captura.type) ? 'png' : /webp/.test(captura.type) ? 'webp' : 'jpg'}`;
+    const { error } = await client().storage.from(BUCKET_PROBLEME).upload(cale, captura, { contentType: captura.type || 'image/jpeg', upsert: false });
+    if (error) throw new Error(mesajEroare(error));
+  }
+  const rand = { descriere: p.descriere, asteptat: p.asteptat || null, gravitate: p.gravitate || 'minor', ecran: p.ecran || null,
+    lucrare_id: p.lucrare_id || null, dispozitiv: p.dispozitiv || null, versiune: p.versiune || null, captura: cale };
+  const r = await asteapta(sb.from('probleme').insert(rand).select());
+  await sincronizeaza();
+  return r && r[0];
+}
+async function salveazaProblema(id, campuri) {
+  await asteapta(sb.from('probleme').update({ stare: campuri.stare, raspuns: campuri.raspuns || null }).eq('id', id).select());
+  await sincronizeaza();
+}
+async function linkCaptura(cale) {
+  const { data, error } = await client().storage.from(BUCKET_PROBLEME).createSignedUrl(cale, 600);
+  if (error) throw new Error(mesajEroare(error));
+  return data.signedUrl;
 }
 /* ------------------------------------------------------------------ */
 window.CONT = {
@@ -5045,6 +5131,10 @@ window.CONT = {
   get clienti() { return extra.clienti || []; },
   get propuse() { return extra.propuse || []; },
   salveazaSetare, salveazaClient, stergeClient, incarcaContract, linkContract, salveazaPropunere, salveazaClasa, trimiteCodPV, confirmaCodPV,
+  get serverV4() { return serverV4(); },
+  get config() { return config(); },
+  get probleme() { return extra.probleme || []; },
+  verificaPozeAI, ultimaVerificareAI, raporteazaProblema, salveazaProblema, linkCaptura,
   // până la prima sincronizare se ia ce s-a aflat ultima dată; un server fără migrare merge ca înainte (fără poze și PV obligatorii)
   get serverV2() { return serverV2 != null ? serverV2 : extra.v2 !== false; },
 };
@@ -5334,9 +5424,10 @@ async function urcaPozele() {
       for (const { etapa, p } of locale) {
         const rec = await pozaLocala(p.id).catch(() => null);
         if (!rec) continue;
-        let cale;
-        try { cale = await K.incarcaPoza(l.id, etapa, rec.blob, rec.tip); } catch (e) { console.warn('poza', e.message); return; }
-        const lu = actualizeazaPoza(l.id, p.id, (x) => { const o = Object.assign({}, x, { cale }); delete o.local; return o; });
+        let r;
+        try { r = await K.incarcaPoza(l.id, etapa, rec.blob, rec.tip); } catch (e) { console.warn('poza', e.message); return; }
+        // locul pozei: spațiul Supabase (implicit) sau R2 („loc”: 'r2')
+        const lu = actualizeazaPoza(l.id, p.id, (x) => { const o = Object.assign({}, x, { cale: r.cale }); if (r.loc) o.loc = r.loc; delete o.local; return o; });
         if (lu) A().salveaza(lu);
         urcateAcum++;
         await stergePozaLocala(p.id).catch(() => {});
@@ -5362,7 +5453,7 @@ async function srcPoza(p) {
     urlLocale.set(p.id, u);
     return u;
   }
-  if (p.cale) { try { return await K.linkPoza(p.cale); } catch (e) { return ''; } }
+  if (p.cale) { try { return await K.linkPoza(p.cale, p.loc); } catch (e) { return ''; } }
   return p.dataUrl || '';
 }
 function arataMiniaturi() {
@@ -5742,35 +5833,48 @@ function gataDeTrimis(l) {
   return true;
 }
 
-// Codul de confirmare pe e-mail (M3): după semnătură, clientul primește un cod pe care îl spune echipei
+// Codul de confirmare (M3 + O1): după semnătură, clientul primește un cod de 6 cifre (e-mail, SMS sau WhatsApp)
+const NUME_CANAL = { email: 'E-mail', sms: 'SMS', whatsapp: 'WhatsApp' };
+// canalele pornite pe server; un server fără funcția „configurare” merge ca în v2.2 (doar e-mail)
+const canaleCod = () => (K.serverV4 && K.config && Object.keys(K.config).length ? ['email', 'sms', 'whatsapp'].filter((c) => K.config[c]) : ['email']);
+const textConfirmat = (c) => `${c.canal && c.canal !== 'email' ? NUME_CANAL[c.canal] : 'e-mail'} la ${c.email || ''}`;
 function htmlCodPV(l, ed) {
   const pv = l.pv || {};
   if (!K.activ || !K.serverV3) return '';
-  if (pv.confirmat) return `<div class="mesaj ok">Confirmat de client cu codul trimis la ${E(pv.confirmat.email)}, pe ${E(oraRo(pv.confirmat.data))}.</div>`;
+  if (pv.confirmat) return `<div class="mesaj ok">Confirmat de client cu codul trimis prin ${E(textConfirmat(pv.confirmat))}, pe ${E(oraRo(pv.confirmat.data))}.</div>`;
   const st = A().stare;
-  if (st.codNeconfigurat) return '';
+  const canale = canaleCod();
+  if (st.codNeconfigurat || !canale.length) return '';
   if (!ed && !['lider', 'mentenanta', 'membru', 'admin'].includes(K.rol())) return '<div class="ajutor">Neconfirmat prin cod de client.</div>';
   const cl = l.client_id && (K.clienti || []).find((c) => c.id === l.client_id);
+  const canal = canale.includes((st.codCanal || {})[l.id]) ? st.codCanal[l.id] : canale[0];
   const trimis = (st.codTrimis || {})[l.id];
-  return `<div class="cod-pv"><div class="sectiune-titlu">Confirmare prin cod pe e-mail</div>
-    <div class="ajutor" style="margin-top:2px">Clientul primește pe e-mail un cod de 6 cifre și vi-l spune. Așa se confirmă că el a semnat.</div>
-    <div class="neg-act">${camp('cod-email', 'E-mailul clientului', trimis || pv.email || (cl && cl.email) || '', 'type="email" inputmode="email" autocomplete="off"')}</div>
-    <button class="buton gol" id="x-cod-trimite">${trimis ? 'Trimite alt cod' : 'Trimite codul pe e-mail'}</button>
-    ${trimis ? `<div class="mesaj info">Cod trimis la ${E(trimis)}. Valabil 30 de minute.</div>
+  const peTel = canal !== 'email';
+  const implicit = peTel ? ((trimis && trimis.canal === canal && trimis.catre) || l.telefon || (cl && cl.telefon) || '') : ((trimis && trimis.canal === 'email' && trimis.catre) || pv.email || (cl && cl.email) || '');
+  return `<div class="cod-pv"><div class="sectiune-titlu">Confirmare prin cod</div>
+    <div class="ajutor" style="margin-top:2px">Clientul primește un cod de 6 cifre și vi-l spune. Așa se confirmă că el a semnat.</div>
+    ${canale.length > 1 ? `<div class="chips" style="margin-top:8px">${canale.map((c) => `<button type="button" class="chip${c === canal ? ' ales' : ''}" data-canal="${c}">${NUME_CANAL[c]}</button>`).join('')}</div>` : ''}
+    <div class="neg-act">${peTel ? camp('cod-tel', 'Telefonul clientului', implicit, 'type="tel" inputmode="tel" autocomplete="off"') : camp('cod-email', 'E-mailul clientului', implicit, 'type="email" inputmode="email" autocomplete="off"')}</div>
+    <button class="buton gol" id="x-cod-trimite">${trimis ? 'Trimite alt cod' : 'Trimite codul prin ' + NUME_CANAL[canal]}</button>
+    ${trimis ? `<div class="mesaj info">Cod trimis prin ${E(NUME_CANAL[trimis.canal])} la ${E(trimis.catre)}. Valabil 30 de minute.</div>
       <div class="neg-act">${camp('cod-pv', 'Codul primit de client', '', 'inputmode="numeric" autocomplete="one-time-code" maxlength="6"')}</div>
       <button class="buton" id="x-cod-confirma">Confirmă codul</button>` : ''}</div>`;
 }
 function legaCodPV(l) {
   const st = A().stare;
+  document.querySelectorAll('[data-canal]').forEach((b) => { b.onclick = () => { st.codCanal = Object.assign({}, st.codCanal, { [l.id]: b.dataset.canal }); ecranLucrare(); }; });
   if ($('#x-cod-trimite')) $('#x-cod-trimite').onclick = async (ev) => {
-    const email = (v('cod-email') || '').trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Scrieți e-mailul clientului.'); return; }
+    const canale = canaleCod();
+    const canal = canale.includes((st.codCanal || {})[l.id]) ? st.codCanal[l.id] : canale[0];
+    const catre = ((canal === 'email' ? v('cod-email') : v('cod-tel')) || '').trim();
+    if (canal === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(catre)) { alert('Scrieți e-mailul clientului.'); return; }
+    if (canal !== 'email' && catre.replace(/\D/g, '').length < 9) { alert('Scrieți telefonul clientului (07xx xxx xxx).'); return; }
     const b = ev.target; b.disabled = true; b.textContent = 'Se trimite…';
     try {
-      await K.trimiteCodPV(l.id, email);
-      st.codTrimis = Object.assign({}, st.codTrimis, { [l.id]: email });
+      const r = await K.trimiteCodPV(l.id, catre, canal);
+      st.codTrimis = Object.assign({}, st.codTrimis, { [l.id]: { canal, catre: (r && r.trimisLa) || catre } });
     } catch (e) {
-      if (e.neconfigurat) { st.codNeconfigurat = true; alert('Trimiterea codului pe e-mail nu e configurată încă pe server. PV-ul semnat rămâne valabil.'); }
+      if (e.neconfigurat) { st.codNeconfigurat = canale.length <= 1; alert(`Trimiterea codului prin ${NUME_CANAL[canal]} nu e configurată încă pe server. PV-ul semnat rămâne valabil.`); }
       else alert(e.message);
     }
     ecranLucrare();
@@ -5989,8 +6093,9 @@ function ecranPoze() {
         ${ed ? `<div class="actiuni"><label class="buton gol"><input type="file" accept="image/*" capture="environment" data-etapa="${E(e.k)}" hidden>Cameră</label>
           <label class="buton gol"><input type="file" accept="image/*,application/pdf" multiple data-etapa="${E(e.k)}" hidden>Galerie</label></div>` : ''}
       </div></section>`;
-    }).join('');
+    }).join('') + (poateAI() ? htmlAI(l) : '');
   bara('<button class="buton" id="x-gata-poze">Înapoi la fișa lucrării</button>');
+  if (poateAI()) legaAI(l);
   $('#x-gata-poze').onclick = () => A().du('lucrare', l);
   document.querySelectorAll('input[type=file][data-etapa]').forEach((inp) => {
     inp.onchange = async () => {
@@ -6007,7 +6112,7 @@ function ecranPoze() {
       const id = b.dataset.stergePoza, et = b.dataset.etapa;
       const p = pozeEtapa(l, et).find((x) => x.id === id);
       if (p && p.local) await stergePozaLocala(id).catch(() => {});
-      if (p && p.cale && K.activ) { try { await K.stergePoza(p.cale); } catch (e) { /* o poză urcată de altcineva rămâne pe server, doar fără legătură */ } }
+      if (p && p.cale && K.activ) { try { await K.stergePoza(p.cale, p.loc); } catch (e) { /* o poză urcată de altcineva rămâne pe server, doar fără legătură */ } }
       l.poze = Object.assign({}, l.poze); l.poze[et] = pozeEtapa(l, et).filter((x) => x.id !== id);
       A().salveaza(l); ecranPoze();
     };
@@ -6140,7 +6245,7 @@ function pvPDF(l) {
   scrie(`Semnătura clientului (${pv.nume || ''}):`, 10.5, 'bold');
   try { doc.addImage(pv.semnatura, 'PNG', 14, y, 75, 27.5); } catch (e) { /* */ }
   y += 32;
-  if (pv.confirmat) scrie(`Confirmat de client cu codul trimis pe e-mail la ${pv.confirmat.email}, la ${oraRo(pv.confirmat.data)}.`, 9.5);
+  if (pv.confirmat) scrie(`Confirmat de client cu codul trimis prin ${textConfirmat(pv.confirmat)}, la ${oraRo(pv.confirmat.data)}.`, 9.5);
   F('normal', 8.5); doc.setTextColor(110, 110, 112);
   doc.text(`Generat de inoINSTALL · lucrarea ${l.id}`, 14, 288);
   const nume = `PV ${String(l.client || l.id).replace(/[^\wÀ-ɏ -]+/g, '').trim()} ${dataRo(pv.data).replace(/\./g, '-')}.pdf`;
@@ -6469,6 +6574,11 @@ function ecranStart() {
     nav.push({ id: 'parteneri', t: 'Parteneri', s: 'firmele care execută' });
     if (K.serverV3) nav.push({ id: 'etape', t: 'Etape de poze', s: 'ce poze se cer pe fiecare tip' });
   }
+  // problemele raportate: Adminul le vede pe toate; ceilalți, pe ale lor (dacă au raportat ceva)
+  if (K.serverV4 && (r === 'admin' || (K.probleme || []).length)) {
+    const noi = (K.probleme || []).filter((p) => (r === 'admin' ? p.stare === 'nou' : p.raspuns && ['rezolvat', 'respins', 'duplicat'].includes(p.stare))).length;
+    nav.push({ id: 'probleme', t: r === 'admin' ? 'Probleme raportate' : 'Problemele mele', s: r === 'admin' ? 'de la testeri și utilizatori' : 'ce ați raportat și răspunsurile', n: noi || null });
+  }
 
   $('#ecran').innerHTML = A().htmlContBara()
     + (pline.length ? `<h2 class="start-h">De făcut</h2><div class="tiles">${pline.map((c) => tile(Object.assign({ mare: true }, c))).join('')}</div>`
@@ -6485,6 +6595,7 @@ function mergiLa(id) {
   if (id === 'nou') { st.nou = null; A().du('tipNou'); return; }
   if (id === 'borderou') { st.bord = null; A().du('borderou'); return; }
   if (id === 'etape') { st.etape = null; A().du('etape'); return; }
+  if (id === 'probleme') { st.filtruPb = null; A().du('probleme'); return; }
   A().du(id);
 }
 
@@ -6571,7 +6682,7 @@ function ecranVerifica() {
   const pv = l.pv;
   const anexa = l.anexa && (l.anexa.linii || []).length ? l.anexa.linii : [];
   const sectPV = `<section class="card"><h2>${E(TIPURI[t].pv)}</h2><div class="corp">
-      ${pv ? `<div class="mesaj ok" style="margin-top:0">Semnat de ${E(pv.nume || 'client')} pe ${E(oraRo(pv.data))}.${pv.confirmat ? ` Confirmat cu cod trimis la ${E(pv.confirmat.email)}.` : K.serverV3 ? ' Neconfirmat prin cod.' : ''}</div>
+      ${pv ? `<div class="mesaj ok" style="margin-top:0">Semnat de ${E(pv.nume || 'client')} pe ${E(oraRo(pv.data))}.${pv.confirmat ? ` Confirmat cu cod trimis prin ${E(textConfirmat(pv.confirmat))}.` : K.serverV3 ? ' Neconfirmat prin cod.' : ''}</div>
         ${pv.semnatura ? `<img class="verif-semn" src="${E(pv.semnatura)}" alt="Semnătura clientului">` : ''}
         <div class="actiuni"><button class="buton gol" id="x-v-pdf">Deschide PV-ul (PDF)</button></div>` : '<div class="mesaj warn" style="margin-top:0">Fără proces verbal semnat.</div>'}
       ${anexa.length ? `<div class="sectiune-titlu">Anexă semnată: de facturat clientului</div><table class="rap mic"><tr><th>Material</th><th>Cant.</th></tr>${anexa.map((x) => `<tr><td>${E(x.den)}</td><td class="n">${E(nr(x.cant))} ${E(x.um)}</td></tr>`).join('')}</table>` : ''}
@@ -6585,7 +6696,8 @@ function ecranVerifica() {
         ${zona('vv-obs', 'Observații pentru echipă și management', vt.obs || (lipsa.length ? 'Lipsesc pozele: ' + lipsa.map((e) => e.t).join(', ') + '.' : ''))}`
     : '<div class="ajutor">Decizia o ia Tehnicul (sau Adminul).</div>'}
     </div></section>`;
-  $('#ecran').innerHTML = antet + poze + htmlComparatie(l) + htmlRaportEchipa(l) + sectPV + decizie;
+  $('#ecran').innerHTML = antet + poze + htmlAI(l) + htmlComparatie(l) + htmlRaportEchipa(l) + sectPV + decizie;
+  legaAI(l);
   bara(ed ? stari.map((x) => `<button class="buton${x.v === 'aprobat' ? '' : ' gol'}${x.v !== 'aprobat' ? ' pericol' : ''}" data-decizie="${x.v}">${E(x.v === 'aprobat' ? '✓ ' + x.t : x.t)}</button>`).reverse().join('')
     + (poz >= 0 && coada.length > 1 ? '<button class="buton gol" id="x-v-sari">Sari peste</button>' : '') : '');
   $('#x-v-fisa').onclick = () => { st.revenireLucrare = 'verifica'; A().du('lucrare', l); };
@@ -6872,12 +6984,223 @@ function legaLista() {
   if ($('#x-preturi')) $('#x-preturi').onclick = () => A().du('preturi');
 }
 // „Înapoi”: la ecranul de start, dacă de acolo s-a intrat; altfel la administrare sau la listă
+/* ------------------------------------------------------------------ *
+ * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
+ * ------------------------------------------------------------------ */
+const VERSIUNE_APP = '2.3';
+const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
+const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
+const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };
+const RECOMANDARE = { aprobare: { t: 'AI: se poate aproba', c: 'ok' }, de_verificat: { t: 'AI: de verificat de om', c: 'warn' }, respingere: { t: 'AI: de respins', c: 'rau' } };
+function htmlAI(l) {
+  if (!K.activ || !K.serverV4) return '';
+  const c = aiCache.get(l.id);
+  // rezultatul se reîncarcă la o nouă intrare pe ecran (altcineva poate fi verificat între timp)
+  if (!c || (c.stare === 'gata' && Date.now() - (c.la || 0) > 5000)) { incarcaAI(l); return '<section class="card" id="ai-card"><h2>Verificare AI a pozelor</h2><div class="corp"><div class="ajutor">Se încarcă…</div></div></section>'; }
+  const r = c.rand && c.rand.rezultat;
+  if (!r && !poateAI() && c.stare !== 'lucrez') return '<section id="ai-card" hidden></section>';
+  const etape = etapeLucrare(l);
+  const numeEtapa = (k) => (etape.find((e) => e.k === k) || {}).t || k;
+  const rec = r && RECOMANDARE[r.recomandare];
+  const probleme = r ? (r.poze || []).filter((p) => p.se_potriveste === false || p.clara === false || (p.probleme || []).length) : [];
+  const buton = poateAI() ? `<button class="buton gol" id="x-ai" ${c.stare === 'lucrez' ? 'disabled' : ''}>${c.stare === 'lucrez' ? 'AI verifică pozele… (până la un minut)' : r ? 'Verifică din nou cu AI' : 'Verifică pozele cu AI'}</button>` : '';
+  return `<section class="card" id="ai-card"><h2>Verificare AI a pozelor ${rec ? `<span class="pill ${rec.c}">${E(rec.t)}</span>` : ''}</h2><div class="corp">
+    ${c.stare === 'eroare' ? `<div class="mesaj warn" style="margin-top:0">${E(c.eroare)}</div>` : ''}
+    ${r ? `<p class="ai-rezumat">${E(r.rezumat || '')}</p>
+      ${(r.etape || []).length ? `<div class="ai-etape">${r.etape.map((e) => { const vd = VERDICT[e.verdict] || { t: e.verdict, c: '' }; return `<div class="ai-etapa"><span class="pill ${vd.c}">${E(vd.t)}</span> <b>${E(numeEtapa(e.k))}</b>${e.nota ? ` — ${E(e.nota)}` : ''}</div>`; }).join('')}</div>` : ''}
+      ${probleme.length ? `<div class="sectiune-titlu">Poze cu observații (${probleme.length})</div>${probleme.map((p) => { const h = (r.harta || {})[p.nr] || {}; return `<div class="ai-poza"><b>${E(p.nr)}</b> · ${E(numeEtapa(h.etapa))}: ${E([p.se_potriveste === false ? 'nu se potrivește etapei' : '', p.clara === false ? 'neclară' : ''].concat(p.probleme || []).filter(Boolean).join('; '))}${p.se_vede ? `<div class="ajutor">Se vede: ${E(p.se_vede)}</div>` : ''}</div>`; }).join('')}` : ''}
+      <div class="ajutor">Verificat ${c.rand.cine ? 'la cererea lui ' + E(c.rand.cine) + ', ' : ''}${E(oraRo(c.rand.creat))} · ${E(c.rand.poze || 0)} poze. E o recomandare: decizia o ia Tehnicul.</div>`
+    : `<div class="ajutor" style="margin-top:0">${c.stare === 'lucrez' ? 'AI-ul se uită la poze, pe etape…' : 'Nicio verificare încă. AI-ul se uită la fiecare poză: dacă e în etapa potrivită, dacă e clară și ce probleme de execuție se văd.'}</div>`}
+    ${buton ? `<div class="actiuni">${buton}</div>` : ''}
+  </div></section>`;
+}
+async function incarcaAI(l) {
+  aiCache.set(l.id, { stare: 'incarc' });
+  try { aiCache.set(l.id, { stare: 'gata', la: Date.now(), rand: await K.ultimaVerificareAI(l.id) }); } catch (e) { aiCache.set(l.id, { stare: 'gata', la: Date.now(), rand: null }); }
+  redeseneazaAI(l);
+}
+function redeseneazaAI(l) {
+  const st = A().stare;
+  const el = $('#ai-card');
+  if (!el || !st.lucrare || st.lucrare.id !== l.id) return;
+  el.outerHTML = htmlAI(l);
+  legaAI(l);
+}
+function legaAI(l) {
+  marcheazaPozeAI(l);
+  const b = $('#x-ai');
+  if (!b) return;
+  b.onclick = async () => {
+    const vechi = aiCache.get(l.id) || {};
+    aiCache.set(l.id, { stare: 'lucrez', rand: vechi.rand });
+    redeseneazaAI(l);
+    try {
+      const r = await K.verificaPozeAI(l.id, etapeLucrare(l).map((e) => ({ k: e.k, t: e.t, o: e.o ? 1 : 0 })));
+      aiCache.set(l.id, { stare: 'gata', la: Date.now(), rand: { rezultat: r.rezultat, creat: new Date().toISOString(), cine: (K.profil && (K.profil.nume || K.profil.email)) || '', poze: r.poze, model: r.model } });
+    } catch (e) {
+      aiCache.set(l.id, { stare: 'eroare', rand: vechi.rand, eroare: e.neconfigurat ? 'Verificarea cu AI nu e pornită pe server.' : e.message });
+    }
+    redeseneazaAI(l);
+  };
+}
+// pe miniaturi: un semn la pozele cu observații de la AI
+function marcheazaPozeAI(l) {
+  const c = aiCache.get(l.id);
+  const r = c && c.rand && c.rand.rezultat;
+  if (!r) return;
+  (r.poze || []).forEach((p) => {
+    const h = (r.harta || {})[p.nr];
+    const rau = p.se_potriveste === false || p.clara === false || (p.probleme || []).length;
+    const img = h && document.querySelector(`img[data-poza="${CSS.escape(h.id)}"]`);
+    const b = img && img.closest('.poza');
+    if (!b) return;
+    b.classList.toggle('ai-rau', !!rau);
+    b.dataset.ai = p.nr;
+    b.title = rau ? `${p.nr}: ${[p.se_potriveste === false ? 'nu se potrivește etapei' : '', p.clara === false ? 'neclară' : ''].concat(p.probleme || []).filter(Boolean).join('; ')}` : `${p.nr}: ${p.se_vede || 'în regulă'}`;
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * v2.3 — problemele raportate din aplicație (testeri și utilizatori)
+ * ------------------------------------------------------------------ */
+const GRAVITATE = [
+  { v: 'blocant', t: 'Blocant', s: 'nu pot continua' },
+  { v: 'major', t: 'Major', s: 'merge greu sau greșit' },
+  { v: 'minor', t: 'Minor', s: 'deranjează, dar merge' },
+  { v: 'sugestie', t: 'Sugestie', s: 'idee de îmbunătățire' },
+];
+const STARI_PROBLEMA = [{ v: 'nou', t: 'Nouă' }, { v: 'in_lucru', t: 'În lucru' }, { v: 'rezolvat', t: 'Rezolvată' }, { v: 'respins', t: 'Nu e problemă' }, { v: 'duplicat', t: 'Duplicat' }];
+// telefonul / calculatorul și browserul, scrise pe înțeles, pentru raport
+function dispozitiv() {
+  const u = navigator.userAgent || '';
+  const m = (re) => (u.match(re) || [])[1] || '';
+  const os = /iPhone|iPad|iPod/.test(u) ? 'iOS ' + m(/OS (\d+)[_.]/) : /Android/.test(u) ? 'Android ' + m(/Android ([\d.]+)/) : /Windows/.test(u) ? 'Windows' : /Mac OS X/.test(u) ? 'macOS' : /Linux/.test(u) ? 'Linux' : 'alt sistem';
+  const br = /EdgA?\/\d/.test(u) ? 'Edge ' + m(/EdgA?\/(\d+)/) : /SamsungBrowser/.test(u) ? 'Samsung Internet ' + m(/SamsungBrowser\/(\d+)/)
+    : /CriOS/.test(u) ? 'Chrome iOS ' + m(/CriOS\/(\d+)/) : /FxiOS|Firefox/.test(u) ? 'Firefox ' + m(/(?:FxiOS|Firefox)\/(\d+)/)
+    : /Chrome\/\d/.test(u) ? 'Chrome ' + m(/Chrome\/(\d+)/) : /Safari/.test(u) ? 'Safari ' + m(/Version\/([\d.]+)/) : 'browser necunoscut';
+  let inst = false;
+  try { inst = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true; } catch (e) { /* */ }
+  return [os.trim(), br.trim(), `${innerWidth}×${innerHeight}`, inst ? 'aplicație instalată' : 'în browser', navigator.onLine === false ? 'fără semnal' : ''].filter(Boolean).join(' · ');
+}
+const poateRaporta = () => !!(K.activ && K.serverV4 && K.rol());
+// butonul din antet, pe orice ecran după autentificare
+function butonProblema() {
+  let b = document.getElementById('b-problema');
+  if (!b) {
+    const logo = document.getElementById('logo');
+    if (!logo) return;
+    b = document.createElement('button');
+    b.type = 'button'; b.id = 'b-problema'; b.className = 'b-problema'; b.textContent = 'Problemă?';
+    b.title = 'Raportați o problemă din acest ecran';
+    b.onclick = () => deschideProblema();
+    logo.parentNode.insertBefore(b, logo);
+  }
+  const ec = A().stare.ecran;
+  b.hidden = !poateRaporta() || ['login', 'fara_rol'].includes(ec);
+}
+function deschideProblema() {
+  const st = A().stare;
+  const ecran = st.ecran, l = st.lucrare;
+  const modal = document.createElement('div');
+  modal.className = 'modal-problema';
+  modal.innerHTML = `<div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="mp-titlu">
+    <h2 id="mp-titlu">Raportați o problemă</h2>
+    <div class="ajutor" style="margin-top:0">Ajunge la Admin, cu ecranul pe care sunteți acum${l && ['lucrare', 'form', 'raport', 'poze', 'verifica', 'rezultat'].includes(ecran) ? ' și lucrarea deschisă' : ''}.</div>
+    <div class="sectiune-titlu">Cât de grav?</div>
+    <div class="chips" id="mp-grav">${GRAVITATE.map((g) => `<button type="button" class="chip${g.v === 'major' ? ' ales' : ''}" data-grav="${g.v}">${E(g.t)}<b>${E(g.s)}</b></button>`).join('')}</div>
+    <div class="camp"><label for="x-mp-desc">Ce ați făcut și ce s-a întâmplat?</label><textarea id="x-mp-desc" rows="4" maxlength="4000" placeholder="Ex.: Am apăsat Trimite pe raport și a apărut eroarea..."></textarea></div>
+    <div class="camp"><label for="x-mp-ast">Ce vă așteptați să se întâmple? (opțional)</label><textarea id="x-mp-ast" rows="2" maxlength="2000"></textarea></div>
+    <div class="camp"><label for="x-mp-cap">Captură de ecran (opțional)</label><input type="file" id="x-mp-cap" accept="image/*"></div>
+    <div class="ajutor">Se trimit automat: rolul dvs., ecranul (${E(ecran)}), ${E(dispozitiv())}, versiunea ${VERSIUNE_APP}.</div>
+    <div class="actiuni"><button class="buton" id="x-mp-trimite">Trimite</button><button class="buton gol" id="x-mp-renunta">Renunță</button></div>
+  </div>`;
+  document.body.appendChild(modal);
+  document.body.classList.add('cu-modal');
+  let grav = 'major';
+  const inchide = () => { modal.remove(); document.body.classList.remove('cu-modal'); };
+  modal.querySelectorAll('[data-grav]').forEach((b) => { b.onclick = () => { grav = b.dataset.grav; modal.querySelectorAll('[data-grav]').forEach((x) => x.classList.toggle('ales', x === b)); }; });
+  modal.querySelector('#x-mp-renunta').onclick = inchide;
+  modal.addEventListener('click', (ev) => { if (ev.target === modal) inchide(); });
+  modal.querySelector('#x-mp-desc').focus();
+  modal.querySelector('#x-mp-trimite').onclick = async (ev) => {
+    const descriere = modal.querySelector('#x-mp-desc').value.trim();
+    if (descriere.length < 5) { alert('Scrieți pe scurt ce s-a întâmplat.'); return; }
+    const f = modal.querySelector('#x-mp-cap').files[0];
+    if (f && f.size > 5 * 1048576) { alert('Captura e prea mare (peste 5 MB).'); return; }
+    const b = ev.target; b.disabled = true; b.textContent = 'Se trimite…';
+    try {
+      const captura = f ? (await micsoreaza(f)).blob : null;
+      const r = await K.raporteazaProblema({ descriere, asteptat: modal.querySelector('#x-mp-ast').value.trim(), gravitate: grav,
+        ecran, lucrare_id: l && l.id && !String(l.id).startsWith('tmp') ? l.id : null, dispozitiv: dispozitiv(), versiune: VERSIUNE_APP }, captura);
+      inchide();
+      alert(`Mulțumim! Problema${r && r.id ? ' nr. ' + r.id : ''} a ajuns la Admin. Răspunsul îl vedeți în „Problemele mele”, pe ecranul de start.`);
+    } catch (e) {
+      b.disabled = false; b.textContent = 'Trimite';
+      alert('Problema nu s-a trimis: ' + e.message + (navigator.onLine === false ? '\nNu aveți semnal. Încercați din nou când aveți.' : ''));
+    }
+  };
+}
+function ecranProbleme() {
+  const st = A().stare;
+  const admin = K.rol() === 'admin';
+  const toate = K.probleme || [];
+  titlu(admin ? 'Probleme raportate' : 'Problemele mele', `${toate.length} în total`);
+  if (!st.filtruPb) st.filtruPb = admin ? 'deschise' : 'toate';
+  const deschise = (p) => ['nou', 'in_lucru'].includes(p.stare);
+  const filtre = [{ v: 'deschise', t: 'Deschise', f: deschise }, { v: 'toate', t: 'Toate', f: () => true }].concat(STARI_PROBLEMA.filter((s) => !['nou', 'in_lucru'].includes(s.v)).map((s) => ({ v: s.v, t: s.t, f: (p) => p.stare === s.v })));
+  const fl = filtre.find((x) => x.v === st.filtruPb) || filtre[0];
+  const ordine = { blocant: 0, major: 1, minor: 2, sugestie: 3 };
+  const lista = toate.filter(fl.f).sort((a, b) => (deschise(b) - deschise(a)) || (ordine[a.gravitate] - ordine[b.gravitate]) || String(b.creat).localeCompare(String(a.creat)));
+  const g = (v) => GRAVITATE.find((x) => x.v === v) || { t: v };
+  const s = (v) => STARI_PROBLEMA.find((x) => x.v === v) || { t: v };
+  $('#ecran').innerHTML = `<div class="chips" style="margin:12px 0">${filtre.map((x) => `<button type="button" class="chip${x.v === fl.v ? ' ales' : ''}" data-fpb="${x.v}">${E(x.t)}<b>${toate.filter(x.f).length}</b></button>`).join('')}</div>`
+    + (lista.length ? lista.map((p) => `<section class="card pb pb-${E(p.gravitate)}"><div class="corp">
+        <div class="pb-cap"><b>Nr. ${E(p.id)}</b> <span class="pill ${p.gravitate === 'blocant' ? 'rau' : p.gravitate === 'major' ? 'warn' : ''}">${E(g(p.gravitate).t)}</span> <span class="pill ${p.stare === 'rezolvat' ? 'ok' : deschise(p) ? 'warn' : ''}">${E(s(p.stare).t)}</span></div>
+        <div class="pb-text">${E(p.descriere)}</div>
+        ${p.asteptat ? `<div class="ajutor">Se aștepta: ${E(p.asteptat)}</div>` : ''}
+        <div class="ajutor">${E([p.cine, K.ROLURI[p.rol] || p.rol, 'ecran ' + (p.ecran || '—'), oraRo(p.creat)].filter(Boolean).join(' · '))}${p.lucrare_id ? ` · <button type="button" class="link-buton" data-pb-lucrare="${E(p.lucrare_id)}">lucrarea</button>` : ''}</div>
+        <div class="ajutor">${E(p.dispozitiv || '')}${p.versiune ? ' · v' + E(p.versiune) : ''}</div>
+        ${p.captura ? `<button type="button" class="link-buton" data-pb-captura="${E(p.captura)}">Vezi captura de ecran</button>` : ''}
+        ${admin ? `<div class="pb-admin">${alege('pb-st-' + p.id, 'Stare', p.stare, STARI_PROBLEMA)}${zona('pb-r-' + p.id, 'Răspuns pentru cel care a raportat', p.raspuns || '', 'rows="2" maxlength="2000"')}
+          <button class="buton gol" data-pb-salveaza="${E(p.id)}">Salvează</button></div>`
+        : p.raspuns ? `<div class="mesaj info">Răspuns: ${E(p.raspuns)}</div>` : ''}
+      </div></section>`).join('')
+    : `<div class="mesaj ok">${toate.length ? 'Nicio problemă în această categorie.' : 'Nicio problemă raportată încă. Butonul „Problemă?” din antet trimite una.'}</div>`);
+  bara((admin && toate.length ? '<button class="buton gol" id="x-pb-csv">Descarcă CSV</button>' : '') + '<button class="buton" id="x-pb-noua">Raportează o problemă</button>');
+  $('#x-pb-noua').onclick = () => deschideProblema();
+  document.querySelectorAll('[data-fpb]').forEach((b) => { b.onclick = () => { st.filtruPb = b.dataset.fpb; ecranProbleme(); }; });
+  document.querySelectorAll('[data-pb-captura]').forEach((b) => { b.onclick = async () => {
+    try { const u = await K.linkCaptura(b.dataset.pbCaptura); const w = window.open(u, '_blank'); if (!w) location.href = u; } catch (e) { alert(e.message); }
+  }; });
+  document.querySelectorAll('[data-pb-lucrare]').forEach((b) => { b.onclick = () => {
+    const l = K.citesteTot().find((x) => x.id === b.dataset.pbLucrare);
+    if (!l) { alert('Lucrarea nu e (sau nu mai e) în lista dvs.'); return; }
+    st.revenireLucrare = 'probleme'; A().du('lucrare', l);
+  }; });
+  document.querySelectorAll('[data-pb-salveaza]').forEach((b) => { b.onclick = async () => {
+    const id = b.dataset.pbSalveaza;
+    b.disabled = true;
+    try { await K.salveazaProblema(Number(id), { stare: v('pb-st-' + id), raspuns: (v('pb-r-' + id) || '').trim() }); ecranProbleme(); }
+    catch (e) { b.disabled = false; alert(e.message); }
+  }; });
+  if ($('#x-pb-csv')) $('#x-pb-csv').onclick = () => {
+    const q = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
+    const rows = [['Nr', 'Data', 'Gravitate', 'Stare', 'Cine', 'Rol', 'Ecran', 'Lucrare', 'Descriere', 'Se aștepta', 'Dispozitiv', 'Versiune', 'Răspuns']]
+      .concat(lista.map((p) => [p.id, oraRo(p.creat), g(p.gravitate).t, s(p.stare).t, p.cine, K.ROLURI[p.rol] || p.rol, p.ecran, p.lucrare_id, p.descriere, p.asteptat, p.dispozitiv, p.versiune, p.raspuns]));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + rows.map((r) => r.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+    a.download = `probleme inoINSTALL ${isoLocal(new Date())}.csv`; a.click();
+  };
+}
+try { new MutationObserver(() => butonProblema()).observe(document.getElementById('ecran'), { childList: true }); } catch (e) { /* */ }
+K.laSchimbare(() => setTimeout(butonProblema, 0));
+
 const laAdmin = () => A().du(areStart() && A().stare.dinStart ? 'start' : A().poate('admin') ? 'admin' : 'lista');
 const laRevenire = () => { const st = A().stare; const r = st.revenireLucrare; st.revenireLucrare = null; A().du(r || (areStart() ? 'start' : 'lista')); };
 
 window.EXT = {
   ecrane: { tipNou: ecranTipNou, lucrare: ecranLucrare, poze: ecranPoze, pv: ecranPV, parteneri: ecranParteneri, preturi: ecranPreturi, rapoarte: ecranRapoarte, calendar: ecranCalendar,
-    start: ecranStart, coada: ecranCoada, verifica: ecranVerifica, borderou: ecranBorderou,
+    start: ecranStart, coada: ecranCoada, verifica: ecranVerifica, borderou: ecranBorderou, probleme: ecranProbleme,
     etape: ecranEtape, clienti: ecranClienti, client: ecranClient },
   inapoi: {
     tipNou: () => { A().stare.nou = null; A().du('lista'); },
@@ -6890,7 +7213,7 @@ window.EXT = {
     poze: () => A().du('lucrare'),
     pv: () => A().du('lucrare'),
     parteneri: laAdmin, preturi: laAdmin, rapoarte: laAdmin, calendar: () => { A().stare.cal && (A().stare.cal.sel = null); A().du(areStart() ? 'start' : 'lista'); },
-    coada: () => A().du('start'), borderou: () => A().du('start'), etape: () => A().du('start'), clienti: () => A().du('start'),
+    coada: () => A().du('start'), borderou: () => A().du('start'), probleme: () => A().du(areStart() ? 'start' : 'lista'), etape: () => A().du('start'), clienti: () => A().du('start'),
     client: () => { const st = A().stare; st.clientPdf = null; st.clientCitit = null; A().du(vedeClienti() ? 'clienti' : 'start'); },
     verifica: () => { const st = A().stare; A().du(st.revenireLucrare === 'coada' ? 'coada' : 'start'); },
   },
@@ -6934,6 +7257,30 @@ css.textContent = `
 .verif-semn{max-width:260px;width:100%;border:1px solid var(--linie);border-radius:8px;background:#fff;margin-top:8px}
 .verif-decizie{border-width:2px;border-color:var(--galben-apasat)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
+.b-problema{flex:none;border:1px solid var(--linie);background:var(--card);color:var(--text);border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;min-height:32px}
+.b-problema:focus-visible{outline:2px solid var(--galben);outline-offset:2px}
+.modal-problema{position:fixed;inset:0;z-index:50;background:rgba(20,20,22,.55);display:flex;align-items:flex-end;justify-content:center;padding:0 max(8px,env(safe-area-inset-right,0px)) 0 max(8px,env(safe-area-inset-left,0px))}
+.modal-problema .modal-in{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+.modal-problema h2{margin:0 0 6px;font-size:17px}
+.modal-problema .chip{display:flex;flex-direction:column;align-items:flex-start;text-align:left;border-radius:10px;line-height:1.25}
+.modal-problema .chip b{margin:0;font-size:11px;font-weight:500}
+@media(min-width:700px){.modal-problema{align-items:center}.modal-problema .modal-in{border-radius:14px}}
+body.cu-modal{overflow:hidden}
+.pb-cap{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pb-text{margin:8px 0 4px;white-space:pre-wrap;overflow-wrap:anywhere}
+.pb-admin{margin-top:10px;border-top:1px solid var(--linie);padding-top:8px}
+.card.pb-blocant{border-left:4px solid #c0392b}
+.pill{display:inline-block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:999px;background:#f1f1f2;color:var(--slab);vertical-align:middle}
+.pill.ok{background:var(--verde);color:#fff}.pill.warn{background:var(--avert);color:var(--avert-text)}.pill.rau{background:#fdecea;color:var(--rosu)}
+.ai-rezumat{margin:0 0 8px;line-height:1.45}
+.ai-etape{display:grid;gap:6px;margin-bottom:8px}
+.ai-etapa{font-size:14px;line-height:1.35}
+.ai-poza{font-size:14px;padding:6px 0;border-top:1px solid var(--linie)}
+.poza.ai-rau{outline:3px solid #d35400;outline-offset:-3px}
+.poza[data-ai]{position:relative}
+.poza[data-ai]::after{content:attr(data-ai);position:absolute;left:4px;top:4px;background:rgba(0,0,0,.65);color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:1px 5px;pointer-events:none}
+.poza.ai-rau::after{background:#d35400}
+
 .chip{border:1px solid var(--linie);background:var(--card);border-radius:999px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--text);min-height:36px}
 .chip b{color:var(--slab);font-weight:600;margin-left:3px}.chip.ales{background:var(--gri);color:#fff;border-color:var(--gri)}.chip.ales b{color:var(--galben)}
 .neg-rand{background:var(--card);border:1px solid var(--linie);border-radius:12px;padding:10px 12px;margin-top:8px}
