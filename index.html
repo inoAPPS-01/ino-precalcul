@@ -6548,6 +6548,42 @@ function tile(o) {
     ${o.n != null ? `<span class="tile-nr">${o.n}</span>` : ''}<span class="tile-t">${E(o.t)}</span>${o.s ? `<span class="tile-s">${E(o.s)}</span>` : ''}</button>`;
 }
 
+// Meniul fix (calculator: în stânga; telefon: „Mai mult”), pe rol, cu numerele care cer atenție
+function itemiMeniu() {
+  const r = K.rol();
+  if (!K.activ || !r) return [];
+  const toate = active();
+  const m = [];
+  const g = (grup, id, t, n, atentie) => m.push({ grup, id, t, n: n || null, atentie: !!atentie });
+  const deFacut = Object.values(COZI).filter((c) => c.cine.includes(r)).reduce((s, c) => s + toate.filter(c.f).length, 0);
+  g('Lucru', 'start', 'Start · de făcut', deFacut, true);
+  g('Lucru', 'lista', 'Lucrări', toate.length);
+  if (['admin', 'planificare', 'lider', 'mentenanta', 'partener', 'tehnic'].includes(r)) g('Lucru', 'calendar', 'Calendar');
+  if (COZI.verificare.cine.includes(r)) g('Lucru', 'coada:verificare', 'Verificare tehnică', toate.filter(COZI.verificare.f).length, true);
+  if (vedeClienti()) g('Lucru', 'clienti', 'Clienți', (K.clienti || []).length);
+  if (['admin', 'tehnic', 'mentenanta', 'facturare'].includes(r)) g('Rapoarte', 'borderou', 'Borderou intervenții');
+  if (A().poate('rapoarte') || r === 'admin') g('Rapoarte', 'rapoarte', 'Rapoarte pe parteneri');
+  if (A().poate('nomenclator')) g('Date', 'nomenclator', 'Nomenclator');
+  if (A().poate('preturi')) g('Date', 'preturi', 'Prețuri parteneri');
+  if (r === 'admin') {
+    g('Administrare', 'admin', 'Utilizatori și echipe');
+    g('Administrare', 'parteneri', 'Parteneri');
+    if (K.serverV3) g('Administrare', 'etape', 'Etape de poze');
+  }
+  if (K.serverV4 && (r === 'admin' || (K.probleme || []).length)) {
+    const noi = (K.probleme || []).filter((p) => (r === 'admin' ? p.stare === 'nou' : p.raspuns && ['rezolvat', 'respins', 'duplicat'].includes(p.stare))).length;
+    g(r === 'admin' ? 'Administrare' : 'Ajutor', 'probleme', r === 'admin' ? 'Probleme raportate' : 'Problemele mele', noi, true);
+  }
+  return m;
+}
+// o lucrare pe un rând scurt: tip, putere, localitate, dată
+function infoScurt(l) {
+  const rz = l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat) || {};
+  const loc = String(l.adresa || '').split(',')[0];
+  const d = dataPlan(l);
+  return [TIPURI[tipL(l)].scurt, rz.kWp ? A().nrK(rz.kWp) + ' kWp' : '', loc, d ? d.slice(8, 10) + '.' + d.slice(5, 7) : ''].filter(Boolean).join(' · ');
+}
+
 function ecranStart() {
   const st = A().stare;
   const r = K.rol();
@@ -6556,38 +6592,32 @@ function ecranStart() {
   const nume = ((K.profil && (K.profil.nume || K.profil.email)) || '').split(/[\s@]/)[0];
   $('#titlu').innerHTML = 'inoINSTALL<span class="sub">' + E(K.ROLURI[r] || r) + (nume ? ' · ' + E(nume) : '') + '</span>';
   $('#btn-inapoi').hidden = true;
-  // „de făcut”: cozile rolului; cele goale se arată mai mic, la final
+  // „de făcut”: fiecare coadă a rolului e un panou cu primele lucrări, direct pe ecran
   const cozi = Object.entries(COZI).filter(([, c]) => c.cine.includes(r))
-    .map(([k, c]) => ({ id: 'coada:' + k, t: c.t, s: c.s, n: toate.filter(c.f).length }));
-  const pline = cozi.filter((c) => c.n), goale = cozi.filter((c) => !c.n);
+    .map(([k, c]) => ({ k, id: 'coada:' + k, t: c.t, s: c.s, c, lista: toate.filter(c.f).sort((a, b) => (dataPlan(a) || '9').localeCompare(dataPlan(b) || '9')) }));
+  const pline = cozi.filter((c) => c.lista.length), goale = cozi.filter((c) => !c.lista.length);
   const nav = [];
   if (A().poate('creeaza')) nav.push({ id: 'nou', t: '+ Lucrare nouă', s: 'montaj, intervenție, vizită...' });
-  nav.push({ id: 'lista', t: 'Toate lucrările', s: 'listă, căutare, filtre', n: toate.length });
-  if (['admin', 'planificare', 'lider', 'mentenanta', 'partener', 'tehnic'].includes(r)) nav.push({ id: 'calendar', t: 'Calendar', s: 'planificarea pe echipe' });
-  if (['admin', 'tehnic', 'mentenanta', 'facturare'].includes(r)) nav.push({ id: 'borderou', t: 'Borderou intervenții', s: 'săptămânal, cu export' });
-  if (A().poate('rapoarte') || r === 'admin') nav.push({ id: 'rapoarte', t: 'Rapoarte', s: 'pe parteneri, de facturat' });
-  if (vedeClienti()) nav.push({ id: 'clienti', t: 'Clienți', s: 'registru și contracte PDF', n: (K.clienti || []).length });
-  if (A().poate('nomenclator')) nav.push({ id: 'nomenclator', t: 'Nomenclator', s: 'produse pe clase, materiale negăsite' });
-  if (A().poate('preturi')) nav.push({ id: 'preturi', t: 'Prețuri parteneri', s: 'materiale cumpărate de parteneri' });
-  if (r === 'admin') {
-    nav.push({ id: 'admin', t: 'Utilizatori și echipe', s: 'conturi, roluri, catalog' });
-    nav.push({ id: 'parteneri', t: 'Parteneri', s: 'firmele care execută' });
-    if (K.serverV3) nav.push({ id: 'etape', t: 'Etape de poze', s: 'ce poze se cer pe fiecare tip' });
-  }
-  // problemele raportate: Adminul le vede pe toate; ceilalți, pe ale lor (dacă au raportat ceva)
-  if (K.serverV4 && (r === 'admin' || (K.probleme || []).length)) {
-    const noi = (K.probleme || []).filter((p) => (r === 'admin' ? p.stare === 'nou' : p.raspuns && ['rezolvat', 'respins', 'duplicat'].includes(p.stare))).length;
-    nav.push({ id: 'probleme', t: r === 'admin' ? 'Probleme raportate' : 'Problemele mele', s: r === 'admin' ? 'de la testeri și utilizatori' : 'ce ați raportat și răspunsurile', n: noi || null });
-  }
-
+  itemiMeniu().filter((x) => x.id !== 'start' && !x.id.startsWith('coada:')).forEach((x) => nav.push({ id: x.id, t: x.t, n: x.n }));
+  const panou = (c) => `<section class="coada-pn">
+      <button type="button" class="tile are coada-cap" data-tile="${E(c.id)}"><span class="tile-nr">${c.lista.length}</span><span class="tile-t">${E(c.t)}</span><span class="tile-s">${E(c.s)}</span></button>
+      <div class="coada-randuri">${c.lista.slice(0, 5).map((l) => `<button type="button" class="coada-rand" data-coada="${E(c.k)}" data-coada-l="${E(l.id)}"><b>${E(l.client || 'Lucrare fără client')}</b><span>${E(infoScurt(l))}</span></button>`).join('')}
+        ${c.lista.length > 5 ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">toate cele ${c.lista.length}</button>` : ''}</div></section>`;
   $('#ecran').innerHTML = A().htmlContBara()
-    + (pline.length ? `<h2 class="start-h">De făcut</h2><div class="tiles">${pline.map((c) => tile(Object.assign({ mare: true }, c))).join('')}</div>`
-      : `<div class="mesaj ok" style="margin-top:14px">Nimic nu așteaptă după dvs. acum.</div>`)
-    + `<h2 class="start-h">Lucru</h2><div class="tiles">${nav.map(tile).join('')}</div>`
-    + (goale.length ? `<div class="start-gol">La zi: ${goale.map((c) => `<button type="button" class="link-buton" data-tile="${E(c.id)}">${E(c.t.toLowerCase())}</button>`).join(' · ')}</div>` : '');
+    + '<h2 class="start-h">De făcut</h2>'
+    + (pline.length ? `<div class="tiles cozi">${pline.map(panou).join('')}</div>`
+      : `<div class="mesaj ok" style="margin-top:10px">Nimic nu așteaptă după dvs. acum.</div>`)
+    + (goale.length ? `<div class="start-gol">La zi: ${goale.map((c) => `<button type="button" class="link-buton" data-tile="${E(c.id)}">${E(c.t.toLowerCase())}</button>`).join(' · ')}</div>` : '')
+    + `<h2 class="start-h nav-h">Lucru</h2><div class="tiles nav-tiles">${nav.map(tile).join('')}</div>`;
   bara('');
   if ($('#b-cont')) $('#b-cont').onclick = () => A().du('cont');
   document.querySelectorAll('[data-tile]').forEach((b) => { b.onclick = () => mergiLa(b.dataset.tile); });
+  document.querySelectorAll('[data-coada-l]').forEach((b) => { b.onclick = () => {
+    const l = toate.find((x) => x.id === b.dataset.coadaL);
+    if (!l) return;
+    st.revenireLucrare = 'start';
+    if (COZI[b.dataset.coada].ecran === 'verifica') { st.lucrare = l; A().du('verifica', l); } else A().deschide(l);
+  }; });
 }
 function mergiLa(id) {
   const st = A().stare;
@@ -6696,10 +6726,17 @@ function ecranVerifica() {
         ${zona('vv-obs', 'Observații pentru echipă și management', vt.obs || (lipsa.length ? 'Lipsesc pozele: ' + lipsa.map((e) => e.t).join(', ') + '.' : ''))}`
     : '<div class="ajutor">Decizia o ia Tehnicul (sau Adminul).</div>'}
     </div></section>`;
-  $('#ecran').innerHTML = antet + poze + htmlAI(l) + htmlComparatie(l) + htmlRaportEchipa(l) + sectPV + decizie;
+  // calculator: coada în stânga, pozele și materialele la mijloc, AI + PV + decizia în dreapta
+  const lat = document.body.classList.contains('ui-lat');
+  const htmlCoada = `<aside class="v-coada" aria-label="Coada de verificare"><div class="v-coada-h">De verificat · ${coada.length}</div>
+    ${coada.map((x) => { const lp = etapeLipsa(x).length; return `<button type="button" class="v-q${x.id === l.id ? ' on' : ''}" data-vq="${E(x.id)}"><b>${E(x.client || 'Lucrare')}</b><small>${E(infoScurt(x))}</small><small>${lp ? `<span class="pill rau">${lp} ${lp === 1 ? 'etapă lipsă' : 'etape lipsă'}</span>` : 'poze complete'}</small></button>`; }).join('') || '<div class="ajutor" style="padding:10px">Coada e goală.</div>'}</aside>`;
+  const butoaneDecizie = ed ? stari.map((x) => `<button class="buton${x.v === 'aprobat' ? '' : ' gol'}${x.v !== 'aprobat' ? ' pericol' : ''}" data-decizie="${x.v}">${E(x.v === 'aprobat' ? '✓ ' + x.t : x.t + '…')}</button>`).reverse().join('')
+    + (poz >= 0 && coada.length > 1 ? '<button class="buton gol" id="x-v-sari">Sari peste</button>' : '') : '';
+  $('#ecran').innerHTML = `<div class="v3">${htmlCoada}<div class="v-main">${antet + poze + htmlComparatie(l) + htmlRaportEchipa(l)}</div>`
+    + `<div class="v-dreapta">${htmlAI(l) + sectPV + decizie.replace('</div></section>', (lat && butoaneDecizie ? `<div class="dec-butoane">${butoaneDecizie}</div>` : '') + '</div></section>')}</div></div>`;
   legaAI(l);
-  bara(ed ? stari.map((x) => `<button class="buton${x.v === 'aprobat' ? '' : ' gol'}${x.v !== 'aprobat' ? ' pericol' : ''}" data-decizie="${x.v}">${E(x.v === 'aprobat' ? '✓ ' + x.t : x.t)}</button>`).reverse().join('')
-    + (poz >= 0 && coada.length > 1 ? '<button class="buton gol" id="x-v-sari">Sari peste</button>' : '') : '');
+  bara(lat ? '' : butoaneDecizie);
+  document.querySelectorAll('[data-vq]').forEach((b) => { b.onclick = () => { const x = coada.find((y) => y.id === b.dataset.vq); if (x) { st.lucrare = x; A().du('verifica', x); } }; });
   $('#x-v-fisa').onclick = () => { st.revenireLucrare = 'verifica'; A().du('lucrare', l); };
   if ($('#x-v-pdf')) $('#x-v-pdf').onclick = () => pvPDF(l);
   if ($('#x-v-toate')) $('#x-v-toate').onclick = () => { st.verifToate = !st.verifToate; ecranVerifica(); };
@@ -6712,18 +6749,50 @@ function ecranVerifica() {
     const c = active().filter(COZI.verificare.f); const i = c.findIndex((x) => x.id === l.id);
     const u = c[(i + 1) % c.length]; st.lucrare = u; A().du('verifica', u);
   };
-  document.querySelectorAll('[data-decizie]').forEach((b) => { b.onclick = () => {
-    const d = b.dataset.decizie, motiv = v('vv-motiv'), obs = (v('vv-obs') || '').trim();
-    if (d !== 'aprobat' && !motiv) { alert('Alegeți motivul respingerii.'); $('#x-vv-motiv').focus(); return; }
-    if (d === 'aprobat' && lipsa.length && !confirm(`Lipsesc ${lipsa.length} ${lipsa.length === 1 ? 'etapă' : 'etape'} de poze obligatorii. Aprobați totuși?`)) return;
-    if (d === 'respins' && !confirm('Respingeți lucrarea? Se întoarce la echipă cu motivul ales.')) return;
+  const decide = (d, motiv, obs) => {
     l.verificari = Object.assign({}, l.verificari || {}, { tehnic: { stare: d, motiv: d === 'aprobat' ? '' : motiv, obs } });
     A().salveaza(l);
     urmatoarea();
+  };
+  document.querySelectorAll('[data-decizie]').forEach((b) => { b.onclick = () => {
+    const d = b.dataset.decizie;
+    if (d === 'aprobat') {
+      if (lipsa.length && !confirm(`Lipsesc ${lipsa.length} ${lipsa.length === 1 ? 'etapă' : 'etape'} de poze obligatorii. Aprobați totuși?`)) return;
+      decide(d, '', (v('vv-obs') || '').trim());
+      return;
+    }
+    // respingerea: motivul și observațiile într-o foaie peste ecran (pe telefon, de jos)
+    foaieRespingere(d === 'respins' ? 'Respinge lucrarea' : 'Neaprobat la plată', d === 'respins' ? 'Respinge și treci la următoarea' : 'Neaprobă și treci la următoarea',
+      v('vv-motiv') || '', v('vv-obs') || '', (motiv, obs) => decide(d, motiv, obs));
   }; });
   // pozele: miniaturi, apoi mărire pe ecran (fără fereastră nouă)
   arataMiniaturi();
   document.querySelectorAll('img[data-poza]').forEach((img) => { img.onclick = () => mareste(img); });
+}
+function foaieRespingere(titluF, textOk, motiv0, obs0, gata) {
+  document.querySelectorAll('.foaie').forEach((x) => x.remove());
+  const m = document.createElement('div');
+  m.className = 'modal-problema foaie';
+  m.innerHTML = `<div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="vm-t">
+    <h2 id="vm-t">${E(titluF)}</h2>
+    <div class="ajutor" style="margin-top:0">Lucrarea se întoarce la echipă cu motivul și observațiile de mai jos.</div>
+    <div class="sectiune-titlu">Motivul</div>
+    <div class="chips" style="margin-top:6px">${MOTIVE.map((x) => `<button type="button" class="chip${x === motiv0 ? ' ales' : ''}" data-vm="${E(x)}">${E(x)}</button>`).join('')}</div>
+    <div class="camp"><label for="x-vm-obs">Observații pentru echipă</label><textarea id="x-vm-obs" rows="3">${E(obs0)}</textarea></div>
+    <div class="actiuni"><button class="buton gol" id="x-vm-renunta">Renunță</button><button class="buton respinge" id="x-vm-ok">${E(textOk)}</button></div></div>`;
+  document.body.appendChild(m);
+  document.body.classList.add('cu-modal');
+  let motiv = motiv0;
+  const inchide = () => { m.remove(); document.body.classList.remove('cu-modal'); };
+  m.querySelectorAll('[data-vm]').forEach((b) => { b.onclick = () => { motiv = b.dataset.vm; m.querySelectorAll('[data-vm]').forEach((x) => x.classList.toggle('ales', x === b)); }; });
+  m.querySelector('#x-vm-renunta').onclick = inchide;
+  m.addEventListener('click', (ev) => { if (ev.target === m) inchide(); });
+  m.querySelector('#x-vm-ok').onclick = () => {
+    if (!motiv) { alert('Alegeți motivul respingerii.'); return; }
+    const obs = m.querySelector('#x-vm-obs').value.trim();
+    inchide();
+    gata(motiv, obs);
+  };
 }
 function mareste(img) {
   if (!img.src) return;
@@ -6987,7 +7056,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.3';
+const VERSIUNE_APP = '2.4';
 const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
 const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
 const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };
@@ -7220,6 +7289,7 @@ window.EXT = {
   deschide, butoaneLista, legaLista, areStart, COZI, htmlBannerLista, htmlTipScurt, htmlInfoCard, gataDeTrimis, stareText: STARE_TEXT,
   // pentru teste
   TIPURI, ETAPE, etapeLucrare, etapeLipsa, standardContract, anexaCalculata, sumaPartener, ePartener, urcaPozele,
+  itemiMeniu, mergiLa, infoScurt, tipL, dataPlan, pozeEtapa,
 };
 
 // stilurile ecranelor noi
@@ -7845,6 +7915,45 @@ function ecranLista() {
   });
 }
 
+// Un rând din tabelul lucrărilor (calculator)
+function pozeText(l) {
+  if (!window.EXT) return '';
+  const ob = window.EXT.etapeLucrare(l).filter((e) => e.o);
+  if (!ob.length) return '';
+  return `${ob.length - window.EXT.etapeLipsa(l).length}/${ob.length}`;
+}
+function randTabel(l) {
+  const st = window.EXT ? window.EXT.stareText(l) : STARI[stareLucrare(l)];
+  const rz = l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat) || {};
+  const tip = window.EXT ? window.EXT.TIPURI[window.EXT.tipL(l)].scurt : 'Montaj';
+  const d = window.EXT ? window.EXT.dataPlan(l) : '';
+  const rap = l.raportat || {};
+  return `<tr data-sel="${E(l.id)}" tabindex="0"><td><b>${E(l.client || 'Lucrare fără client')}</b><small>${E(l.adresa || '')}</small></td>
+    <td>${E(tip)}${rz.kWp ? ' ' + E(nrK(rz.kWp)) + ' kWp' : ''}</td>
+    <td><span class="stare ${st.c}">${E(st.t)}</span>${poate('valideaza', l) && rap.finalizat && !rap.validat ? ' <span class="stare atentie">de validat</span>' : ''}${l._murdar ? ' <span class="stare gri">netrimis</span>' : ''}</td>
+    <td>${E(numeEchipaL(l) || '—')}</td><td>${E((l.partener_id && K.numePartener(l.partener_id)) || '—')}</td>
+    <td>${d ? E(d.slice(8, 10) + '.' + d.slice(5, 7)) : '—'}</td><td>${E(pozeText(l) || '—')}</td></tr>`;
+}
+// Lucrarea aleasă din tabel, pe scurt, cu drumul spre fișă și poze
+function htmlPreviz(l) {
+  const st = window.EXT ? window.EXT.stareText(l) : STARI[stareLucrare(l)];
+  const rz = l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat) || {};
+  const t = window.EXT ? window.EXT.tipL(l) : 'montaj_nou';
+  const d = window.EXT ? window.EXT.dataPlan(l) : '';
+  const alocati = (l._alocati || []).map((id) => K.numeOm(id)).filter(Boolean);
+  const pz = pozeText(l);
+  const rand = (et, v) => (v ? `<span>${E(et)}</span><b>${E(v)}</b>` : '');
+  return `<div class="md-cap"><span class="tip-eticheta mare">${E(window.EXT ? window.EXT.TIPURI[t].t : 'Montaj')}</span> <span class="stare ${st.c}">${E(st.t)}</span></div>
+    <h2 class="md-titlu">${E(l.client || 'Lucrare fără client')}</h2>
+    <div class="ajutor" style="margin-top:2px">${E([l.adresa, l.judet].filter(Boolean).join(', '))}${rz.kWp ? ` · ${E(nrK(rz.kWp))} kWp · ${E(rz.panouri)} panouri${rz.invertorModel ? ' · ' + E(rz.invertorModel) : ''}` : ''}</div>
+    <div class="actiuni"><button class="buton" data-deschide="${E(l.id)}">Deschide fișa</button>${pz && K.activ ? `<button class="buton gol" id="md-poze">Poze ${E(pz)}</button>` : ''}</div>
+    ${window.EXT ? window.EXT.htmlInfoCard(l).replace('class="info"', 'class="mesaj warn md-info"') : ''}
+    <div class="md-kv">${rand('Partener', l.partener_id && K.numePartener(l.partener_id))}${rand('Echipă', numeEchipaL(l))}${rand('Alocați', alocati.join(', '))}
+      ${rand('Planificat', d && new Date(d).toLocaleDateString('ro-RO'))}${rand('Telefon', l.telefon)}${rand('Proiect', l.tipFinantare)}
+      ${rand('Prosumator', l.prosumatorSolicitat ? 'cerut de client' : '')}${rand('PV', l.pv ? 'semnat de ' + (l.pv.nume || 'client') + (l.pv.confirmat ? ', confirmat prin cod' : '') : '')}
+      ${rand('Raport', (l.raportat || {}).validat ? 'validat de ' + l.raportat.validat.de : (l.raportat || {}).finalizat ? 'trimis de ' + l.raportat.finalizat.de : '')}</div>
+    ${htmlIstoric(l)}`;
+}
 // Lista din fila aleasă, filtrată după căutare. Se redesenează doar lista, ca tastatura să rămână deschisă.
 function deseneazaListaFiltrata(toate) {
   const tab = cardCurent();
@@ -7858,6 +7967,26 @@ function deseneazaListaFiltrata(toate) {
   list.sort((a, b) => ((poate('valideaza', b) && finalizata(b)) - (poate('valideaza', a) && finalizata(a))) || dataActivitate(b) - dataActivitate(a));
   const el = $('#lista-lucrari');
   if (!el) return;
+  // calculator, cu cont: tabel dens în stânga și fișa pe scurt alături (master–detail)
+  if (K.activ && document.body.classList.contains('ui-lat') && list.length) {
+    if (!list.some((l) => l.id === stare.selLista)) stare.selLista = list[0].id;
+    el.innerHTML = `<div class="md"><div class="md-lista"><table class="tab-l"><thead><tr><th>Client</th><th>Tip</th><th>Stare</th><th>Echipă</th><th>Partener</th><th>Data</th><th>Poze</th></tr></thead><tbody>
+      ${list.map(randTabel).join('')}</tbody></table></div><aside class="md-det" id="md-det" aria-label="Lucrarea aleasă"></aside></div>`;
+    const arata = () => {
+      const l = citesteTot().find((x) => x.id === stare.selLista);
+      el.querySelectorAll('tr[data-sel]').forEach((tr) => tr.classList.toggle('sel', tr.dataset.sel === stare.selLista));
+      $('#md-det').innerHTML = l ? htmlPreviz(l) : '';
+      $('#md-det').querySelectorAll('[data-deschide]').forEach((b) => { b.onclick = () => deschide(l); });
+      if ($('#md-poze')) $('#md-poze').onclick = () => du('poze', l);
+    };
+    el.querySelectorAll('tr[data-sel]').forEach((tr) => {
+      tr.onclick = () => { stare.selLista = tr.dataset.sel; arata(); };
+      tr.ondblclick = () => { const l = citesteTot().find((x) => x.id === tr.dataset.sel); if (l) deschide(l); };
+      tr.onkeydown = (ev) => { if (ev.key === 'Enter') { const l = citesteTot().find((x) => x.id === tr.dataset.sel); if (l) deschide(l); } };
+    });
+    arata();
+    return;
+  }
   el.innerHTML = list.length ? list.map(htmlCardLucrare).join('')
     : `<div class="gol-text" style="padding:28px 20px">${q ? 'Nicio lucrare nu se potrivește căutării.' : E(tab.gol)}</div>`;
   el.querySelectorAll('[data-deschide]').forEach((b) => {
@@ -9943,6 +10072,8 @@ const schimbaIdentitatea = (tab, vechi, nou) => (tab === 'PANOURI' && vechi.id !
  * Rutare
  * ------------------------------------------------------------------ */
 function deseneaza() {
+  // clasele cadrului (meniu fix, calculator / telefon) se pun înainte de desenare: ecranele se așază după ele
+  if (window.UI) window.UI.clase();
   $('#bara').hidden = false;
   const e = stare.ecran;
   if (e === 'lista') ecranLista();
@@ -10520,6 +10651,20 @@ function iesireCuModificari() {
   return true;
 }
 
+// Plecarea din ecranul curent prin meniu, cale sau tab-uri: aceleași întrebări ca la „Înapoi”
+function poatePleca() {
+  const e = stare.ecran, l = stare.lucrare;
+  if ((e === 'form' || e === 'raport') && !iesireCuModificari()) return false;
+  if (stare.alocareNesalvata && l) {
+    if (!confirm('Alocarea nu e salvată. Ieșiți fără să o salvați?')) return false;
+    const salvata = citesteTot().find((x) => x.id === l.id);
+    if (salvata) { l._alocati = salvata._alocati; l._echipa_id = salvata._echipa_id; l.echipa = salvata.echipa; }
+    stare.alocareNesalvata = false;
+  }
+  if ((e === 'catalog' || e === 'catalogItem') && stare.catalog && stare.catalog.modificat && !confirm('Catalogul are modificări nesalvate. Renunțați la ele?')) return false;
+  if (e === 'produs' && produsModificat() && !confirm('Produsul are modificări nesalvate. Renunțați la ele?')) return false;
+  return true;
+}
 function inapoi() {
   const e = stare.ecran, l = stare.lucrare;
   if ((e === 'form' || e === 'raport') && !iesireCuModificari()) return;
@@ -10644,6 +10789,7 @@ window.APP = {
   get stare() { return stare; }, du, deseneaza, salveaza, E, $, nr, nrK, poate, K, C, M, citesteTot, scurt,
   htmlIstoric, htmlContBara, htmlConflict, legaConflict, htmlAlocare, legaAlocare, htmlAdminLucrare, legaAdminLucrare, calculeazaLucrarea, antecalculLucrare, campuriLipsa,
   lucrareNoua, stareLucrare, STARI, deschide, htmlCardLucrare, areConsum, timpRelativ, ziISO, citesteNumar, consumLinie, fara,
+  poatePleca, acasa, inapoi, ecranLista, numeEchipaL, textSync,
 };
 $('#ecran').innerHTML = '<div class="gol-text">Se încarcă…</div>';
 K.porneste().then((s) => {
@@ -10653,6 +10799,438 @@ K.porneste().then((s) => {
   deseneaza();
   if (['lista', 'start'].includes(stare.ecran)) oferaCiorna();
 });
+})();
+
+</script>
+<script>
+/* ===== interfata.js ===== */
+// interfata.js — cadrul aplicației cu cont (26 octombrie 2026):
+//   • meniul fix: pe calculator în stânga, pe telefon bara de jos (Start, Lucrări, Calendar, Nouă, Mai mult);
+//   • calea („Start › Lucrări › Popescu Ion › Poze”), ca să se știe mereu unde suntem;
+//   • tab-urile lucrării (Detalii, Poze, Pre-calcul, Materiale, Consum, PV, Istoric);
+//   • densitate: mai multe rânduri pe ecran, două coloane pe calculator.
+// Fără cont (pre-calculul simplu) totul rămâne ca înainte.
+(function () {
+'use strict';
+const K = window.CONT;
+const A = () => window.APP;
+const X = () => window.EXT;
+const $ = (s) => document.querySelector(s);
+const E = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const LAT = window.matchMedia ? window.matchMedia('(min-width: 1000px)') : { matches: false, addEventListener() {} };
+
+const activ = () => !!(K && K.activ && K.rol() && window.EXT && window.APP && K.serverV2);
+
+// ecran → elementul de meniu în care stă
+const SECTIUNE = {
+  start: 'start', lista: 'lista', tipNou: 'lista', lucrare: 'lista', form: 'lista', rezultat: 'lista', raport: 'lista', poze: 'lista', pv: 'lista',
+  verifica: 'coada:verificare', calendar: 'calendar', clienti: 'clienti', client: 'clienti', borderou: 'borderou', rapoarte: 'rapoarte',
+  nomenclator: 'nomenclator', produs: 'nomenclator', coresp: 'nomenclator', preturi: 'preturi', admin: 'admin', arhiva: 'admin',
+  catalog: 'admin', catalogItem: 'admin', parteneri: 'parteneri', etape: 'etape', probleme: 'probleme', cont: 'cont',
+};
+const SUBECRAN = { form: 'Pre-calcul', rezultat: 'Lista de materiale', raport: 'Raport de consum', poze: 'Poze', pv: 'Proces verbal' };
+const LUCRARE_ECRANE = ['lucrare', 'poze', 'form', 'rezultat', 'raport'];
+// ecranele de sus, unde pe telefon apare bara de meniu
+const SUS = ['start', 'lista', 'calendar', 'coada', 'clienti', 'probleme', 'borderou', 'rapoarte', 'cont'];
+
+function sectiuneCurenta() {
+  const st = A().stare;
+  if (st.ecran === 'coada') {
+    const id = 'coada:' + st.coada;
+    return X().itemiMeniu().some((x) => x.id === id) ? id : 'start';
+  }
+  if (st.ecran === 'verifica' && st.revenireLucrare === 'lucrare') return 'lista';
+  return SECTIUNE[st.ecran] || '';
+}
+function mergi(id) {
+  const st = A().stare;
+  if (!A().poatePleca()) return;
+  inchideFoi();
+  st.revenireLucrare = null;
+  if (id === 'start') A().du('start');
+  else if (id === 'lista') A().du('lista');
+  else if (id === 'cont') A().du('cont');
+  else X().mergiLa(id);
+}
+function inchideFoi() {
+  document.querySelectorAll('.foaie').forEach((x) => x.remove());
+  if (!document.querySelector('.modal-problema')) document.body.classList.remove('cu-modal');
+}
+
+/* ---------------------------------------------------------------- meniul ---- */
+function htmlItem(x, cur) {
+  return `<button type="button" class="mi${x.id === cur ? ' on' : ''}" data-m="${E(x.id)}"${x.id === cur ? ' aria-current="page"' : ''}>
+    <span>${E(x.t)}</span>${x.n ? `<span class="mi-n${x.atentie ? ' at' : ''}">${E(x.n)}</span>` : ''}</button>`;
+}
+function htmlGrupuri(cur) {
+  const m = X().itemiMeniu();
+  const grupuri = [...new Set(m.map((x) => x.grup))];
+  return grupuri.map((g) => `<div class="mg"><div class="mg-t">${E(g)}</div>${m.filter((x) => x.grup === g).map((x) => htmlItem(x, cur)).join('')}</div>`).join('');
+}
+function meniuLat(cur) {
+  let el = $('#meniu-lat');
+  if (!el) {
+    el = document.createElement('aside');
+    el.id = 'meniu-lat';
+    el.setAttribute('aria-label', 'Meniu');
+    document.body.appendChild(el);
+  }
+  const p = K.profil || {};
+  const s = A().textSync ? A().textSync() : { t: '', c: '' };
+  el.innerHTML = `<button type="button" class="ml-brand" data-m="start" aria-label="Start"><img src="${E(window.LOGO_INOSOLAR || '')}" alt="inoSOLAR"><span>inoINSTALL</span></button>
+    ${A().poate('creeaza') ? '<button type="button" class="buton ml-nou" data-m="nou">+ Lucrare nouă</button>' : ''}
+    <nav class="ml-nav">${htmlGrupuri(cur)}</nav>
+    <button type="button" class="ml-cont${cur === 'cont' ? ' on' : ''}" data-m="cont"><b>${E(p.nume || p.email || '')}</b><span>${E(K.ROLURI[p.rol] || '')}</span><span class="sync ${E(s.c)}">${E(s.t)}</span></button>`;
+  el.querySelectorAll('[data-m]').forEach((b) => { b.onclick = () => mergi(b.dataset.m); });
+}
+function baraJos(cur, vizibil) {
+  let el = $('#tab-jos');
+  if (!el) {
+    el = document.createElement('nav');
+    el.id = 'tab-jos';
+    el.setAttribute('aria-label', 'Meniu');
+    document.body.appendChild(el);
+  }
+  el.hidden = !vizibil;
+  document.body.classList.toggle('cu-tab', vizibil);
+  if (!vizibil) return;
+  const m = X().itemiMeniu();
+  const n = (id) => (m.find((x) => x.id === id) || {}).n;
+  const it = [{ id: 'start', t: 'Start', n: n('start'), ic: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>' },
+    { id: 'lista', t: 'Lucrări', ic: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>' }];
+  if (m.some((x) => x.id === 'calendar')) it.push({ id: 'calendar', t: 'Calendar', ic: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' });
+  else if (m.some((x) => x.id === 'coada:verificare')) it.push({ id: 'coada:verificare', t: 'Verificare', n: n('coada:verificare'), ic: '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>' });
+  if (A().poate('creeaza')) it.push({ id: 'nou', t: 'Nouă', ic: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>' });
+  it.push({ id: 'mai', t: 'Mai mult', ic: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>' });
+  const pePagina = it.some((x) => x.id === cur) ? cur : 'mai';
+  el.innerHTML = it.map((x) => `<button type="button" class="tj${x.id === pePagina ? ' on' : ''}" data-tj="${E(x.id)}"${x.id === pePagina ? ' aria-current="page"' : ''}>
+    <span class="tj-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${x.ic}</svg>${x.n ? `<span class="tj-n">${E(x.n)}</span>` : ''}</span>${E(x.t)}</button>`).join('');
+  el.querySelectorAll('[data-tj]').forEach((b) => { b.onclick = () => (b.dataset.tj === 'mai' ? foaieMeniu(cur) : mergi(b.dataset.tj)); });
+}
+// „Mai mult” pe telefon: tot meniul rolului, într-o foaie de jos
+function foaieMeniu(cur) {
+  inchideFoi();
+  const m = document.createElement('div');
+  m.className = 'modal-problema foaie';
+  m.innerHTML = `<div class="modal-in" role="dialog" aria-modal="true" aria-label="Meniu"><nav class="ml-nav">${htmlGrupuri(cur)}
+    <div class="mg"><div class="mg-t">Cont</div>${htmlItem({ id: 'cont', t: 'Contul meu și sincronizarea' }, cur)}</div></nav>
+    <div class="actiuni"><button type="button" class="buton gol" id="x-mm-inchide">Închide</button></div></div>`;
+  document.body.appendChild(m);
+  document.body.classList.add('cu-modal');
+  m.addEventListener('click', (ev) => { if (ev.target === m) inchideFoi(); });
+  m.querySelector('#x-mm-inchide').onclick = inchideFoi;
+  m.querySelectorAll('[data-m]').forEach((b) => { b.onclick = () => { inchideFoi(); mergi(b.dataset.m); }; });
+}
+
+/* ------------------------------------------------------------------ calea ---- */
+function cale() {
+  const st = A().stare;
+  const e = st.ecran;
+  if (!activ() || ['login', 'fara_rol', 'start'].includes(e)) return [];
+  const m = X().itemiMeniu();
+  const sect = sectiuneCurenta();
+  const c = [{ t: 'Start', go: 'start' }];
+  const it = m.find((x) => x.id === sect);
+  if (e === 'coada' && sect === 'start') {
+    const co = X().COZI[st.coada];
+    if (co) c.push({ t: co.t });
+    return c;
+  }
+  if (it && sect !== 'start') c.push({ t: it.t, go: sect });
+  else if (sect === 'cont') c.push({ t: 'Contul meu' });
+  const l = st.lucrare;
+  if (l && (LUCRARE_ECRANE.includes(e) || e === 'pv' || e === 'verifica')) {
+    c.push({ t: l.client || 'Lucrare', go: e === 'lucrare' ? null : 'lucrare:' });
+    if (SUBECRAN[e]) c.push({ t: SUBECRAN[e] });
+  } else if (e === 'tipNou') c.push({ t: 'Lucrare nouă' });
+  else if (e === 'produs') c.push({ t: 'Produs' });
+  else if (e === 'client') c.push({ t: (st.clientEditat && st.clientEditat.nume) || 'Client' });
+  // ultimul element nu e legătură
+  c[c.length - 1].go = null;
+  return c;
+}
+function deseneazaCale() {
+  let el = $('#cale');
+  if (!el) {
+    el = document.createElement('nav');
+    el.id = 'cale';
+    el.setAttribute('aria-label', 'Unde sunteți');
+    const h = document.querySelector('header');
+    h.insertBefore(el, h.firstChild);
+  }
+  const c = cale();
+  el.hidden = c.length < 2;
+  el.innerHTML = `<div class="cale-in">${c.map((x, i) => (x.go ? `<button type="button" class="cale-l" data-cale="${i}">${E(x.t)}</button>` : `<span${i === c.length - 1 ? ' aria-current="page"' : ''}>${E(x.t)}</span>`)).join('<span class="cale-s" aria-hidden="true">›</span>')}</div>`;
+  el.querySelectorAll('[data-cale]').forEach((b) => {
+    b.onclick = () => {
+      const x = c[+b.dataset.cale];
+      if (x.go === 'lucrare:') {
+        if (!A().poatePleca()) return;
+        A().du('lucrare', A().stare.lucrare);
+      } else mergi(x.go);
+    };
+  });
+}
+
+/* ------------------------------------------------- tab-urile lucrării ---- */
+function tabSectiune(sec) {
+  const h = sec.querySelector(':scope > h2');
+  const t = (h ? h.textContent : '').toLowerCase();
+  if (/^istoric|administrare/.test(t)) return 'istoric';
+  return 'detalii';
+}
+function taburiLucrare() {
+  const st = A().stare;
+  const e = st.ecran;
+  const l = st.lucrare;
+  const ecran = $('#ecran');
+  if (!activ() || !l || !LUCRARE_ECRANE.includes(e) || ecran.querySelector('.tabs-l')) return;
+  // o lucrare nouă, încă nesalvată, nu are fișă
+  if (!K.citesteTot().some((x) => x.id === l.id)) return;
+  const t = X().tipL(l);
+  const rz = l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat);
+  const ob = X().etapeLucrare(l).filter((x) => x.o).length;
+  const lipsa = X().etapeLipsa(l).length;
+  const tabs = [{ id: 'detalii', t: 'Detalii' }, { id: 'poze', t: 'Poze', n: ob ? `${ob - lipsa}/${ob}` : '' }];
+  if (t === 'montaj_nou') {
+    if (A().poate('editeaza', l)) tabs.push({ id: 'form', t: 'Pre-calcul' });
+    if (rz) tabs.push({ id: 'rezultat', t: 'Materiale' });
+    if ((l.antecalcul || l.raportat) && K.rol() !== 'partener') tabs.push({ id: 'raport', t: 'Consum' });
+  }
+  tabs.push({ id: 'istoric', t: 'Istoric' });
+  // tab-ul fișei se ține doar pentru aceeași lucrare
+  if (st.tabFisaL !== l.id) { st.tabFisa = 'detalii'; st.tabFisaL = l.id; }
+  const cur = e === 'lucrare' ? (st.tabFisa || 'detalii') : e;
+  const nav = document.createElement('nav');
+  nav.className = 'tabs-l';
+  nav.setAttribute('aria-label', 'Lucrarea');
+  nav.innerHTML = tabs.map((x) => `<button type="button" class="tl${x.id === cur ? ' on' : ''}" data-tl="${x.id}"${x.id === cur ? ' aria-current="page"' : ''}>${E(x.t)}${x.n ? `<small${lipsa && x.id === 'poze' ? ' class="lipsa"' : ''}>${E(x.n)}</small>` : ''}</button>`).join('');
+  ecran.insertBefore(nav, ecran.firstChild);
+  nav.querySelectorAll('[data-tl]').forEach((b) => {
+    b.onclick = () => {
+      const id = b.dataset.tl;
+      if (['detalii', 'istoric'].includes(id)) {
+        st.tabFisa = id;
+        if (e === 'lucrare') { aplicaTabFisa(); nav.querySelectorAll('.tl').forEach((x) => x.classList.toggle('on', x === b)); window.scrollTo(0, 0); return; }
+        if (!A().poatePleca()) return;
+        A().du('lucrare', l);
+        return;
+      }
+      if (id === e) return;
+      if (!A().poatePleca()) return;
+      if (id === 'rezultat') st.rezultatDinLista = true;
+      A().du(id, l);
+    };
+  });
+  if (e === 'lucrare') aplicaTabFisa();
+}
+function aplicaTabFisa() {
+  const st = A().stare;
+  const cur = st.tabFisa || 'detalii';
+  const secs = [...document.querySelectorAll('#ecran > section.card')];
+  secs.forEach((s) => { s.hidden = tabSectiune(s) !== cur; });
+  // un tab gol (lucrare fără PV încă) arată măcar un rând
+  let gol = $('#tab-gol');
+  if (gol) gol.remove();
+  if (!secs.some((s) => !s.hidden)) {
+    gol = document.createElement('div');
+    gol.id = 'tab-gol'; gol.className = 'gol-text'; gol.style.padding = '28px 20px';
+    gol.textContent = cur === 'istoric' ? 'Fără istoric încă.' : 'Nimic aici încă.';
+    $('#ecran').appendChild(gol);
+  }
+}
+
+/* ------------------------------------------------------------- pe ecran ---- */
+let ultimEcran = '';
+function clase() {
+  const ok = activ();
+  document.body.classList.toggle('ui', ok);
+  document.body.classList.toggle('ui-lat', ok && LAT.matches);
+  return ok;
+}
+window.UI = { clase };
+function actualizeaza() {
+  const ok = clase();
+  if (!window.APP) return;
+  const st = A().stare;
+  document.body.dataset.ecran = st.ecran || '';
+  if (ultimEcran !== st.ecran) { inchideFoi(); ultimEcran = st.ecran; }
+  if (!ok) {
+    const m = $('#meniu-lat'); if (m) m.remove();
+    const t = $('#tab-jos'); if (t) t.hidden = true;
+    document.body.classList.remove('cu-tab');
+    const c = $('#cale'); if (c) c.hidden = true;
+    return;
+  }
+  const cur = sectiuneCurenta();
+  if (LAT.matches) { meniuLat(cur); baraJos(cur, false); }
+  else { const m = $('#meniu-lat'); if (m) m.remove(); baraJos(cur, SUS.includes(st.ecran)); }
+  deseneazaCale();
+  taburiLucrare();
+}
+let programat = false;
+const curand = () => { if (programat) return; programat = true; requestAnimationFrame(() => { programat = false; actualizeaza(); }); };
+new MutationObserver(curand).observe(document.getElementById('ecran'), { childList: true });
+K.laSchimbare(curand);
+// trecerea între telefon și calculator (fereastra micșorată) redesenează ecranul în forma potrivită
+const laLatime = () => { actualizeaza(); if (activ() && ['lista', 'verifica', 'start'].includes(A().stare.ecran)) A().deseneaza(); };
+if (LAT.addEventListener) LAT.addEventListener('change', laLatime); else if (LAT.addListener) LAT.addListener(laLatime);
+
+/* ---------------------------------------------------------------- stiluri ---- */
+const css = document.createElement('style');
+css.textContent = `
+/* densitate: mai multe rânduri pe ecran */
+body.ui .card{margin-top:10px;border-radius:10px;box-shadow:none}
+body.ui .card > h2{padding:10px 14px 0;font-size:12px}
+body.ui .card .corp{padding:8px 14px 12px}
+body.ui .camp{margin-top:9px}
+body.ui .mesaj{margin-top:8px}
+body.ui .lucrare{padding:8px 12px;margin-top:6px;box-shadow:none;border-left-width:3px;border-radius:9px}
+body.ui .lucrare .titlu{font-size:15px}
+body.ui .lucrare .info{font-size:12.5px;margin-top:1px;line-height:1.35}
+body.ui .lucrare .stare{margin-top:5px;font-size:10.5px;padding:2px 7px}
+body.ui .carduri-stare{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+body.ui .card-stare{min-height:0;padding:6px 11px;display:flex;align-items:baseline;gap:6px;border:1px solid var(--linie);border-radius:999px;box-shadow:none}
+body.ui .card-stare .nr{font-size:14px;display:inline}
+body.ui .card-stare .t{display:inline;font-size:13px;margin:0}
+body.ui .card-stare .s{display:none}
+body.ui .card-stare[aria-pressed="true"]{background:var(--gri);color:#fff;border-color:var(--gri);outline:0}
+body.ui .card-stare[aria-pressed="true"] .nr{color:var(--galben)}
+body.ui .filtru-lista{margin-top:8px}
+body.ui .start-h{margin:14px 0 6px}
+/* calea */
+#cale{font-size:12px;color:var(--slab);padding:0 0 4px}
+#cale .cale-in{max-width:780px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-width:0}
+#cale .cale-l{border:0;background:none;padding:2px 0;font:inherit;color:var(--slab);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+#cale .cale-l:hover{color:var(--gri)}
+#cale [aria-current]{color:var(--gri);font-weight:700;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#cale .cale-s{opacity:.6}
+/* tab-urile lucrării */
+.tabs-l{display:flex;gap:4px;overflow-x:auto;margin:10px 0 0;border-bottom:1px solid var(--linie);scrollbar-width:none}
+.tabs-l::-webkit-scrollbar{display:none}
+.tl{flex:none;border:0;background:none;font:inherit;font-size:14px;color:var(--slab);padding:9px 10px;border-bottom:3px solid transparent;cursor:pointer;min-height:44px}
+.tl.on{color:var(--gri);font-weight:700;border-bottom-color:var(--galben)}
+.tl small{margin-left:5px;font-size:11.5px;font-weight:700;color:var(--verde-text)}
+.tl small.lipsa{color:var(--rosu)}
+/* bara de meniu pe telefon */
+#tab-jos{position:fixed;left:0;right:0;bottom:0;z-index:31;background:#fff;border-top:1px solid var(--linie);display:flex;padding:4px max(4px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(4px,env(safe-area-inset-left))}
+#tab-jos[hidden]{display:none}
+.tj{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:1px;border:0;background:none;font:inherit;font-size:11px;color:var(--slab);padding:5px 0;cursor:pointer;min-height:50px}
+.tj.on{color:var(--gri);font-weight:700}
+.tj-i{position:relative;display:block;width:24px;height:24px}
+.tj-i svg{width:24px;height:24px}
+.tj-n{position:absolute;top:-4px;left:16px;background:var(--galben);color:var(--gri);border-radius:999px;font-size:10px;font-weight:700;padding:0 5px;line-height:16px}
+body.cu-tab .bara{bottom:calc(58px + env(safe-area-inset-bottom))}
+body.cu-tab .wrap{margin-bottom:64px}
+/* meniul, în foaie (telefon) sau fix (calculator) */
+.ml-nav .mg{margin-top:8px}
+.mg-t{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--slab);font-weight:700;padding:6px 10px 3px}
+.mi{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;font:inherit;font-size:14.5px;color:var(--text);text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer;min-height:40px}
+.mi:hover{background:#ececea}
+.mi.on{background:var(--gri);color:#fff}
+.mi-n{margin-left:auto;font-size:11.5px;font-weight:700;background:#e6e6e3;color:var(--gri);border-radius:999px;padding:1px 7px}
+.mi-n.at{background:var(--galben)}
+#meniu-lat{display:none}
+/* lista: tabel dens + lucrarea aleasă alături (calculator) */
+.md{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start;margin-top:10px}
+.md-lista{background:#fff;border:1px solid var(--linie);border-radius:10px;overflow:auto;max-height:calc(100vh - 230px)}
+.tab-l{width:100%;border-collapse:collapse;font-size:13.5px}
+.tab-l th{position:sticky;top:0;background:#fff;text-align:left;font-size:11px;letter-spacing:.4px;text-transform:uppercase;color:var(--slab);padding:8px 10px;border-bottom:1px solid var(--linie);z-index:1}
+.tab-l td{padding:6px 10px;border-bottom:1px solid #f0f0ee;vertical-align:top}
+.tab-l td small{display:block;color:var(--slab);font-size:12px}
+.tab-l tr[data-sel]{cursor:pointer}
+.tab-l tr[data-sel]:hover td{background:#fafaf6}
+.tab-l tr.sel td{background:var(--galben-deschis)}
+.tab-l tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--gri)}
+.tab-l tr:focus-visible{outline:2px solid var(--gri);outline-offset:-2px}
+.tab-l .stare,.md-det .stare{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:6px;background:var(--galben-deschis);color:var(--gri);white-space:nowrap}
+.tab-l .stare.raportat,.md-det .stare.raportat{background:var(--verde-deschis);color:var(--verde-text)}
+.tab-l .stare.lucru,.md-det .stare.lucru{background:#eef0f4;color:#3b4a6b}
+.tab-l .stare.validat,.md-det .stare.validat{background:var(--verde);color:#fff}
+.tab-l .stare.atentie,.md-det .stare.atentie{background:var(--avert);color:var(--avert-text)}
+.tab-l .stare.rau,.md-det .stare.rau{background:#fdecea;color:var(--rosu)}
+.tab-l .stare.gri,.md-det .stare.gri{background:#f1f1f2;color:var(--slab)}
+.md-det{background:#fff;border:1px solid var(--linie);border-radius:10px;padding:14px 16px;position:sticky;top:96px;max-height:calc(100vh - 120px);overflow:auto}
+.md-titlu{margin:6px 0 0;font-size:19px}
+.md-kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:5px 10px;font-size:13.5px;margin-top:12px}
+.md-kv span{color:var(--slab)}
+.md-det .card{margin-top:12px}
+.md-info{font-size:13.5px}
+/* start: cozile ca panouri cu lucrările în ele */
+.tiles.cozi{grid-template-columns:minmax(0,1fr);gap:10px}
+.coada-pn{background:var(--card);border:1px solid var(--linie);border-radius:12px;overflow:hidden}
+.tile.coada-cap{min-height:0;flex-direction:row;align-items:baseline;gap:8px;border:0;border-radius:0;box-shadow:none;padding:10px 12px;flex-wrap:wrap;background:var(--galben-deschis);width:100%}
+.coada-cap .tile-nr{font-size:20px;margin:0}
+.coada-cap .tile-s{margin:0;flex-basis:100%}
+.coada-rand{display:flex;flex-direction:column;width:100%;text-align:left;border:0;border-top:1px solid #f0f0ee;background:none;padding:7px 12px;font:inherit;color:var(--text);cursor:pointer;min-height:44px}
+.coada-rand:hover{background:#fafaf6}
+.coada-rand b{font-size:14px}
+.coada-rand span{font-size:12.5px;color:var(--slab)}
+.coada-toate{display:block;width:100%;border:0;border-top:1px solid #f0f0ee;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--verde-text);padding:8px 12px;text-align:left;cursor:pointer}
+.tile.coada-cap{justify-content:flex-start}
+.nav-tiles{gap:6px}
+.nav-tiles .tile{min-height:46px;padding:8px 11px;border-radius:10px;box-shadow:none;flex-direction:row;justify-content:space-between;align-items:center;gap:8px}
+.nav-tiles .tile-nr{order:2;font-size:13px;margin:0;color:var(--slab)}
+.nav-tiles .tile-t{font-size:14px}
+.nav-tiles .tile-s{display:none}
+/* antetul: pe telefon, titlul pe un rând; logo-ul e înlocuit de bara de meniu și de cale */
+body.ui header h1,body.ui header .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.ui .b-problema{padding:4px 9px;min-height:30px}
+body.ui[data-ecran="lista"] .bara{display:none}
+.buton.respinge{background:var(--rosu);border-color:var(--rosu);color:#fff}
+@media (max-width:999px){body.ui header .logo{display:none}}
+/* verificarea tehnică: o coloană pe telefon, trei pe calculator */
+.v-coada{display:none}
+.v-coada-h{font-weight:700;padding:10px 12px;font-size:14px;border-bottom:1px solid var(--linie)}
+.v-q{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #f0f0ee;background:none;font:inherit;color:var(--text);padding:9px 12px;cursor:pointer}
+.v-q small{display:block;color:var(--slab);font-size:12px;margin-top:2px}
+.v-q.on{background:var(--galben-deschis);box-shadow:inset 3px 0 0 var(--gri)}
+.dec-butoane{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.pill{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:999px;background:#f1f1f2;color:var(--slab)}
+.pill.rau{background:#fdecea;color:var(--rosu)}
+/* foaia de respingere și meniul „Mai mult” */
+.foaie .ml-nav{max-height:60vh;overflow:auto}
+
+@media (min-width:1000px){
+  body.ui{padding-left:236px}
+  body.ui #meniu-lat{display:flex;flex-direction:column;gap:2px;position:fixed;left:0;top:0;bottom:0;width:236px;box-sizing:border-box;background:#fafaf8;border-right:1px solid var(--linie);padding:10px 10px 12px;overflow:auto;z-index:35}
+  .ml-brand{display:flex;align-items:center;gap:8px;border:0;background:none;padding:4px 6px 10px;cursor:pointer;font:inherit;font-weight:700;font-size:13px;color:var(--slab)}
+  .ml-brand img{height:28px;width:auto}
+  .ml-nou{margin:0 4px 4px;padding:9px 12px;font-size:14px}
+  .ml-nav{flex:1 1 auto}
+  .ml-cont{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:1px solid var(--linie);background:#fff;border-radius:9px;padding:8px 10px;font:inherit;text-align:left;cursor:pointer;color:var(--text);margin-top:10px}
+  .ml-cont span{font-size:12px;color:var(--slab)}
+  .ml-cont .sync{max-width:none;text-align:left}
+  .ml-cont.on{outline:2px solid var(--gri)}
+  body.ui header{padding-left:20px;padding-right:20px}
+  body.ui header .in,body.ui #cale .cale-in,body.ui .bara .in{max-width:1280px}
+  body.ui .wrap{max-width:1280px;padding-left:20px;padding-right:20px}
+  body.ui header .logo{display:none}
+  body.ui .bara{left:236px}
+  body.ui .cont-bara{display:none}
+  body.ui .start-nou{display:inline-flex}
+  body.ui .nav-tiles,body.ui .nav-h{display:none}
+  body.ui .tiles.cozi{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));align-items:start}
+  /* formularele: câmpurile pe două coloane */
+  body.ui .card .corp:has(> .camp + .camp){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:18px;align-items:end}
+  body.ui .card .corp:has(> .camp + .camp) > :not(.camp){grid-column:1 / -1}
+  body.ui .card .corp:has(> .camp + .camp) > .camp{margin-top:9px}
+  body.ui .v-dreapta .card .corp:has(> .camp + .camp){display:block}
+  /* fișa lucrării: secțiunile pe două coloane */
+  body.ui[data-ecran="lucrare"] #ecran{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px;align-items:start}
+  body.ui[data-ecran="lucrare"] #ecran > :not(section.card){grid-column:1 / -1}
+  body.ui[data-ecran="lucrare"] #ecran > section.card:first-of-type{grid-column:1 / -1}
+  /* verificarea pe trei coloane */
+  body.ui .v3{display:grid;grid-template-columns:250px minmax(0,1fr) 340px;gap:14px;align-items:start;margin-top:10px}
+  body.ui .v-coada{display:block;background:#fff;border:1px solid var(--linie);border-radius:10px;overflow:auto;position:sticky;top:96px;max-height:calc(100vh - 120px)}
+  body.ui .v-main > .card:first-child,body.ui .v-dreapta > .card:first-child{margin-top:0}
+  body.ui .v-dreapta{position:sticky;top:96px;max-height:calc(100vh - 110px);overflow:auto}
+  body.ui[data-ecran="verifica"] .wrap{max-width:1400px}
+  /* lucrare nouă: fereastră îngustă la mijloc */
+  body.ui[data-ecran="tipNou"] .wrap{max-width:820px}
+}
+`;
+document.head.appendChild(css);
 })();
 
 </script>
