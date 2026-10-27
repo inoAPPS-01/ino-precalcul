@@ -6700,11 +6700,12 @@ const COZI = {
 // Toată lumea vede tot traseul; fiecare lucrează doar în departamentul lui (`cine`).
 const DEPARTAMENTE = [
   { k: 'planificare', t: 'Planificare', cine: ['planificare'],
-    f: (l) => !dataPlan(l) && !INCHISE.includes(stL(l)) && stL(l) !== 'respins',
+    f: (l) => !dataPlan(l) && ['planificat', 'antecalcul', 'necalculat'].includes(stL(l)),
     s: (L) => `${L.length} de planificat` },
   { k: 'gestiune', t: 'Gestiune', cine: ['gestiune'], f: (l) => COZI.stoc.f(l), s: (L) => `${L.length} stoc de confirmat` },
   { k: 'executie', t: 'Execuție (echipe)', cine: ['lider', 'membru', 'mentenanta', 'partener'],
-    f: (l) => stL(l) === 'respins' || (!!dataPlan(l) && ['planificat', 'antecalcul', 'necalculat', 'in_lucru', 'faza_intermediara', 'raportat'].includes(stL(l))),
+    // începute, raportate sau respinse (cu sau fără dată), plus cele planificate cu dată
+    f: (l) => ['in_lucru', 'faza_intermediara', 'raportat', 'respins'].includes(stL(l)) || (!!dataPlan(l) && ['planificat', 'antecalcul', 'necalculat'].includes(stL(l))),
     s: (L) => {
       const r = L.filter((l) => stL(l) === 'respins').length, v = L.filter((l) => stL(l) === 'raportat').length, rest = eRestanta;
       const x = [`${L.length - r - v} în lucru`];
@@ -7407,7 +7408,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.6';
+const VERSIUNE_APP = '2.6.1';
 const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
 const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
 const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };

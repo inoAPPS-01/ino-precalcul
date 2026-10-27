@@ -1,7 +1,7 @@
 // sw.js — aplicația instalată pe telefon pornește și fără semnal.
 // Pagina se ia întâi de pe internet (ca versiunile noi să ajungă imediat); fără semnal, din memoria telefonului.
 // Cererile către server (Supabase) nu trec pe aici: lucrările le ține aplicația, separat.
-const CACHE = 'ino-install-v2.6';
+const CACHE = 'ino-install-v2.6.1';
 const FISIERE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
