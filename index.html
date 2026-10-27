@@ -4694,7 +4694,7 @@ async function aduce() {
 
   let q = sb.from('lucrari').select('*');
   if (profil.rol === 'admin') q = q.eq('arhivat', false);
-  const [lu, ec, pr, ca, no, co, pa, pm, se, cl, mp, pb] = await Promise.all([
+  const [lu, ec, pr, ca, no, co, pa, pm, se, cl, mp, pb, nd] = await Promise.all([
     q.order('modificat', { ascending: false }),
     sb.from('echipe').select('*').order('nume'),
     sb.from('profiluri').select('*').order('nume'),
@@ -4709,6 +4709,8 @@ async function aduce() {
     sb.from('materiale_propuse').select('*').order('den'),
     // v2.3: problemele raportate (fiecare le vede pe ale lui; Adminul pe toate)
     sb.from('probleme').select('*').order('creat', { ascending: false }),
+    // v2.6: câte lucrări sunt la fiecare departament (doar numerele, pentru toți)
+    sb.rpc('numere_departamente'),
   ]);
   for (const r of [lu, ec, pr, ca]) if (r.error) throw r.error;
 
@@ -4734,7 +4736,8 @@ async function aduce() {
   const extraNou = { parteneri: pa.error ? [] : pa.data || [], preturi: pm.error ? [] : pm.data || [], v2: !pa.error,
     setari: se.error ? {} : Object.fromEntries((se.data || []).map((x) => [x.cheie, x.valoare])), clienti: cl.error ? [] : cl.data || [],
     propuse: mp.error ? [] : mp.data || [], v3: !se.error,
-    probleme: pb.error ? [] : pb.data || [], v4: !pb.error, config: extra.config || null };
+    probleme: pb.error ? [] : pb.data || [], v4: !pb.error, config: extra.config || null,
+    departamente: nd && !nd.error && nd.data && typeof nd.data === 'object' ? nd.data : null };
   if (extraNou.v4) await aflaConfigurare(extraNou);
   serverV2 = extraNou.v2 ? true : false;
   if (JSON.stringify(extraNou) !== JSON.stringify(extra)) { extra = extraNou; scrieJSON(CHEIE_EXTRA, extra); anunta('extra'); }
@@ -5165,6 +5168,7 @@ window.CONT = {
   get serverV4() { return serverV4(); },
   get config() { return config(); },
   get probleme() { return extra.probleme || []; },
+  get numereDepartamente() { return extra.departamente || null; },
   verificaPozeAI, ultimaVerificareAI, raporteazaProblema, salveazaProblema, linkCaptura,
   // până la prima sincronizare se ia ce s-a aflat ultima dată; un server fără migrare merge ca înainte (fără poze și PV obligatorii)
   get serverV2() { return serverV2 != null ? serverV2 : extra.v2 !== false; },
@@ -6691,6 +6695,52 @@ const COZI = {
     f: (l) => ['raportat', 'validat', 'inchis_tehnic', 'inchis'].includes(stL(l)) },
 };
 
+// Departamentele, în ordinea prin care trece lucrarea. O lucrare stă la departamentul care are ceva de
+// făcut cu ea acum (Gestiunea și Execuția, Prosumatorul și Facturarea pot lucra în paralel pe aceeași lucrare).
+// Toată lumea vede tot traseul; fiecare lucrează doar în departamentul lui (`cine`).
+const DEPARTAMENTE = [
+  { k: 'planificare', t: 'Planificare', cine: ['planificare'],
+    f: (l) => !dataPlan(l) && !INCHISE.includes(stL(l)) && stL(l) !== 'respins',
+    s: (L) => `${L.length} de planificat` },
+  { k: 'gestiune', t: 'Gestiune', cine: ['gestiune'], f: (l) => COZI.stoc.f(l), s: (L) => `${L.length} stoc de confirmat` },
+  { k: 'executie', t: 'Execuție (echipe)', cine: ['lider', 'membru', 'mentenanta', 'partener'],
+    f: (l) => stL(l) === 'respins' || (!!dataPlan(l) && ['planificat', 'antecalcul', 'necalculat', 'in_lucru', 'faza_intermediara', 'raportat'].includes(stL(l))),
+    s: (L) => {
+      const r = L.filter((l) => stL(l) === 'respins').length, v = L.filter((l) => stL(l) === 'raportat').length, rest = eRestanta;
+      const x = [`${L.length - r - v} în lucru`];
+      if (v) x.push(`${v} de validat`);
+      if (r) x.push(`${r} ${r === 1 ? 'respinsă' : 'respinse'}`);
+      const n = L.filter(rest).length; if (n) x.push(`${n} ${n === 1 ? 'restanță' : 'restanțe'}`);
+      return x.join(' · ');
+    } },
+  { k: 'verificare', t: 'Verificare tehnică', cine: ['tehnic'], f: (l) => COZI.verificare.f(l), s: (L) => `${L.length} de verificat`, ecran: 'verifica' },
+  { k: 'prosumator', t: 'Prosumator', cine: ['prosumator'], f: (l) => COZI.prosumator.f(l), s: (L) => `${L.length} ${L.length === 1 ? 'dosar' : 'dosare'}` },
+  { k: 'facturare', t: 'Facturare', cine: ['facturare'], f: (l) => COZI.deFacturat.f(l) || COZI.anexe.f(l), s: (L) => `${L.length} de facturat` },
+  { k: 'inchise', t: 'Închise', cine: [], f: (l) => stL(l) === 'inchis', s: (L) => `${L.length} ${L.length === 1 ? 'închisă' : 'închise'}`, final: true },
+];
+const depRol = () => DEPARTAMENTE.find((d) => d.cine.includes(K.rol()));
+// câte lucrări sunt la departament: numărul de pe server (le numără pe toate, inclusiv cele pe care
+// contul nu le vede), altfel cele de pe telefon. Fără semnal, lucrul de pe telefon e mai proaspăt
+// pentru departamentul propriu, deci acolo se ia maximul dintre cele două.
+function numarDep(d, L) {
+  const n = K.numereDepartamente;
+  return n && typeof n[d.k] === 'number' ? Math.max(n[d.k], L.length) : L.length;
+}
+function textDep(d, L) {
+  const n = K.numereDepartamente;
+  const tot = numarDep(d, L);
+  if (!tot) return 'nimic acum';
+  if (d.k === 'executie' && n && tot > L.length) {
+    const x = [`${tot - (n.executie_respinse || 0) - (n.executie_de_validat || 0)} în lucru`];
+    if (n.executie_de_validat) x.push(`${n.executie_de_validat} de validat`);
+    if (n.executie_respinse) x.push(`${n.executie_respinse} ${n.executie_respinse === 1 ? 'respinsă' : 'respinse'}`);
+    if (n.executie_restante) x.push(`${n.executie_restante} ${n.executie_restante === 1 ? 'restanță' : 'restanțe'}`);
+    return x.join(' · ');
+  }
+  if (tot > L.length) return d.s(new Array(tot).fill(null).map((_, i) => L[i] || {}));
+  return d.s(L);
+}
+
 function tile(o) {
   return `<button type="button" class="tile${o.n ? ' are' : ''}${o.mare ? ' mare' : ''}" data-tile="${E(o.id)}">
     ${o.n != null ? `<span class="tile-nr">${o.n}</span>` : ''}<span class="tile-t">${E(o.t)}</span>${o.s ? `<span class="tile-s">${E(o.s)}</span>` : ''}</button>`;
@@ -6702,18 +6752,24 @@ function itemiMeniu() {
   if (!K.activ || !r) return [];
   const toate = active();
   const m = [];
-  const g = (grup, id, t, n, atentie) => m.push({ grup, id, t, n: n || null, atentie: !!atentie });
+  const g = (grup, id, t, n, atentie, extra) => m.push(Object.assign({ grup, id, t, n: n || null, atentie: !!atentie }, extra || {}));
   // o lucrare din mai multe cozi (ex. „Planificate azi” și „De executat”) se numără o singură dată
   const deFacut = new Set(Object.values(COZI).filter((c) => c.cine.includes(r)).flatMap((c) => toate.filter(c.f).map((l) => l.id))).size;
   g('Lucru', 'start', 'Start · de făcut', deFacut, true);
-  g('Lucru', 'lista', 'Lucrări', toate.length);
-  if (['admin', 'planificare', 'lider', 'mentenanta', 'partener', 'tehnic'].includes(r)) g('Lucru', 'calendar', 'Calendar');
-  if (COZI.verificare.cine.includes(r)) g('Lucru', 'coada:verificare', 'Verificare tehnică', toate.filter(COZI.verificare.f).length, true);
-  if (vedeClienti()) g('Lucru', 'clienti', 'Clienți', (K.clienti || []).length);
-  if (['admin', 'tehnic', 'mentenanta', 'facturare'].includes(r)) g('Rapoarte', 'borderou', 'Borderou intervenții');
-  if (A().poate('rapoarte') || r === 'admin') g('Rapoarte', 'rapoarte', 'Rapoarte pe parteneri');
-  if (A().poate('nomenclator')) g('Date', 'nomenclator', 'Nomenclator');
-  if (A().poate('preturi')) g('Date', 'preturi', 'Prețuri parteneri');
+  g('Lucru', 'lista', 'Toate lucrările', toate.length);
+  // traseul lucrării, pe departamente: fiecare vede câte lucrări sunt acum la fiecare
+  const eu = depRol();
+  DEPARTAMENTE.forEach((d, i) => {
+    const L = toate.filter(d.f);
+    const n = numarDep(d, L);
+    g('Traseul lucrării', 'dep:' + d.k, d.t, n, d === eu && n > 0, { nr: d.final ? '' : String(i + 1), s: textDep(d, L), tu: d === eu, dep: true });
+  });
+  if (['admin', 'planificare', 'lider', 'mentenanta', 'partener', 'tehnic'].includes(r)) g('Instrumente', 'calendar', 'Calendar');
+  if (vedeClienti()) g('Instrumente', 'clienti', 'Clienți', (K.clienti || []).length);
+  if (['admin', 'tehnic', 'mentenanta', 'facturare'].includes(r)) g('Instrumente', 'borderou', 'Borderou intervenții');
+  if (A().poate('rapoarte') || r === 'admin') g('Instrumente', 'rapoarte', 'Rapoarte pe parteneri');
+  if (A().poate('nomenclator')) g('Instrumente', 'nomenclator', 'Nomenclator');
+  if (A().poate('preturi')) g('Instrumente', 'preturi', 'Prețuri parteneri');
   if (r === 'admin') {
     g('Administrare', 'admin', 'Utilizatori și echipe');
     g('Administrare', 'parteneri', 'Parteneri');
@@ -6771,11 +6827,61 @@ function ecranStart() {
 function mergiLa(id) {
   const st = A().stare;
   if (id.startsWith('coada:')) { st.coada = id.slice(6); A().du('coada'); return; }
+  if (id.startsWith('dep:')) { st.dep = id.slice(4); A().du('departament'); return; }
   if (id === 'nou') { st.nou = null; A().du('tipNou'); return; }
   if (id === 'borderou') { st.bord = null; A().du('borderou'); return; }
   if (id === 'etape') { st.etape = null; A().du('etape'); return; }
   if (id === 'probleme') { st.filtruPb = null; A().du('probleme'); return; }
   A().du(id);
+}
+
+// Un departament: traseul sus (câte lucrări sunt la fiecare), apoi lucrările de aici, cu starea și de când așteaptă
+function ecranDepartament() {
+  const st = A().stare;
+  const d = DEPARTAMENTE.find((x) => x.k === st.dep);
+  if (!d) { A().du('start'); return; }
+  const toate = active();
+  let lista = toate.filter(d.f).sort((a, b) => A().dataActivitate(a) - A().dataActivitate(b));
+  const eu = depRol();
+  titlu(d.t, d === eu ? 'departamentul dvs.' : 'statusul lucrărilor din acest departament');
+  // filtrul pe stare, din stările care chiar apar aici
+  const stari = [...new Map(lista.map((l) => { const s = STARE_TEXT(l); return [s.t, s]; })).values()];
+  if (st.depFiltru && (st.depFiltru.k !== d.k || !stari.some((x) => x.t === st.depFiltru.t))) st.depFiltru = null;
+  const fil = st.depFiltru && st.depFiltru.t;
+  const arata = fil ? lista.filter((l) => STARE_TEXT(l).t === fil) : lista;
+  const traseu = `<nav class="traseu" aria-label="Traseul lucrării">${DEPARTAMENTE.map((x, i) => { const n = numarDep(x, toate.filter(x.f)); return `<button type="button" class="tr-p${x.k === d.k ? ' on' : ''}${x === eu ? ' eu' : ''}" data-dep="${x.k}"${x.k === d.k ? ' aria-current="page"' : ''}>
+      ${x.final ? '' : `<span class="tr-nr">${i + 1}</span>`}<span class="tr-t">${E(x.t)}</span><b>${n}</b></button>`; }).join('<span class="tr-s" aria-hidden="true">›</span>')}</nav>`;
+  const chips = stari.length > 1 ? `<div class="chips dep-chips"><button type="button" class="chip${fil ? '' : ' ales'}" data-depf="" aria-pressed="${!fil}">Toate ${lista.length}</button>${stari.map((x) => `<button type="button" class="chip${fil === x.t ? ' ales' : ''}" data-depf="${E(x.t)}" aria-pressed="${fil === x.t}">${E(x.t)} ${lista.filter((l) => STARE_TEXT(l).t === x.t).length}</button>`).join('')}</div>` : '';
+  const zile = (l) => { const t = A().dataActivitate(l); if (!t) return '—'; const z = Math.floor((Date.now() - t) / 864e5); return z <= 0 ? 'azi' : z === 1 ? 'de ieri' : `de ${z} zile`; };
+  const lat = document.body.classList.contains('ui-lat');
+  const corp = !arata.length ? `<div class="gol-text" style="padding:28px 20px">${lista.length ? 'Nicio lucrare cu această stare.' : 'Nicio lucrare în acest departament acum.'}</div>`
+    : lat ? `<div class="md-lista" style="margin-top:10px"><table class="tab-l"><thead><tr><th>Client</th><th>Tip</th><th>Stare</th><th>Echipă</th><th>Partener</th><th>Data</th><th>Așteaptă</th></tr></thead><tbody>
+      ${arata.map((l) => { const s = STARE_TEXT(l); const dp = dataPlan(l); const z = zile(l); return `<tr data-dep-l="${E(l.id)}" tabindex="0"><td class="tl-client" title="${E([l.client, l.adresa].filter(Boolean).join(' — '))}"><b>${E(l.client || 'Lucrare fără client')}</b> <small>${E(l.adresa || '')}</small></td>
+        <td>${E(TIPURI[tipL(l)].scurt)}</td><td><span class="stare ${E(s.c || '')}">${E(s.t)}</span>${eRestanta(l) ? ' <span class="stare rau">restanță</span>' : ''}</td><td>${E(A().numeEchipaL(l) || '—')}</td>
+        <td>${E((l.partener_id && K.numePartener(l.partener_id)) || '—')}</td><td>${dp ? E(dp.slice(8, 10) + '.' + dp.slice(5, 7)) : '—'}</td><td class="${/^de (\d{2,}|[89]) zile/.test(z) ? 'vechi' : ''}">${E(z)}</td></tr>`; }).join('')}</tbody></table></div>`
+      : arata.map((l) => A().htmlCardLucrare(l)).join('');
+  // lucrările de aici pe care contul nu le vede (alte echipe, alt departament): doar numărul
+  const ascunse = numarDep(d, lista) - lista.length;
+  const nota = ascunse > 0 ? `<div class="mesaj info" style="margin-top:10px">${lista.length ? 'Mai sunt' : 'Sunt'} <b>${ascunse}</b> ${ascunse === 1 ? 'lucrare' : 'lucrări'} în acest departament pe care contul dvs. nu le deschide (sunt ale altor echipe sau ale altui departament). Se vede doar câte sunt.</div>` : '';
+  $('#ecran').innerHTML = traseu + nota + chips + (ascunse > 0 && !lista.length ? '' : corp);
+  const prima = arata[0];
+  bara(d.ecran === 'verifica' && arata.length && COZI.verificare.cine.includes(K.rol()) ? '<button class="buton" id="x-dep-incepe">Începe verificarea</button>'
+    : d.k === 'facturare' && arata.length && A().poate('verificaFacturare', prima) ? '<button class="buton" id="x-dep-lot">Facturare în lot</button>' : '');
+  const deschideL = (l) => { st.revenireLucrare = 'departament'; if (d.ecran === 'verifica' && COZI.verificare.cine.includes(K.rol())) { st.lucrare = l; A().du('verifica', l); } else A().deschide(l); };
+  document.querySelectorAll('[data-dep]').forEach((b) => { b.onclick = () => { st.dep = b.dataset.dep; st.depFiltru = null; ecranDepartament(); }; });
+  document.querySelectorAll('[data-depf]').forEach((b) => { b.onclick = () => { st.depFiltru = b.dataset.depf ? { k: d.k, t: b.dataset.depf } : null; ecranDepartament(); }; });
+  document.querySelectorAll('[data-dep-l]').forEach((tr) => {
+    const l = arata.find((x) => x.id === tr.dataset.depL);
+    tr.onclick = () => deschideL(l);
+    tr.onkeydown = (ev) => {
+      if (ev.key === 'Enter') return deschideL(l);
+      const alt = ev.key === 'ArrowDown' ? tr.nextElementSibling : ev.key === 'ArrowUp' ? tr.previousElementSibling : null;
+      if (alt) { ev.preventDefault(); alt.focus(); }
+    };
+  });
+  document.querySelectorAll('#ecran [data-deschide]').forEach((b) => { b.onclick = () => { const l = arata.find((x) => x.id === b.dataset.deschide); if (l) deschideL(l); }; });
+  if ($('#x-dep-incepe')) $('#x-dep-incepe').onclick = () => deschideL(arata[0]);
+  if ($('#x-dep-lot')) $('#x-dep-lot').onclick = () => { st.coada = 'deFacturat'; A().du('coada'); };
 }
 
 // O coadă: lista lucrărilor care așteaptă, cu acțiunea potrivită la apăsare
@@ -7301,7 +7407,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.5';
+const VERSIUNE_APP = '2.6';
 const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
 const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
 const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };
@@ -7516,7 +7622,7 @@ const laRevenire = () => { const st = A().stare; const r = st.revenireLucrare; s
 window.EXT = {
   ecrane: { tipNou: ecranTipNou, lucrare: ecranLucrare, poze: ecranPoze, pv: ecranPV, parteneri: ecranParteneri, preturi: ecranPreturi, rapoarte: ecranRapoarte, calendar: ecranCalendar,
     start: ecranStart, coada: ecranCoada, verifica: ecranVerifica, borderou: ecranBorderou, probleme: ecranProbleme,
-    etape: ecranEtape, clienti: ecranClienti, client: ecranClient },
+    etape: ecranEtape, clienti: ecranClienti, client: ecranClient, departament: ecranDepartament },
   inapoi: {
     tipNou: () => { A().stare.nou = null; A().du('lista'); },
     lucrare: () => {
@@ -7528,14 +7634,14 @@ window.EXT = {
     poze: () => A().du('lucrare'),
     pv: () => A().du('lucrare'),
     parteneri: laAdmin, preturi: laAdmin, rapoarte: laAdmin, calendar: () => { A().stare.cal && (A().stare.cal.sel = null); A().du(areStart() ? 'start' : 'lista'); },
-    coada: () => A().du('start'), borderou: () => A().du('start'), probleme: () => A().du(areStart() ? 'start' : 'lista'), etape: () => A().du('start'), clienti: () => A().du('start'),
+    coada: () => A().du('start'), departament: () => A().du('start'), borderou: () => A().du('start'), probleme: () => A().du(areStart() ? 'start' : 'lista'), etape: () => A().du('start'), clienti: () => A().du('start'),
     client: () => { const st = A().stare; st.clientPdf = null; st.clientCitit = null; A().du(vedeClienti() ? 'clienti' : 'start'); },
-    verifica: () => { const st = A().stare; A().du(st.revenireLucrare === 'coada' ? 'coada' : 'start'); },
+    verifica: () => { const st = A().stare; A().du(['coada', 'departament'].includes(st.revenireLucrare) ? st.revenireLucrare : 'start'); },
   },
   deschide, butoaneLista, legaLista, areStart, COZI, htmlBannerLista, htmlTipScurt, htmlInfoCard, gataDeTrimis, stareText: STARE_TEXT,
   // pentru teste
   TIPURI, ETAPE, etapeLucrare, etapeLipsa, standardContract, anexaCalculata, sumaPartener, ePartener, urcaPozele,
-  itemiMeniu, mergiLa, infoScurt, tipL, dataPlan, pozeEtapa, salveazaFisaAcum,
+  itemiMeniu, mergiLa, infoScurt, DEPARTAMENTE, tipL, dataPlan, pozeEtapa, salveazaFisaAcum,
 };
 
 // stilurile ecranelor noi
@@ -7619,6 +7725,18 @@ input.citit{background:var(--galben-deschis);border-color:var(--galben-apasat)}
 .etapa-edit-sus{display:flex;gap:6px;align-items:center}.etapa-edit-sus input{flex:1;min-width:0}
 .etapa-nr{width:24px;text-align:center;font-weight:700;color:var(--slab);flex:none}
 .buton.mic{min-width:40px;padding:6px 8px;min-height:40px}
+.traseu{display:flex;align-items:center;gap:4px;overflow-x:auto;margin-top:12px;padding-bottom:2px;scrollbar-width:none}
+.traseu::-webkit-scrollbar{display:none}
+.tr-p{flex:none;display:flex;align-items:center;gap:6px;border:1px solid var(--linie);background:#fff;border-radius:999px;padding:6px 11px;font:inherit;font-size:13px;color:var(--text);cursor:pointer;min-height:36px}
+.tr-p b{font-size:13px}
+.tr-p.on{background:var(--gri);color:#fff;border-color:var(--gri)}
+.tr-p.on b{color:var(--galben)}
+.tr-p.eu:not(.on){border-color:var(--avert-linie);background:var(--galben-deschis)}
+.tr-nr{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#ececea;color:var(--gri);font-size:11px;font-weight:700}
+.tr-p.on .tr-nr{background:var(--galben)}
+.tr-s{color:var(--slab);flex:none}
+.dep-chips{margin-top:10px}
+.tab-l td.vechi{color:var(--rosu);font-weight:700}
 .cal-lucrare[draggable]{cursor:grab}
 body.cal-trage td[data-cal-e]{outline:1px dashed #c9c9cb;outline-offset:-3px}
 td[data-cal-e].peste{background:var(--galben-deschis)!important;outline:2px solid var(--gri)!important}
@@ -8318,7 +8436,7 @@ function deseneazaListaFiltrata(toate) {
 // Fiecare rol intră în lucrare pe ecranul lui: cine poate modifica, în formular;
 // membrul la fișa de materiale; Sales direct la raport.
 // ecranele din care se deschide o lucrare: „Înapoi” și calea duc înapoi acolo
-const ORIGINI = ['lista', 'calendar', 'coada', 'probleme', 'clienti', 'client', 'start', 'borderou', 'verifica', 'rapoarte'];
+const ORIGINI = ['lista', 'calendar', 'coada', 'departament', 'probleme', 'clienti', 'client', 'start', 'borderou', 'verifica', 'rapoarte'];
 function deschide(l) {
   stare.rezultat = null;
   if (ORIGINI.includes(stare.ecran)) stare.revenireLucrare = stare.ecran;
@@ -11142,7 +11260,7 @@ K.laSchimbare((motiv) => {
   if (motiv === 'catalog' && (e === 'nomenclator' || e === 'coresp') && !(document.activeElement && /^f-nom_cauta|^f-co_cauta/.test(document.activeElement.id || ''))) {
     return deseneaza();
   }
-  if ((e === 'start' || e === 'coada') && motiv !== 'catalog') return deseneaza();
+  if ((e === 'start' || e === 'coada' || e === 'departament') && motiv !== 'catalog') return deseneaza();
   if (e === 'lista') {
     // cât timp se scrie în căutare, se redesenează doar lista, ca tastatura să rămână deschisă
     if (document.activeElement && document.activeElement.id === 'f-cauta') {
@@ -11161,7 +11279,7 @@ window.APP = {
   get stare() { return stare; }, du, deseneaza, salveaza, E, $, nr, nrK, poate, K, C, M, citesteTot, scurt,
   htmlIstoric, htmlContBara, htmlConflict, legaConflict, htmlAlocare, legaAlocare, htmlAdminLucrare, legaAdminLucrare, calculeazaLucrarea, antecalculLucrare, campuriLipsa,
   lucrareNoua, stareLucrare, STARI, deschide, htmlCardLucrare, areConsum, timpRelativ, ziISO, citesteNumar, consumLinie, fara,
-  poatePleca, acasa, inapoi, ecranLista, numeEchipaL, textSync,
+  poatePleca, acasa, inapoi, ecranLista, numeEchipaL, textSync, dataActivitate,
 };
 $('#ecran').innerHTML = '<div class="gol-text">Se încarcă…</div>';
 K.porneste().then((s) => {
@@ -11196,14 +11314,14 @@ const activ = () => !!(K && K.activ && K.rol() && window.EXT && window.APP && K.
 // ecran → elementul de meniu în care stă
 const SECTIUNE = {
   start: 'start', lista: 'lista', tipNou: 'lista', lucrare: 'lista', form: 'lista', rezultat: 'lista', raport: 'lista', poze: 'lista', pv: 'lista',
-  verifica: 'coada:verificare', calendar: 'calendar', clienti: 'clienti', client: 'clienti', borderou: 'borderou', rapoarte: 'rapoarte',
+  verifica: 'dep:verificare', calendar: 'calendar', clienti: 'clienti', client: 'clienti', borderou: 'borderou', rapoarte: 'rapoarte',
   nomenclator: 'nomenclator', produs: 'nomenclator', coresp: 'nomenclator', preturi: 'preturi', admin: 'admin', arhiva: 'admin',
   catalog: 'admin', catalogItem: 'admin', parteneri: 'parteneri', etape: 'etape', probleme: 'probleme', cont: 'cont',
 };
 const SUBECRAN = { form: 'Pre-calcul', rezultat: 'Lista de materiale', raport: 'Raport de consum', poze: 'Poze', pv: 'Proces verbal' };
 const LUCRARE_ECRANE = ['lucrare', 'poze', 'form', 'rezultat', 'raport'];
 // ecranele de sus, unde pe telefon apare bara de meniu
-const SUS = ['start', 'lista', 'calendar', 'coada', 'clienti', 'probleme', 'borderou', 'rapoarte', 'cont'];
+const SUS = ['start', 'lista', 'calendar', 'coada', 'departament', 'clienti', 'probleme', 'borderou', 'rapoarte', 'cont'];
 
 // secțiunea din meniu a unui ecran de sus (coada își are elementul doar la Verificare)
 function sectiuneEcran(e) {
@@ -11212,6 +11330,9 @@ function sectiuneEcran(e) {
     const id = 'coada:' + st.coada;
     return X().itemiMeniu().some((x) => x.id === id) ? id : 'start';
   }
+  if (e === 'departament') return 'dep:' + st.dep;
+  // verificarea deschisă din coada de pe Start rămâne sub Start
+  if (e === 'verifica' && st.revenireLucrare === 'coada') return 'start';
   return SECTIUNE[e] || '';
 }
 // pe o lucrare, secțiunea e cea din care a fost deschisă (Lucrări, Calendar, Verificare, Probleme...)
@@ -11237,6 +11358,12 @@ function inchideFoi() {
 
 /* ---------------------------------------------------------------- meniul ---- */
 function htmlItem(x, cur) {
+  if (x.dep) {
+    return `<button type="button" class="mi mi-dep${x.id === cur ? ' on' : ''}${x.tu ? ' eu' : ''}" data-m="${E(x.id)}"${x.id === cur ? ' aria-current="page"' : ''}>
+      <span class="mi-nr${x.nr ? '' : ' gol'}" aria-hidden="true">${E(x.nr || '✓')}</span>
+      <span class="mi-tx"><span class="mi-t">${E(x.t)}</span><span class="mi-s">${x.tu ? '<b>al dvs.</b> · ' : ''}${E(x.s || '')}</span></span>
+      ${x.n ? `<span class="mi-n${x.atentie ? ' at' : ''}">${E(x.n)}</span>` : ''}</button>`;
+  }
   return `<button type="button" class="mi${x.id === cur ? ' on' : ''}" data-m="${E(x.id)}"${x.id === cur ? ' aria-current="page"' : ''}>
     <span>${E(x.t)}</span>${x.n ? `<span class="mi-n${x.atentie ? ' at' : ''}">${E(x.n)}</span>` : ''}</button>`;
 }
@@ -11277,7 +11404,7 @@ function baraJos(cur, vizibil) {
   const it = [{ id: 'start', t: 'Start', n: n('start'), ic: '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>' },
     { id: 'lista', t: 'Lucrări', ic: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>' }];
   // Tehnicul: verificarea e munca lui de zi cu zi, deci stă în bară înaintea calendarului
-  if (m.some((x) => x.id === 'coada:verificare')) it.push({ id: 'coada:verificare', t: 'Verificare', n: n('coada:verificare'), ic: '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>' });
+  if (K.rol() === 'tehnic') it.push({ id: 'dep:verificare', t: 'Verificare', n: n('dep:verificare'), ic: '<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/>' });
   else if (m.some((x) => x.id === 'calendar')) it.push({ id: 'calendar', t: 'Calendar', ic: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>' });
   if (A().poate('creeaza')) it.push({ id: 'nou', t: 'Nouă', ic: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>' });
   it.push({ id: 'mai', t: 'Mai mult', ic: '<circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>' });
@@ -11574,7 +11701,7 @@ const curand = () => { if (programat) return; programat = true; requestAnimation
 new MutationObserver(curand).observe(document.getElementById('ecran'), { childList: true });
 K.laSchimbare(curand);
 // trecerea între telefon și calculator (fereastra micșorată) redesenează ecranul în forma potrivită
-const laLatime = () => { actualizeaza(); if (activ() && ['lista', 'verifica', 'start', 'clienti', 'coada'].includes(A().stare.ecran)) A().deseneaza(); };
+const laLatime = () => { actualizeaza(); if (activ() && ['lista', 'verifica', 'start', 'clienti', 'coada', 'departament'].includes(A().stare.ecran)) A().deseneaza(); };
 if (LAT.addEventListener) LAT.addEventListener('change', laLatime); else if (LAT.addListener) LAT.addListener(laLatime);
 
 /* ---------------------------------------------------------------- stiluri ---- */
@@ -11674,6 +11801,24 @@ body.cu-tab .wrap{margin-bottom:64px}
 .mi.on{background:var(--gri);color:#fff}
 .mi-n{margin-left:auto;font-size:11.5px;font-weight:700;background:#e6e6e3;color:var(--gri);border-radius:999px;padding:1px 7px}
 .mi-n.at{background:var(--galben)}
+/* traseul pe departamente */
+.mi-dep{align-items:flex-start;min-height:46px;padding:6px 10px;position:relative}
+.mi-nr{flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#e6e6e3;color:var(--gri);font-size:11px;font-weight:700;margin-top:1px}
+.mi-nr.gol{background:var(--verde-deschis);color:var(--verde-text)}
+.mi-tx{display:flex;flex-direction:column;min-width:0;flex:1}
+.mi-t{font-size:14px;line-height:1.3}
+.mi-t em{font-style:normal;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;background:var(--galben);color:var(--gri);border-radius:5px;padding:0 5px;margin-left:4px;vertical-align:1px}
+.mi-s{font-size:12px;color:var(--slab);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi-dep .mi-n{margin-top:1px}
+.mi-dep.eu:not(.on){background:var(--galben-deschis)}
+.mi.on .mi-s{color:#d8d8d8}
+.mi-s b{color:var(--gri);font-weight:700}
+.mi.on .mi-s b{color:var(--galben)}
+.mi-dep.eu{box-shadow:inset 3px 0 0 var(--galben)}
+.mi.on .mi-nr{background:var(--galben)}
+/* firul traseului, între numere */
+.mg:has(.mi-dep) .mi-dep:not(:last-child)::after{content:"";position:absolute;left:19px;top:28px;bottom:-6px;width:2px;background:#e6e6e3;z-index:0}
+.mi-dep .mi-nr{position:relative;z-index:1}
 #meniu-lat{display:none}
 /* lista: tabel dens + lucrarea aleasă alături (calculator) */
 .md{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start;margin-top:10px}
@@ -11760,7 +11905,7 @@ body.ui[data-ecran="lista"] .bara{display:none}
   body.ui header .in,body.ui #cale .cale-in,body.ui .bara .in{max-width:1280px}
   body.ui .wrap{max-width:1280px;padding-left:20px;padding-right:20px}
   body.ui header .logo{display:none}
-  body.ui[data-ecran="lista"] #btn-inapoi,body.ui[data-ecran="calendar"] #btn-inapoi,body.ui[data-ecran="clienti"] #btn-inapoi,body.ui[data-ecran="rapoarte"] #btn-inapoi,body.ui[data-ecran="borderou"] #btn-inapoi,body.ui[data-ecran="probleme"] #btn-inapoi,body.ui[data-ecran="coada"] #btn-inapoi,body.ui[data-ecran="start"] #btn-inapoi{display:none}
+  body.ui[data-ecran="lista"] #btn-inapoi,body.ui[data-ecran="calendar"] #btn-inapoi,body.ui[data-ecran="clienti"] #btn-inapoi,body.ui[data-ecran="rapoarte"] #btn-inapoi,body.ui[data-ecran="borderou"] #btn-inapoi,body.ui[data-ecran="probleme"] #btn-inapoi,body.ui[data-ecran="coada"] #btn-inapoi,body.ui[data-ecran="departament"] #btn-inapoi,body.ui[data-ecran="start"] #btn-inapoi{display:none}
   body.ui .bara{left:236px}
   body.ui .cont-bara{display:none}
   body.ui .start-nou{display:inline-flex}
