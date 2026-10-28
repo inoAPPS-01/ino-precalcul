@@ -50,6 +50,7 @@ header{
   padding:calc(8px + env(safe-area-inset-top)) 16px 8px;
 }
 header .in{max-width:780px;margin:0 auto;display:flex;align-items:center;gap:12px;min-height:40px}
+#titlu:focus:not(:focus-visible){outline:none}
 header h1{font-size:16px;font-weight:700;margin:0;flex:1;min-width:0;letter-spacing:.1px;line-height:1.3}
 header .sub{font-size:12px;color:var(--slab);font-weight:400;display:block;margin-top:1px}
 header .logo{height:30px;width:auto;flex:none;display:block}
@@ -144,6 +145,13 @@ input.lipsa{border-color:#b3261e;background:#fdf1f0}
   .bara .in{gap:6px}
   .bara .buton{font-size:15px;padding:13px 8px}
   .bara .buton.gol{padding:13px 10px}
+}
+/* telefoanele mici (320–360 px): câmpurile perechi unul sub altul, bara de jos pe un singur rând, mai joasă */
+@media (max-width:360px){
+  .randuri2{grid-template-columns:1fr}
+  .bara{padding:6px 10px calc(6px + env(safe-area-inset-bottom))}
+  .bara .in{flex-wrap:nowrap}
+  .bara .buton,.bara .buton.gol{font-size:14px;padding:10px 6px;min-width:0;line-height:1.2}
 }
 .buton{
   flex:1;border:0;background:var(--galben);color:var(--gri);font-size:16px;font-weight:700;
@@ -4144,7 +4152,7 @@ const BUCKET_PROBLEME = 'probleme';
 const CHEIE_EXTRA = 'ino_extra_v1';   // partenerii și prețurile materialelor cumpărate de parteneri
 
 const ROLURI = {
-  admin: 'Admin', lider: 'Lider echipă', membru: 'Membru echipă', sales: 'Membru Sales', gestiune: 'Gestiune și achiziții',
+  admin: 'Admin', lider: 'Lider echipă', membru: 'Membru echipă', sales: 'Sales', gestiune: 'Gestiune și achiziții',
   tehnic: 'Tehnic (verificare)', prosumator: 'Prosumator', facturare: 'Facturare', planificare: 'Planificare',
   mentenanta: 'Mentenanță', partener: 'Partener (firmă)', local: 'Fără cont',
 };
@@ -4366,6 +4374,8 @@ function mesajEroare(e) {
   if (/password.*(short|least)|weak/i.test(m)) return 'Parola e prea scurtă: cel puțin 8 caractere.';
   if (/row-level security|permission denied/i.test(m)) return 'Nu aveți drept pentru această acțiune.';
   if (/duplicate key/i.test(m)) return 'Există deja un element cu acest cod sau nume.';
+  if (/corespondente_produs_id_fkey/i.test(m)) return 'Codul ales nu există încă în nomenclatorul de pe server. Încărcați întâi nomenclatorul pe server (Admin → Nomenclator) sau alegeți alt cod.';
+  if (/foreign key|_fkey/i.test(m)) return 'Serverul a refuzat legătura: elementul ales nu mai există pe server. Reîncărcați pagina și încercați din nou.';
   if (/non-2xx/i.test(m)) return 'Serverul nu a acceptat cererea. Încercați din nou; dacă se repetă, apăsați „Problemă?”.';
   return m;
 }
@@ -5232,6 +5242,8 @@ const A = () => window.APP;
 const E = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const $ = (sel) => document.querySelector(sel);
 const nr = (x) => (x == null || x === '' || !isFinite(x) ? '' : (Math.round(x * 100) / 100).toLocaleString('ro-RO'));
+// număr scris de om (2.5 sau 2,5) în textul PV-ului, cu virgulă zecimală
+const nrText = (x) => { if (x == null || x === '') return ''; const n = Number(String(x).replace(',', '.')); return isFinite(n) ? nr(n) : String(x); };
 const lei = (x) => (Math.round((x || 0) * 100) / 100).toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lei';
 const azi = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };   // data locală, nu UTC
 const dataRo = (d) => (d ? new Date(d).toLocaleDateString('ro-RO') : '');
@@ -5392,7 +5404,8 @@ function sumaPartener(l) {
 
 /* ------------------------------------------------------------------ *
  * Anexa de materiale suplimentare: ce trece peste lungimile standard din contract (tabelul inoSOLAR),
- * plus materialele în plus raportate. Se facturează clientului, semnată pe ecran odată cu PV-ul.
+ * socotite din estimare (decizia din 26.10: anexa nu urmează consumul raportat după semnare),
+ * plus materialele în plus raportate până la semnare. Se facturează clientului, semnată pe ecran odată cu PV-ul.
  * ------------------------------------------------------------------ */
 function anexaCalculata(l) {
   if (!['montaj_nou', 'upsales'].includes(tipL(l))) return [];
@@ -5406,7 +5419,8 @@ function anexaCalculata(l) {
       ['Conductor de împământare MYF', /^Conductor MYF/i, std.impamantare], ['Copex / canal cablu', /^(Copex|Canal cablu)/i, std.copex]]
       .forEach(([den, re, inclus]) => {
         const folosit = Math.ceil(suma(re));
-        if (folosit > inclus) out.push({ den, um: 'm', cant: folosit - inclus, nota: `${folosit} m folosiți, ${inclus} m incluși în contract` });
+        const real = linii.some((x) => re.test(x.den) && x.real != null);
+        if (folosit > inclus) out.push({ den, um: 'm', cant: folosit - inclus, nota: `${folosit} m ${real ? 'folosiți' : 'estimați'}, ${inclus} m incluși în contract` });
       });
   }
   ((l.raportat || {}).extra || []).forEach((x) => { if (x.den && +x.cant > 0) out.push({ den: x.den, um: x.um || 'buc', cant: +x.cant, nota: 'material în plus raportat' }); });
@@ -5620,16 +5634,22 @@ function ecranTipNou() {
   $('#x-continua').onclick = async () => {
     citeste();
     if (!d.client) { alert('Completați numele clientului.'); return; }
-    // client nou, de la birou: intră și în registru (cere internet; fără, lucrarea merge oricum)
-    if (!d.client_id && cuRegistru && poateClienti() && d.inRegistru) {
-      try {
-        const c = await K.salveazaClient({ nume: d.client, adresa: d.adresa, judet: d.judet, telefon: d.telefon, tip_finantare: d.tipFinantare });
-        if (c && c.id) d.client_id = c.id;
-      } catch (e) { if (!confirm('Clientul nu s-a putut adăuga în registru (' + e.message + '). Continuați fără registru?')) return; }
-    }
     if (K.activ && (K.parteneri || []).length && !d.partener_id) { alert('Alegeți partenerul care execută lucrarea.'); return; }
     if (planifica && !d.echipa) { alert('Alegeți echipa.'); return; }
     if (planifica && !d.data) { alert('Alegeți data planificată.'); return; }
+    // client nou, de la birou: intră și în registru (cere internet; fără, lucrarea merge oricum).
+    // Doar după verificările de mai sus, ca să nu rămână clienți fără lucrare; același nume și telefon = același client (E3)
+    if (!d.client_id && cuRegistru && poateClienti() && d.inRegistru) {
+      const cifre = (x) => String(x || '').replace(/\D/g, '');
+      const acelasi = (K.clienti || []).find((c) => String(c.nume || '').trim().toLowerCase() === d.client.toLowerCase() && cifre(c.telefon) === cifre(d.telefon));
+      if (acelasi) d.client_id = acelasi.id;
+      else {
+        try {
+          const c = await K.salveazaClient({ nume: d.client, adresa: d.adresa, judet: d.judet, telefon: d.telefon, tip_finantare: d.tipFinantare });
+          if (c && c.id) d.client_id = c.id;
+        } catch (e) { if (!confirm('Clientul nu s-a putut adăuga în registru (' + e.message + '). Continuați fără registru?')) return; }
+      }
+    }
     const l = A().lucrareNoua();
     Object.assign(l, { tip: d.tip, client: d.client, client_id: d.client_id || null, adresa: d.adresa, judet: d.judet || '', telefon: d.telefon, tipFinantare: d.tipFinantare,
       partener_id: d.partener_id || null, prosumatorSolicitat: CU_PROSUMATOR.includes(d.tip) ? !!d.prosumatorSolicitat : false });
@@ -5850,12 +5870,13 @@ function ecranLucrare() {
       : '<div class="ajutor">Pozele obligatorii sunt încărcate: clientul poate semna.</div>'}
       ${anexa.length ? `<div class="sectiune-titlu">Anexă: materiale suplimentare de facturat clientului</div>
         <table class="rap mic"><tr><th>Material</th><th>Cant.</th></tr>${anexa.map((x) => `<tr><td>${E(x.den)}${x.nota ? `<span class="det">${E(x.nota)}</span>` : ''}</td><td class="n">${E(nr(x.cant))} ${E(x.um)}</td></tr>`).join('')}</table>
-        ${l.anexa && l.anexa.semnat ? '<div class="ajutor">Anexa e semnată de client odată cu procesul verbal.</div>' : '<div class="ajutor">Peste lungimile standard din contract (tabelul de cabluri inoSOLAR) și materialele în plus raportate. Se semnează odată cu PV-ul.</div>'}` : ''}
+        ${l.anexa && l.anexa.semnat ? '<div class="ajutor">Anexa e semnată de client odată cu procesul verbal.</div>' : '<div class="ajutor">Cablurile peste lungimile standard din contract (tabelul de cabluri inoSOLAR), socotite din estimarea pre-calculului la momentul semnării. Consumul raportat după semnare nu schimbă anexa. Se semnează odată cu PV-ul.</div>'}` : ''}
       <div class="actiuni">
         ${ed && !pv ? `<button class="buton" id="x-pv"${lipsa.length ? ' disabled' : ''}>Semnează PV cu clientul</button>` : ''}
         ${ed && pv ? '<button class="buton gol" id="x-pv-refa">Refă semnătura</button>' : ''}
         ${pv ? '<button class="buton gol" id="x-pv-pdf">PV în PDF</button>' : ''}
         ${t === 'montaj_nou' && ed && !l.fazaIntermediara && !pv ? '<button class="buton gol" id="x-faza">Închide ziua (PV intermediar)</button>' : ''}
+        ${l.fazaIntermediara ? '<button class="buton gol" id="x-pvi">PV intermediar</button>' : ''}
         ${t === 'montaj_nou' && ed && l.fazaIntermediara ? '<button class="buton" id="x-reia">Reia lucrul</button>' : ''}
       </div></div></section>`;
 
@@ -5982,7 +6003,27 @@ function citesteDateClient(l) {
 function htmlZile(l) {
   const z = l.zile || [];
   if (!z.length) return '';
-  return `<section class="card"><h2>Zile de lucru încheiate</h2><div class="corp">${z.map((x) => `<div class="etapa-rand"><span>${E(dataRo(x.data))}${x.obs ? ' · ' + E(x.obs) : ''}</span><b>PV semnat de ${E(x.nume || 'client')}</b></div>`).join('')}</div></section>`;
+  return `<section class="card"><h2>Zile de lucru încheiate</h2><div class="corp">${z.map((x, i) => `<div class="etapa-rand"><span>${E(dataRo(x.data))}${x.obs ? ' · ' + E(x.obs) : ''}</span><b><button type="button" class="link-buton" data-pvzi="${i}">PV semnat de ${E(x.nume || 'client')}</button></b></div>`).join('')}</div></section>`;
+}
+// PV-ul de fază intermediară se poate revedea: stadiul, cine a semnat, semnătura (B8)
+function aratPVIntermediar(l, x) {
+  if (!x) return;
+  document.querySelectorAll('.foaie').forEach((f) => f.remove());
+  const m = document.createElement('div');
+  m.className = 'modal-problema foaie';
+  m.innerHTML = `<div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="pvi-t">
+    <h2 id="pvi-t">PV de fază intermediară</h2>
+    <p><b>Client:</b> ${E(l.client || '—')}<br><b>Data:</b> ${E(oraRo(x.data))}<br><b>Semnat de:</b> ${E(x.nume || '—')}</p>
+    <div class="sectiune-titlu">Stadiul la plecare</div><p>${E(x.obs || '— (nescris)')}</p>
+    ${(x.etape || []).length ? `<div class="ajutor">Etape cu poze în ziua aceea: ${E(x.etape.map((k) => (etapeLucrare(l).find((e) => e.k === k) || { t: k }).t).join(', '))}</div>` : ''}
+    ${x.semnatura ? `<img class="verif-semn" src="${E(x.semnatura)}" alt="Semnătura clientului" style="max-width:100%">` : ''}
+    <div class="actiuni"><button class="buton" id="x-pvi-ok">Închide</button></div></div>`;
+  document.body.appendChild(m);
+  document.body.classList.add('cu-modal');
+  const inchide = () => { m.remove(); document.body.classList.remove('cu-modal'); };
+  m.querySelector('#x-pvi-ok').onclick = inchide;
+  m.addEventListener('click', (ev) => { if (ev.target === m) inchide(); });
+  m.querySelector('#x-pvi-ok').focus();
 }
 
 function marcaj() { return { de: (K.profil && (K.profil.nume || K.profil.email)) || 'pe acest telefon', id: K.profil && K.profil.id, data: new Date().toISOString() }; }
@@ -5996,6 +6037,9 @@ function gataDeTrimis(l, valid) {
   // fără cont nu există trimitere și validare; pe un server fără migrarea din 22 octombrie se lucrează ca înainte
   if (!K.activ || !K.serverV2) return true;
   if (lipsa.length) { alert(`Înainte de ${valid ? 'validare' : 'trimitere'} lipsesc:\n• ` + lipsa.join('\n• ')); return false; }
+  // PV semnat, dar neconfirmat prin codul clientului: validarea cere o confirmare (B6)
+  if (valid && l.pv && !l.pv.confirmat && K.serverV3 && canaleCod().length && !A().stare.codNeconfigurat
+    && !confirm('Procesul verbal nu e confirmat prin codul trimis clientului. Validați oricum?')) return false;
   return true;
 }
 
@@ -6033,8 +6077,8 @@ function htmlCodPV(l, ed) {
     <div class="neg-act">${peTel ? camp('cod-tel', 'Telefonul clientului', implicit, 'type="tel" inputmode="tel" autocomplete="off"') : camp('cod-email', 'E-mailul clientului', implicit, 'type="email" inputmode="email" autocomplete="off"')}</div>
     <button class="buton gol" id="x-cod-trimite">${trimis ? 'Retrimite codul' : 'Trimite codul prin ' + NUME_CANAL[canal]}</button>
     ${trimis ? `<div class="mesaj info">Cod trimis prin ${E(NUME_CANAL[trimis.canal])} la ${E(trimis.catre)}. Valabil 30 de minute.</div>
-      <div class="neg-act">${camp('cod-pv', 'Codul primit de client', '', 'inputmode="numeric" autocomplete="one-time-code" maxlength="6"')}</div>
-      ${(st.codGresit || {})[l.id] ? `<div class="mesaj warn" role="alert">${E(st.codGresit[l.id])}</div>` : ''}
+      <div class="neg-act">${camp('cod-pv', 'Codul primit de client', '', 'inputmode="numeric" autocomplete="one-time-code" maxlength="9"')}</div>
+      ${(st.codGresit || {})[l.id] ? `<div class="mesaj warn" role="alert" id="x-cod-gresit">${E(st.codGresit[l.id])}</div>` : ''}
       <button class="buton" id="x-cod-confirma">Confirmă codul</button>` : ''}</div>`;
 }
 function legaCodPV(l) {
@@ -6047,6 +6091,7 @@ function legaCodPV(l) {
     if (canal === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(catre)) { alert('Scrieți e-mailul clientului.'); return; }
     if (canal !== 'email' && catre.replace(/\D/g, '').length < 9) { alert('Scrieți telefonul clientului (07xx xxx xxx).'); return; }
     const b = ev.target; b.disabled = true; b.textContent = 'Se trimite…';
+    if (st.codGresit) delete st.codGresit[l.id];
     try {
       const r = await K.trimiteCodPV(l.id, catre, canal);
       st.codTrimis = Object.assign({}, st.codTrimis, { [l.id]: { canal, catre: (r && r.trimisLa) || catre } });
@@ -6056,13 +6101,16 @@ function legaCodPV(l) {
     }
     ecranLucrare();
   };
+  // un cod nou scris șterge mesajul „Cod greșit” de la încercarea de dinainte
+  if ($('#x-cod-pv')) $('#x-cod-pv').addEventListener('input', () => { if ($('#x-cod-gresit')) $('#x-cod-gresit').remove(); if (st.codGresit) delete st.codGresit[l.id]; });
   if ($('#x-cod-confirma')) $('#x-cod-confirma').onclick = async (ev) => {
-    const cod = (v('cod-pv') || '').trim();
+    // codul dictat cu spații sau liniuțe („100 012”) e același cod
+    const cod = (v('cod-pv') || '').replace(/[\s.-]/g, '');
     if (!/^\d{6}$/.test(cod)) { alert('Codul are 6 cifre.'); return; }
     const b = ev.target; b.disabled = true;
     try {
       const r = await K.confirmaCodPV(l.id, cod);
-      if (r && r.ok) { const s2 = K.citesteTot().find((x) => x.id === l.id); if (s2) A().stare.lucrare = s2; alert('Codul e corect: procesul verbal e confirmat de client.'); }
+      if (r && r.ok) { if (st.codGresit) delete st.codGresit[l.id]; const s2 = K.citesteTot().find((x) => x.id === l.id); if (s2) A().stare.lucrare = s2; alert('Codul e corect: procesul verbal e confirmat de client.'); }
       else { st.codGresit = Object.assign({}, st.codGresit, { [l.id]: `Cod greșit.${r && r.ramase != null ? ' Mai aveți ' + Math.max(0, r.ramase) + (r.ramase === 1 ? ' încercare.' : ' încercări.') : ''}` }); }
     } catch (e) { alert(e.message); }
     ecranLucrare();
@@ -6076,11 +6124,13 @@ function legaLucrare(l) {
   if ($('#x-form')) $('#x-form').onclick = () => du('form', l);
   if ($('#x-rezultat')) $('#x-rezultat').onclick = () => du('rezultat', l);
   if ($('#x-raport')) $('#x-raport').onclick = () => du('raport', l);
-  if ($('#x-poze')) $('#x-poze').onclick = () => { if (poateTeren(l)) salveazaTot(); du('poze', l); };
+  if ($('#x-poze')) $('#x-poze').onclick = () => { if (poateTeren(l)) salveazaTot(); A().stare.pozeDinFisa = true; du('poze', l); };
   if ($('#x-pv')) $('#x-pv').onclick = () => { salveazaTot(); A().stare.pvMod = 'final'; du('pv', l); };
   if ($('#x-pv-refa')) $('#x-pv-refa').onclick = () => { if (!confirm('Refaceți semnătura clientului? Procesul verbal semnat se înlocuiește.')) return; salveazaTot(); A().stare.pvMod = 'final'; du('pv', l); };
   if ($('#x-pv-pdf')) $('#x-pv-pdf').onclick = () => pvPDF(l);
   if ($('#x-faza')) $('#x-faza').onclick = () => { salveazaTot(); A().stare.pvMod = 'intermediar'; du('pv', l); };
+  if ($('#x-pvi')) $('#x-pvi').onclick = () => aratPVIntermediar(l, l.fazaIntermediara);
+  document.querySelectorAll('[data-pvzi]').forEach((b) => { b.onclick = () => aratPVIntermediar(l, (l.zile || [])[+b.dataset.pvzi]); });
   if ($('#x-reia')) $('#x-reia').onclick = () => {
     l.zile = (l.zile || []).concat(l.fazaIntermediara); l.fazaIntermediara = null;
     A().salveaza(l); ecranLucrare();
@@ -6153,7 +6203,7 @@ function legaLucrare(l) {
 function montajDinVizita(vz) {
   const x = vz.vizita || {};
   const l = A().lucrareNoua();
-  Object.assign(l, { tip: 'montaj_nou', client: vz.client, adresa: vz.adresa, telefon: vz.telefon, partener_id: vz.partener_id || null,
+  Object.assign(l, { tip: 'montaj_nou', client: vz.client, client_id: vz.client_id || null, judet: vz.judet || '', adresa: vz.adresa, telefon: vz.telefon, partener_id: vz.partener_id || null,
     tipFinantare: vz.tipFinantare, prosumatorSolicitat: !!vz.prosumatorSolicitat, parinte: vz.id });
   if (x.bransament) l.retea = x.bransament;
   if (x.montaj && A().C.MONTAJ[x.montaj]) l.montaj = x.montaj;
@@ -6292,7 +6342,7 @@ function ecranPoze() {
     + etapeLucrare(l).map((e) => {
       const p = pozeEtapa(l, e.k);
       return `<section class="card etapa${e.o && !p.length ? ' lipsa' : ''}"><h2>${E(e.t)}${e.o ? '' : ' <span class="opt">opțional</span>'}</h2><div class="corp">
-        <div class="poze-grila">${p.map((x) => `<div class="poza${x.local ? ' neurcata' : ''}"><img data-poza="${E(x.id)}" alt="" loading="lazy">
+        <div class="poze-grila">${p.map((x) => `<div class="poza${x.local ? ' neurcata' : ''}"><img data-poza="${E(x.id)}" data-t="${E(e.t)}" alt="${E(e.t)}" loading="lazy">
           ${ed ? `<button type="button" class="poza-x" data-sterge-poza="${E(x.id)}" data-etapa="${E(e.k)}" aria-label="Șterge poza">×</button>` : ''}</div>`).join('')}
           ${p.length ? '' : '<div class="ajutor">Nicio poză.</div>'}</div>
         ${ed ? `<div class="actiuni"><label class="buton gol"><input type="file" accept="image/*" capture="environment" data-etapa="${E(e.k)}" hidden>Cameră</label>
@@ -6343,11 +6393,11 @@ function textPV(l) {
     r.push(t === 'pif' ? 'Sistemul a fost pus în funcțiune și verificat în prezența clientului.' : 'Lucrările de montaj au fost executate și sistemul a fost predat clientului.');
     if ((l.pif || {}).instruit) r.push('Clientul a fost instruit privind utilizarea sistemului.');
   }
-  if (t === 'upsales') { const u = l.upsales || {}; r.push(`S-a montat: ${u.echipament || 'echipament'}${u.cant ? ' × ' + u.cant : ''}${u.model ? ' (' + u.model + ')' : ''}.`); if (u.obs) r.push(u.obs); }
+  if (t === 'upsales') { const u = l.upsales || {}; r.push(`S-a montat: ${u.echipament || 'echipament'}${u.cant ? ' × ' + nrText(u.cant) : ''}${u.model ? ' (' + u.model + ')' : ''}.`); if (u.obs) r.push(u.obs); }
   if (t === 'interventie') { const x = l.interventie || {}; if (x.constatat) r.push('Constatat: ' + x.constatat); if (x.efectuat) r.push('Efectuat: ' + x.efectuat); if (x.lasat) r.push('Sistemul a fost lăsat: ' + x.lasat.toLowerCase() + '.'); }
   const mat = ((t === 'interventie' ? l.interventie : t === 'upsales' ? l.upsales : null) || {}).materiale || [];
   if (mat.filter((m) => m.den).length) r.push('Materiale folosite: ' + mat.filter((m) => m.den).map((m) => `${m.den}${m.cant != null ? ' ' + nr(m.cant) + ' ' + (m.um || 'buc') : ''}`).join('; ') + '.');
-  if (t === 'vizita_tehnica') { const x = l.vizita || {}; r.push(`Branșament ${x.bransament === 'tri' ? 'trifazat' : x.bransament === 'mono' ? 'monofazat' : 'nespecificat'}; înălțimea casei ${x.inaltime_m ?? '—'} m; distanța invertor – tablou ${x.distanta_m ?? '—'} m.`); if (x.obs) r.push('Observații: ' + x.obs); r.push('Clientul confirmă datele de mai sus. Bateria se ține la interior, la peste 0 °C. Modificarea datelor declarate poate genera costuri suplimentare.'); }
+  if (t === 'vizita_tehnica') { const x = l.vizita || {}; r.push(`Branșament ${x.bransament === 'tri' ? 'trifazat' : x.bransament === 'mono' ? 'monofazat' : 'nespecificat'}; înălțimea casei ${nrText(x.inaltime_m) || '—'} m; distanța invertor – tablou ${nrText(x.distanta_m) || '—'} m.`); if (x.obs) r.push('Observații: ' + x.obs); r.push('Clientul confirmă datele de mai sus. Bateria se ține la interior, la peste 0 °C. Modificarea datelor declarate poate genera costuri suplimentare.'); }
   return r;
 }
 
@@ -6371,6 +6421,7 @@ function ecranPV() {
       <b>Executant:</b> inoSOLAR${l.partener_id ? ', prin ' + E(K.numePartener(l.partener_id)) : ''}${l.echipa ? ', ' + E(numeEchipaText(l.echipa)) : ''}</p>
       ${mod === 'final' ? textPV(l).map((x) => `<p>${E(x)}</p>`).join('') : `<p>Lucrarea nu s-a terminat azi și continuă într-o zi următoare. Stadiul la plecare:</p>${zona('pv-obs', 'Ce s-a făcut azi / ce rămâne', '')}`}
       ${anexa.length ? `<div class="sectiune-titlu">Anexă — materiale suplimentare</div>
+        <div class="ajutor">Cantitățile vin din estimarea lucrării (pre-calcul), față de lungimile incluse în contract.</div>
         <table class="rap mic"><tr><th>Material</th><th>Cant.</th></tr>${anexa.map((x) => `<tr><td>${E(x.den)}<span class="det">${E(x.nota || '')}</span></td><td class="n">${E(nr(x.cant))} ${E(x.um)}</td></tr>`).join('')}</table>
         ${bifa('pv-anexa', 'Clientul acceptă materialele suplimentare din anexă, facturate separat', false)}` : ''}
     </div></section>
@@ -6388,6 +6439,7 @@ function ecranPV() {
     if (!nume) { alert('Scrieți numele celui care semnează.'); return; }
     if (!semnatura || semnatura.gol) { alert('Clientul trebuie să semneze în chenar.'); return; }
     if (anexa.length && !v('pv-anexa')) { alert('Bifați acordul clientului pentru anexa de materiale suplimentare (sau discutați cu el înainte de semnare).'); return; }
+    if (mod === 'intermediar' && !v('pv-obs').trim()) { alert('Scrieți stadiul la plecare: ce s-a făcut azi și ce rămâne.'); $('#x-pv-obs').focus(); return; }
     const imagine = imagineSemnatura();
     if (mod === 'intermediar') {
       l.fazaIntermediara = { data: new Date().toISOString(), nume, semnatura: imagine, obs: v('pv-obs').trim(),
@@ -6515,12 +6567,12 @@ function ecranPreturi() {
     <section class="card"><h2>Prețuri (${lista.length})</h2><div class="corp">
       ${lista.length ? '' : '<div class="ajutor">Niciun preț încă.</div>'}
       ${lista.map((p, i) => `<div class="pret-rand"><div class="den">${E(p.den)}<span class="det">${E(p.um)}</span></div>
-        <input type="text" inputmode="decimal" id="x-pr_${i}" value="${E(p.pret == null ? '' : String(p.pret).replace('.', ','))}" ${ed ? '' : 'disabled'} aria-label="Preț">
+        <input type="text" inputmode="decimal" id="x-pr_${i}" data-den="${E(p.den)}" value="${E(p.pret == null ? '' : String(p.pret).replace('.', ','))}" ${ed ? '' : 'disabled'} aria-label="Preț">
         ${ed ? `<button class="buton gol" data-salv-pret="${i}">Salvează</button><button class="sterge" data-sterge-pret="${i}" aria-label="Șterge">×</button>` : ''}</div>`).join('')}
     </div></section>
     ${ed && fara.length ? `<section class="card"><h2>Materiale fără preț, din lucrări (${fara.length})</h2><div class="corp">
       ${fara.map(([den, um], i) => `<div class="pret-rand"><div class="den">${E(den)}<span class="det">${E(um)}</span></div>
-        <input type="text" inputmode="decimal" id="x-fp_${i}" placeholder="lei / ${E(um)}" aria-label="Preț">
+        <input type="text" inputmode="decimal" id="x-fp_${i}" data-den="${E(den)}" placeholder="lei / ${E(um)}" aria-label="Preț">
         <button class="buton gol" data-adauga-pret="${i}">Adaugă</button></div>`).join('')}
     </div></section>` : ''}
     ${ed ? `<section class="card"><h2>Alt material</h2><div class="corp">
@@ -6529,11 +6581,18 @@ function ecranPreturi() {
       <button class="adauga" id="x-pr-nou">+ Adaugă prețul</button></div></section>` : ''}`;
   bara('');
   const pret = (id) => { const c = A().citesteNumar(v(id)); return typeof c === 'number' && c >= 0 ? c : (v(id).trim() === '' ? null : NaN); };
-  const ruleaza = async (f) => { try { await f(); ecranPreturi(); } catch (e) { alert(e.message); } };
-  document.querySelectorAll('[data-salv-pret]').forEach((b) => { b.onclick = () => { const p = lista[+b.dataset.salvPret]; const x = pret('pr_' + b.dataset.salvPret); if (Number.isNaN(x)) { alert('Prețul trebuie să fie un număr pozitiv.'); return; } ruleaza(() => K.salveazaPret(Object.assign({}, p, { pret: x }))); }; });
+  // prețul gol nu se salvează (pentru scos e „×”); negativ sau text: mesaj potrivit (E5)
+  const pretBun = (x) => { if (x == null) { alert('Scrieți prețul.'); return false; } if (Number.isNaN(x)) { alert('Prețul trebuie să fie un număr pozitiv (de exemplu 4,50).'); return false; } return true; };
+  // prețurile scrise pe alte rânduri și nesalvate încă rămân după redesenare
+  const ruleaza = async (f, salvat) => {
+    const scrise = [...document.querySelectorAll('#ecran input[data-den]')].filter((x) => x.value !== x.defaultValue && x.dataset.den !== salvat).map((x) => [x.dataset.den, x.value]);
+    try { await f(); ecranPreturi(); } catch (e) { alert(e.message); return; }
+    scrise.forEach(([den, val]) => { const x = [...document.querySelectorAll('#ecran input[data-den]')].find((y) => y.dataset.den === den); if (x) x.value = val; });
+  };
+  document.querySelectorAll('[data-salv-pret]').forEach((b) => { b.onclick = () => { const p = lista[+b.dataset.salvPret]; const x = pret('pr_' + b.dataset.salvPret); if (!pretBun(x)) return; ruleaza(() => K.salveazaPret(Object.assign({}, p, { pret: x })), p.den); }; });
   document.querySelectorAll('[data-sterge-pret]').forEach((b) => { b.onclick = () => { const p = lista[+b.dataset.stergePret]; if (confirm(`Ștergeți prețul pentru „${p.den}”?`)) ruleaza(() => K.stergePret(p.cheie)); }; });
-  document.querySelectorAll('[data-adauga-pret]').forEach((b) => { b.onclick = () => { const [den, um] = fara[+b.dataset.adaugaPret]; const x = pret('fp_' + b.dataset.adaugaPret); if (x == null || Number.isNaN(x)) { alert('Scrieți prețul.'); return; } ruleaza(() => K.salveazaPret({ cheie: den, den, um, pret: x })); }; });
-  if ($('#x-pr-nou')) $('#x-pr-nou').onclick = () => { const den = v('pr-den').trim(); const x = pret('pr-pret'); if (!den) { alert('Scrieți denumirea.'); return; } if (Number.isNaN(x)) { alert('Prețul trebuie să fie un număr pozitiv.'); return; } ruleaza(() => K.salveazaPret({ cheie: den, den, um: v('pr-um').trim() || 'm', pret: x })); };
+  document.querySelectorAll('[data-adauga-pret]').forEach((b) => { b.onclick = () => { const [den, um] = fara[+b.dataset.adaugaPret]; const x = pret('fp_' + b.dataset.adaugaPret); if (!pretBun(x)) return; ruleaza(() => K.salveazaPret({ cheie: den, den, um, pret: x }), den); }; });
+  if ($('#x-pr-nou')) $('#x-pr-nou').onclick = () => { const den = v('pr-den').trim(); const x = pret('pr-pret'); if (!den) { alert('Scrieți denumirea.'); return; } if (!pretBun(x)) return; ruleaza(() => K.salveazaPret({ cheie: den, den, um: v('pr-um').trim() || 'm', pret: x })); };
 }
 
 /* ------------------------------------------------------------------ *
@@ -6581,7 +6640,7 @@ function ecranRapoarte() {
         <div><span>În verificare tehnică</span><b>${r.verificare}</b></div><div><span>Aprobate</span><b>${r.aprobate}</b></div>
         <div><span>Respinse (de câte ori)</span><b>${r.respinse}</b></div><div><span>Neaprobate la plată</span><b>${r.neaprobate}</b></div>
         <div><span>Intervenții cu vină de montaj</span><b>${r.vinaMontaj}</b></div><div><span>Rețineri</span><b>${r.retineri ? E(lei(r.retineri)) : '—'}</b></div>
-        ${vede() ? `<div><span>Materiale cumpărate de partener</span><b>${r.materiale.est ? E(lei(r.materiale.real)) : '—'}</b></div>` : ''}
+        ${vede() ? `<div><span>Materiale cumpărate de partener (real)</span><b>${r.materiale.est ? E(lei(r.materiale.real)) : '—'}</b></div>` : ''}
       </div></div></section>`).join('') : '<div class="gol-text" style="padding:28px 20px">Nicio lucrare în luna aleasă.</div>'}
     <div class="ajutor">Luna lucrării = data raportului (sau data planificată, dacă nu e raportată). „Materiale cumpărate de partener” = consumul raportat × prețurile Achizițiilor.</div>
     ${deFacturat.length && vede() ? `<section class="card"><h2>De facturat clientului (${deFacturat.length})</h2><div class="corp">
@@ -6591,7 +6650,7 @@ function ecranRapoarte() {
   $('#x-luna').onchange = (ev) => { if (/^\d{4}-\d{2}$/.test(ev.target.value)) { st.lunaRap = ev.target.value; ecranRapoarte(); } };
   document.querySelectorAll('[data-deschide-ext]').forEach((b) => { b.onclick = () => { const l = K.citesteTot().find((x) => x.id === b.dataset.deschideExt); if (l) A().du('lucrare', l); }; });
   $('#x-csv').onclick = () => {
-    const cap = ['Partener', 'Montaje', 'Intervenții', 'Raportate', 'Neraportate', 'În verificare', 'Aprobate', 'Respinse', 'Neaprobate la plată', 'Vină montaj', 'Rețineri (lei)', 'Materiale partener (lei)'];
+    const cap = ['Partener', 'Montaje', 'Intervenții', 'Raportate', 'Neraportate', 'În verificare', 'Aprobate', 'Respinse', 'Neaprobate la plată', 'Vină montaj', 'Rețineri (lei)', 'Materiale partener, real (lei)'];
     const txt = [cap].concat(randuri.map(({ nume, r }) => [nume, r.montaje, r.interventii, r.raportate, r.neraportate, r.verificare, r.aprobate, r.respinse, r.neaprobate, r.vinaMontaj,
       r.retineri.toFixed(2).replace('.', ','), r.materiale.real.toFixed(2).replace('.', ',')])).map((x) => x.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
     const a = document.createElement('a');
@@ -6655,7 +6714,9 @@ function ecranCalendar() {
   const sel = c.sel && K.citesteTot().find((l) => l.id === c.sel);
   const cip = (l) => {
     const s = STARE_TEXT(l);
-    return `<button type="button" class="cal-lucrare${eRestanta(l) ? ' restanta' : ''}${sel && sel.id === l.id ? ' ales' : ''} st-${E(s.c || 'x')}" data-cal-l="${E(l.id)}"${ed ? ' draggable="true"' : ''}>
+    // doar lucrările neterminate se mută; cele raportate sau închise doar se deschid (E4)
+    const mutabila = ed && !INCHISE.includes(A().stareLucrare(l));
+    return `<button type="button" class="cal-lucrare${eRestanta(l) ? ' restanta' : ''}${sel && sel.id === l.id ? ' ales' : ''} st-${E(s.c || 'x')}" data-cal-l="${E(l.id)}"${mutabila ? ' draggable="true" data-cal-m="1"' : ''}>
       <b>${E(TIPURI[tipL(l)].scurt)}</b> ${E(l.client || 'fără nume')}<span>${E([localitate(l), l.judet].filter(Boolean).join(' · '))}</span></button>`;
   };
   const randEchipa = (e) => {
@@ -6668,6 +6729,10 @@ function ecranCalendar() {
   const lista = (arr, gol) => (arr.length ? `<div class="cal-lista">${arr.map((l) => `<div class="cal-rand">${cip(l)}
       <span class="det">${E(K.numePartener ? K.numePartener(l.partener_id) || '' : '')}${dataPlan(l) ? ' · ' + E(dataRo(dataPlan(l))) + ' · ' + E(K.numeEchipa(echipaPlan(l)) || '') : ''}</span>
       <button class="link-buton" data-cal-deschide="${E(l.id)}">Deschide fișa</button></div>`).join('')}</div>` : `<div class="ajutor">${gol}</div>`);
+  // pe telefon, grila rămâne derulată la ziua la care era (nu sare înapoi la Luni după o alegere)
+  const grilaVeche = $('.cal-grila');
+  const derulare = grilaVeche && c.derulatStart === c.start ? grilaVeche.scrollLeft : 0;
+  c.derulatStart = c.start;
   $('#ecran').innerHTML = `
     <section class="card"><div class="corp cal-sus">
       <div class="cal-nav"><button class="buton gol" id="x-cal-inapoi" aria-label="Săptămâna trecută">‹</button>
@@ -6684,6 +6749,7 @@ function ecranCalendar() {
     ${faraEchipa.length ? `<section class="card"><h2>Planificate săptămâna aceasta, fără echipă (${faraEchipa.length})</h2><div class="corp">${lista(faraEchipa, '')}</div></section>` : ''}
     <section class="card"><h2>Restanțe (${restante.length})</h2><div class="corp">${lista(restante, 'Nicio lucrare rămasă în urmă: toate cele cu data trecută au început.')}</div></section>
     ${r !== 'lider' && r !== 'mentenanta' ? `<section class="card"><h2>De planificat (${deplanificat.length})</h2><div class="corp">${lista(deplanificat, 'Toate lucrările deschise au o dată.')}</div></section>` : ''}`;
+  if (derulare && $('.cal-grila')) $('.cal-grila').scrollLeft = derulare;
   bara(ed ? '<button class="buton" id="x-cal-nou">+ Lucrare nouă</button>' : '');
   const muta = (n) => { c.start = plusZile(c.start, n); ecranCalendar(); };
   $('#x-cal-inapoi').onclick = () => muta(-7);
@@ -6697,7 +6763,7 @@ function ecranCalendar() {
   document.querySelectorAll('[data-cal-deschide]').forEach((b) => { b.onclick = () => deschideL(b.dataset.calDeschide); });
   document.querySelectorAll('[data-cal-l]').forEach((b) => { b.onclick = (ev) => {
     ev.stopPropagation();
-    if (!ed) { deschideL(b.dataset.calL); return; }
+    if (!ed || !b.dataset.calM) { deschideL(b.dataset.calL); return; }
     c.sel = c.sel === b.dataset.calL ? null : b.dataset.calL; ecranCalendar();
   }; });
   if (ed && sel) document.querySelectorAll('td[data-cal-e]').forEach((td) => { td.onclick = () => planificaIn(sel, td.dataset.calE, td.dataset.calZ); });
@@ -6723,12 +6789,14 @@ function planificaIn(l, echipa, data) {
   const c = A().stare.cal;
   const st = A().stareLucrare(l);
   const muta = echipa !== l._echipa_id;
+  if (INCHISE.includes(st)) { alert('Lucrarea e deja raportată sau închisă: nu se mai planifică.'); return; }
   if (muta && K.rol() !== 'admin' && !neinceputa(l)) {
     alert('Lucrarea a început: echipa o poate schimba doar Adminul. Puteți muta doar data, la aceeași echipă.');
     return;
   }
   const text = `${l.client || 'Lucrarea'} → ${K.numeEchipa(echipa)}, ${dataRo(data)}`;
-  if (!confirm('Planificați: ' + text + '?' + (muta && (l._alocati || []).length ? '\nMembrii alocați la echipa veche se scot de la lucrare.' : ''))) return;
+  const trecut = data < isoLocal(new Date()) ? '\n\nAtenție: data aleasă e în trecut.' : '';
+  if (!confirm('Planificați: ' + text + '?' + trecut + (muta && (l._alocati || []).length ? '\nMembrii alocați la echipa veche se scot de la lucrare.' : ''))) return;
   if (muta) { l._echipa_id = echipa; l.echipa = K.numeEchipa(echipa); l._alocati = []; }
   l.planificare = Object.assign({}, l.planificare || {}, { data, echipa_id: echipa });
   A().salveaza(l);
@@ -6752,13 +6820,14 @@ const eAEchipeiMele = (l) => !!K.profil && l._echipa_id === K.profil.echipa_id;
 // Cozile: ce așteaptă după fiecare rol. `cine` = rolurile care o văd.
 const COZI = {
   verificare: { t: 'De verificat tehnic', s: 'lucrări validate de echipă, fără decizie', cine: ['admin', 'tehnic'],
-    f: (l) => stL(l) === 'validat' && !DECISE.includes(decizieT(l)), ecran: 'verifica' },
+    f: (l) => stL(l) === 'validat' && !DECISE.includes(decizieT(l)), ecran: 'verifica', ordine: (a, b) => ordineDep(a, b) },
   respinse: { t: 'Respinse, de corectat', s: 'întoarse de verificarea tehnică', cine: ['admin', 'tehnic', 'lider', 'mentenanta', 'membru', 'planificare', 'partener'],
     f: (l) => stL(l) === 'respins' },
   deValidat: { t: 'Rapoarte de validat', s: 'trimise de membri, așteaptă liderul', cine: ['admin', 'lider', 'mentenanta'],
     f: (l) => A().poate('valideaza', l) && !!(l.raportat || {}).finalizat && !(l.raportat || {}).validat },
   azi: { t: 'Planificate azi', s: 'lucrările echipei pentru azi', cine: ['lider', 'mentenanta', 'membru'],
-    f: (l) => dataPlan(l) === isoLocal(new Date()) && !INCHISE.includes(stL(l)) },
+    // cele respinse stau doar în „Respinse, de corectat”, cu motivul: o lucrare apare o singură dată pe Start
+    f: (l) => dataPlan(l) === isoLocal(new Date()) && !INCHISE.includes(stL(l)) && stL(l) !== 'respins' },
   // cele de azi stau deja în „Planificate azi”: nu se repetă aici la echipă
   deExecutat: { t: 'De executat', s: 'planificate sau în lucru', cine: ['lider', 'mentenanta', 'membru', 'partener'],
     f: (l) => ['planificat', 'antecalcul', 'in_lucru', 'faza_intermediara', 'necalculat'].includes(stL(l)) && !(['lider', 'mentenanta', 'membru'].includes(K.rol()) && dataPlan(l) === isoLocal(new Date())) },
@@ -6891,14 +6960,14 @@ function ecranStart() {
   $('#btn-inapoi').hidden = true;
   // „de făcut”: fiecare coadă a rolului e un panou cu primele lucrări, direct pe ecran
   const cozi = Object.entries(COZI).filter(([, c]) => c.cine.includes(r))
-    .map(([k, c]) => ({ k, id: 'coada:' + k, t: c.t, s: c.s, c, lista: toate.filter(c.f).sort(ordineCoada) }));
+    .map(([k, c]) => ({ k, id: 'coada:' + k, t: c.t, s: c.s, c, lista: toate.filter(c.f).sort(c.ordine || ordineCoada) }));
   const pline = cozi.filter((c) => c.lista.length), goale = cozi.filter((c) => !c.lista.length);
   const nav = [];
   if (A().poate('creeaza')) nav.push({ id: 'nou', t: '+ Lucrare nouă', s: 'montaj, intervenție, vizită...' });
   itemiMeniu().filter((x) => x.id !== 'start' && !x.id.startsWith('coada:')).forEach((x) => nav.push({ id: x.id, t: x.t, n: x.n }));
   const panou = (c) => `<section class="coada-pn">
       <button type="button" class="tile are coada-cap" data-tile="${E(c.id)}"><span class="tile-nr">${c.lista.length}</span><span class="tile-t">${E(c.t)}</span><span class="tile-s">${E(c.s)}</span></button>
-      <div class="coada-randuri">${c.lista.slice(0, 5).map((l) => `<button type="button" class="coada-rand" data-coada="${E(c.k)}" data-coada-l="${E(l.id)}"><b>${E(l.client || 'Lucrare fără client')}</b><span>${E(infoScurt(l))}</span></button>`).join('')}
+      <div class="coada-randuri">${c.lista.slice(0, 5).map((l) => `<button type="button" class="coada-rand" data-coada="${E(c.k)}" data-coada-l="${E(l.id)}"><b>${E(l.client || 'Lucrare fără client')}</b><span>${E(infoScurt(l))}</span>${c.k === 'respinse' && decizieT(l) === 'respins' ? `<span class="motiv-resp">Motiv: ${E(((l.verificari || {}).tehnic || {}).motiv || '—')}</span>` : ''}</button>`).join('')}
         ${c.lista.length > 5 ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">toate cele ${c.lista.length}</button>` : ''}</div></section>`;
   $('#ecran').innerHTML = A().htmlContBara()
     + '<h2 class="start-h">De făcut</h2>'
@@ -6933,7 +7002,7 @@ function ecranDepartament() {
   const d = DEPARTAMENTE.find((x) => x.k === st.dep);
   if (!d) { A().du('start'); return; }
   const toate = active();
-  let lista = toate.filter(d.f).sort((a, b) => A().dataActivitate(a) - A().dataActivitate(b));
+  let lista = toate.filter(d.f).sort(ordineDep);
   const eu = depRol();
   titlu(d.t, d === eu ? 'departamentul dvs.' : 'statusul lucrărilor din acest departament');
   // filtrul pe stare, din stările care chiar apar aici
@@ -6983,7 +7052,7 @@ function ecranCoada() {
   const st = A().stare;
   const c = COZI[st.coada];
   if (!c) { A().du('start'); return; }
-  const lista = active().filter(c.f).sort(ordineCoada);
+  const lista = active().filter(c.f).sort(c.ordine || ordineCoada);
   titlu(c.t, c.s);
   if (['deFacturat', 'anexe'].includes(st.coada) && lista.some((l) => A().poate('verificaFacturare', l))) return coadaFacturare(c, lista.filter((l) => A().poate('verificaFacturare', l)));
   $('#ecran').innerHTML = lista.length ? `<div class="mesaj info" style="margin-top:14px">${lista.length} ${lista.length === 1 ? 'lucrare' : 'lucrări'}.${c.ecran === 'verifica' ? ' Apăsați o lucrare: pozele, materialele și procesul verbal sunt pe un singur ecran, cu decizia jos.' : ''}</div>`
@@ -7007,7 +7076,7 @@ function coadaFacturare(c, lista) {
     const sp = sumaPartener(l);
     const nAnexa = ((l.anexa && l.anexa.linii) || []).length;
     const det = [TIPURI[tipL(l)].scurt, dataPlan(l) && dataRo(dataPlan(l)), l.partener_id && K.numePartener(l.partener_id),
-      anexe ? `${nAnexa} ${nAnexa === 1 ? 'linie' : 'linii'} în anexă` : sp.est ? 'materiale partener ' + lei(sp.est) : '',
+      anexe ? `${nAnexa} ${nAnexa === 1 ? 'linie' : 'linii'} în anexă` : sp.est || sp.real ? (A().areConsum(l.raportat) || ['interventie', 'upsales'].includes(tipL(l)) ? `materiale partener ${lei(sp.real)} (real, din consum)` : `materiale partener ${lei(sp.est)} (estimat)`) : '',
       anexe ? (vf(l).anexa ? 'anexa: ' + vf(l).anexa.replace('_', ' ') : '') : (vf(l).stare ? STF[vf(l).stare] : 'neverificat')].filter(Boolean).join(' · ');
     return `<div class="lot-r${ales.ids.has(l.id) ? ' ales' : ''}"><label class="lot-l"><input type="checkbox" data-lot="${E(l.id)}"${ales.ids.has(l.id) ? ' checked' : ''}>
       <span><b>${E(l.client || 'Lucrare fără client')}</b><small>${E(det)}</small></span></label>
@@ -7080,7 +7149,9 @@ function htmlRaportEchipa(l) {
 }
 // coada de verificare, în aceeași ordine peste tot (Start, coadă, verificare): data planificată, apoi clientul
 const ordineCoada = (a, b) => (dataPlan(a) || '9').localeCompare(dataPlan(b) || '9') || String(a.client || '').localeCompare(String(b.client || ''), 'ro');
-const coadaVerificare = () => active().filter(COZI.verificare.f).sort(ordineCoada);
+// în departament și în coada de verificare, aceeași ordine: întâi cele care așteaptă de mai mult timp (D6)
+const ordineDep = (a, b) => (A().dataActivitate(a) - A().dataActivitate(b)) || ordineCoada(a, b);
+const coadaVerificare = () => active().filter(COZI.verificare.f).sort(ordineDep);
 // scurtături pe ecranul de verificare (calculator): A aprobă, R respinge, → următoarea
 document.addEventListener('keydown', (ev) => {
   if (A().stare.ecran !== 'verifica' || ev.ctrlKey || ev.metaKey || ev.altKey || document.querySelector('.modal-problema, .poza-mare')) return;
@@ -7098,6 +7169,7 @@ function ecranVerifica() {
   const poz = coada.findIndex((x) => x.id === l.id);
   const ed = A().poate('verificaTehnic', l);
   const vt = (l.verificari || {}).tehnic || {};
+  if (['coada', 'departament', 'start'].includes(st.revenireLucrare)) st.revenireVerifica = st.revenireLucrare;
   titlu(A().scurt(l.client || 'Lucrare'), 'verificare tehnică' + (poz >= 0 ? ` · ${poz + 1} din ${coada.length}` : ''));
   const etape = etapeLucrare(l);
   const lipsa = etapeLipsa(l);
@@ -7146,6 +7218,7 @@ function ecranVerifica() {
   legaAI(l);
   bara(lat ? '' : butoaneDecizie);
   document.querySelectorAll('[data-vq]').forEach((b) => { b.onclick = () => { const x = coada.find((y) => y.id === b.dataset.vq); if (x) { st.lucrare = x; A().du('verifica', x); } }; });
+  // lanțul de revenire: fișă → verificare → departamentul (sau coada) din care s-a pornit (D6)
   $('#x-v-fisa').onclick = () => { st.revenireLucrare = 'verifica'; A().du('lucrare', l); };
   if ($('#x-v-pdf')) $('#x-v-pdf').onclick = () => pvPDF(l);
   if ($('#x-v-toate')) $('#x-v-toate').onclick = () => { st.verifToate = !st.verifToate; ecranVerifica(); };
@@ -7252,7 +7325,7 @@ function ecranBorderou() {
   document.querySelectorAll('tr[data-deschide]').forEach((tr) => { tr.onclick = () => { const l = lista.find((x) => x.id === tr.dataset.deschide); if (l) { st.revenireLucrare = 'borderou'; A().du('lucrare', l); } }; });
   if ($('#x-b-csv')) $('#x-b-csv').onclick = () => {
     const q = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
-    const rows = [['Data', 'Client', 'Adresa', 'Judet', 'Echipa', 'Partener', 'Vina', 'Sursa', 'Constatat', 'Efectuat', 'Lasat', 'Decizie tehnica', 'Motiv']]
+    const rows = [['Data', 'Client', 'Adresa', 'Județ', 'Echipa', 'Partener', 'Vina', 'Sursa', 'Constatat', 'Efectuat', 'Lăsat', 'Decizie tehnică', 'Motiv']]
       .concat(lista.map((l) => { const x = l.interventie || {}; const vt = (l.verificari || {}).tehnic || {}; return [dataInterventie(l), l.client, l.adresa, l.judet, A().numeEchipaL(l), K.numePartener(l.partener_id), x.vina, x.sursa, x.constatat, x.efectuat, x.lasat, dec(l), vt.motiv]; }));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + rows.map((r) => r.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
@@ -7478,7 +7551,13 @@ function ecranClient() {
       ${st.clientPdf ? `<div class="ajutor">PDF ales: ${E(st.clientPdf.name)}. Se încarcă la salvare.</div>` : ''}
     </div></section>
     ${c.id ? `<section class="card"><h2>Lucrări (${lucrari.length})</h2><div class="corp">${lucrari.map((l) => A().htmlCardLucrare(l)).join('') || '<div class="ajutor">Nicio lucrare încă.</div>'}</div></section>` : ''}`;
-  bara(ed ? (c.id && A().poate('creeaza') ? '<button class="buton gol" id="x-c-lucrare">+ Lucrare pentru client</button>' : '') + '<button class="buton" id="x-c-salv">Salvează clientul</button>' : '');
+  // clientul fără nicio lucrare (nici arhivată), adăugat din greșeală sau dublat, îl poate șterge Adminul (E3)
+  const sterge = c.id && K.rol() === 'admin' && !K.citesteTot().some((l) => l.client_id === c.id) ? '<button class="buton gol" id="x-c-sterge">Șterge clientul</button>' : '';
+  bara(ed ? sterge + (c.id && A().poate('creeaza') ? '<button class="buton gol" id="x-c-lucrare">+ Lucrare pentru client</button>' : '') + '<button class="buton" id="x-c-salv">Salvează clientul</button>' : sterge);
+  if ($('#x-c-sterge')) $('#x-c-sterge').onclick = async () => {
+    if (!confirm(`Ștergeți clientul „${c.nume || ''}” din registru? Nu are nicio lucrare. Ștergerea nu se poate anula.`)) return;
+    try { await K.stergeClient(c.id); st.clientPdf = null; st.clientCitit = null; A().du('clienti'); } catch (e) { alert(e.message); }
+  };
   const citeste = () => {
     ['nume', 'adresa', 'telefon', 'email', 'nr_contract', 'data_contract', 'putere_kwp'].forEach((k) => { c[k] = (v('c_' + k) || '').trim(); });
     c.judet = v('c_judet') || ''; c.tip_finantare = v('c_tip_finantare') || ''; c.obs = (v('c_obs') || '').trim();
@@ -7530,7 +7609,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.7';
+const VERSIUNE_APP = '2.8';
 const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
 const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
 const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };
@@ -7684,6 +7763,12 @@ function deschideProblema() {
     }
   };
 }
+// numele ecranelor pe românește (în problemele raportate se ține id-ul intern al ecranului)
+const NUME_ECRAN_PB = { lucrare: 'fișa lucrării', fisa: 'fișa lucrării', pv: 'procesul verbal', poze: 'poze', form: 'pre-calcul', rezultat: 'lista de materiale', raport: 'raportul de consum',
+  start: 'Start', lista: 'lista de lucrări', verifica: 'verificare tehnică', calendar: 'calendar', coada: 'coadă de lucru', departament: 'departament', admin: 'administrare',
+  cont: 'contul meu', clienti: 'clienți', client: 'fișa clientului', borderou: 'borderou', rapoarte: 'rapoarte', preturi: 'prețuri', nomenclator: 'nomenclator', probleme: 'probleme', tipNou: 'lucrare nouă', login: 'intrare în cont' };
+const numeEcranPb = (e) => NUME_ECRAN_PB[e] || e || '—';
+const clientPb = (id) => { const l = K.citesteTot().find((x) => x.id === id); return l && l.client ? l.client : ''; };
 function ecranProbleme() {
   const st = A().stare;
   const admin = K.rol() === 'admin';
@@ -7702,7 +7787,7 @@ function ecranProbleme() {
         <div class="pb-cap"><b>Nr. ${E(p.id)}</b> <span class="pill ${p.gravitate === 'blocant' ? 'rau' : p.gravitate === 'major' ? 'warn' : ''}">${E(g(p.gravitate).t)}</span> <span class="pill ${p.stare === 'rezolvat' ? 'ok' : deschise(p) ? 'warn' : ''}">${E(s(p.stare).t)}</span></div>
         <div class="pb-text">${E(p.descriere)}</div>
         ${p.asteptat ? `<div class="ajutor">Se aștepta: ${E(p.asteptat)}</div>` : ''}
-        <div class="ajutor">${E([p.cine, K.ROLURI[p.rol] || p.rol, 'ecran ' + (p.ecran || '—'), oraRo(p.creat)].filter(Boolean).join(' · '))}${p.lucrare_id ? ` · <button type="button" class="link-buton" data-pb-lucrare="${E(p.lucrare_id)}">lucrarea</button>` : ''}</div>
+        <div class="ajutor">${E([p.cine, K.ROLURI[p.rol] || p.rol, 'ecran: ' + numeEcranPb(p.ecran), oraRo(p.creat)].filter(Boolean).join(' · '))}${p.lucrare_id ? ` · <button type="button" class="link-buton" data-pb-lucrare="${E(p.lucrare_id)}">lucrarea ${E(clientPb(p.lucrare_id))}</button>` : ''}</div>
         <div class="ajutor">${E(p.dispozitiv || '')}${p.versiune ? ' · v' + E(p.versiune) : ''}</div>
         ${p.captura ? `<button type="button" class="link-buton" data-pb-captura="${E(p.captura)}">Vezi captura de ecran</button>` : ''}
         ${admin ? `<div class="pb-admin">${alege('pb-st-' + p.id, 'Stare', p.stare, STARI_PROBLEMA)}${zona('pb-r-' + p.id, 'Răspuns pentru cel care a raportat', p.raspuns || '', 'rows="2" maxlength="2000"')}
@@ -7733,8 +7818,11 @@ function ecranProbleme() {
   }; });
   if ($('#x-pb-csv')) $('#x-pb-csv').onclick = () => {
     const q = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
+    // lista completă, indiferent de filtrul de pe ecran; lucrarea cu numele clientului (E5)
+    const toateCSV = toate.slice().sort((a, b) => String(b.creat).localeCompare(String(a.creat)));
+    const clientL = (id) => { const l = id && K.citesteTot().find((x) => x.id === id); return l ? l.client || id : id || ''; };
     const rows = [['Nr', 'Data', 'Gravitate', 'Stare', 'Cine', 'Rol', 'Ecran', 'Lucrare', 'Descriere', 'Se aștepta', 'Dispozitiv', 'Versiune', 'Răspuns']]
-      .concat(lista.map((p) => [p.id, oraRo(p.creat), g(p.gravitate).t, s(p.stare).t, p.cine, K.ROLURI[p.rol] || p.rol, p.ecran, p.lucrare_id, p.descriere, p.asteptat, p.dispozitiv, p.versiune, p.raspuns]));
+      .concat(toateCSV.map((p) => [p.id, oraRo(p.creat), g(p.gravitate).t, s(p.stare).t, p.cine, K.ROLURI[p.rol] || p.rol, numeEcranPb(p.ecran), clientL(p.lucrare_id), p.descriere, p.asteptat, p.dispozitiv, p.versiune, p.raspuns]));
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + rows.map((r) => r.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     a.download = `probleme inoINSTALL ${isoLocal(new Date())}.csv`; a.click();
@@ -7763,7 +7851,7 @@ window.EXT = {
     parteneri: laAdmin, preturi: laAdmin, rapoarte: laAdmin, calendar: () => { A().stare.cal && (A().stare.cal.sel = null); A().du(areStart() ? 'start' : 'lista'); },
     coada: () => A().du('start'), departament: () => A().du('start'), borderou: () => A().du('start'), probleme: () => A().du(areStart() ? 'start' : 'lista'), etape: () => A().du('start'), clienti: () => A().du('start'),
     client: () => { const st = A().stare; st.clientPdf = null; st.clientCitit = null; A().du(vedeClienti() ? 'clienti' : 'start'); },
-    verifica: () => { const st = A().stare; A().du(['coada', 'departament'].includes(st.revenireLucrare) ? st.revenireLucrare : 'start'); },
+    verifica: () => { const st = A().stare; const r = st.revenireVerifica || st.revenireLucrare; st.revenireVerifica = null; st.revenireLucrare = null; A().du(['coada', 'departament'].includes(r) ? r : 'start'); },
   },
   deschide, butoaneLista, legaLista, areStart, COZI, htmlBannerLista, htmlTipScurt, htmlInfoCard, gataDeTrimis, stareText: STARE_TEXT,
   // pentru teste
@@ -7928,7 +8016,7 @@ label.buton{display:inline-flex;align-items:center;justify-content:center;cursor
 .pv-text p{margin:0 0 8px;line-height:1.5;font-size:14.5px}
 .verif{border-top:1px solid var(--linie);padding-top:10px;margin-top:12px}.verif:first-child{border-top:0;margin-top:0;padding-top:0}
 .verif h3{margin:0 0 6px;font-size:15px}
-.pret-rand{display:grid;grid-template-columns:1fr 90px auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--linie)}
+.pret-rand{display:grid;grid-template-columns:1fr 120px auto auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--linie)}
 .pret-rand .den{font-size:14px}.pret-rand .det{display:block}
 .pret-rand input{width:100%;padding:8px;border:1px solid var(--linie);border-radius:8px;font:inherit;text-align:right}
 .tabel-lat{overflow-x:auto}table.rap.mic{width:100%;font-size:13px;border-collapse:collapse}
@@ -8139,6 +8227,8 @@ function du(ecran, lucrare) {
   if (lucrare !== undefined) stare.lucrare = lucrare;
   window.scrollTo(0, 0);
   deseneaza();
+  // tastatura: după schimbarea ecranului focusul nu rămâne pe pagină (body), ci pe titlul ecranului nou
+  setTimeout(() => { const a = document.activeElement; if ((!a || a === document.body) && !document.querySelector('.modal-problema')) { const h = $('#titlu'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } } }, 0);
   // instantaneul se ia după desenare: ecranul completează singur unele valori implicite
   if (['form', 'raport'].includes(stare.ecran) && stare.lucrare) stare.instantaneu = continut(stare.lucrare);
   // o a doua atingere rapidă nu trebuie să cadă pe butonul care apare în locul celui apăsat
@@ -8541,7 +8631,7 @@ function deseneazaListaFiltrata(toate) {
       $('#md-det').innerHTML = l ? htmlPreviz(l) : '';
       // „Deschide fișa” duce mereu pe fișa lucrării (Detalii); dublu-clic pe rând, pe ecranul obișnuit al rolului
       $('#md-det').querySelectorAll('[data-deschide]').forEach((b) => { b.onclick = () => { stare.revenireLucrare = 'lista'; if (window.EXT && K.serverV2) du('lucrare', l); else deschide(l); }; });
-      if ($('#md-poze')) $('#md-poze').onclick = () => du('poze', l);
+      if ($('#md-poze')) $('#md-poze').onclick = () => { stare.pozeDinFisa = false; du('poze', l); };
     };
     el.querySelectorAll('tr[data-sel]').forEach((tr) => {
       tr.onclick = () => {
@@ -9261,7 +9351,8 @@ function legaFormular() {
   $('#b-salveaza').onclick = () => { if (salveazaFormular(l)) du('lista'); };
   if ($('#b-calc')) $('#b-calc').onclick = () => {
     const lipsa = campuriLipsa(l);
-    document.querySelectorAll('.lipsa').forEach((x) => x.classList.remove('lipsa'));
+    // doar marcajele câmpurilor din formular (contorul de poze din tab-uri își păstrează culoarea)
+    document.querySelectorAll('.lipsa').forEach((x) => { if (!x.closest('.tabs-l')) x.classList.remove('lipsa'); });
     if (lipsa.length) {
       lipsa.forEach((x) => {
         if (x.cheie === 'campuri') {
@@ -9737,13 +9828,59 @@ function htmlConflict(l) {
     ? ' Dacă păstrați versiunea dvs., antecalculul înghețat și raportul membrilor rămân cele de pe server.'
     : K.rol() === 'membru' && !c.sters ? ' Dacă păstrați versiunea dvs., se trimite doar raportul dvs. și înlocuiește corecturile făcute între timp de lider pe raport.' : '';
   return `<div class="mesaj warn" style="margin-top:14px"><b>Conflict.</b> ${c.sters
-      ? 'Lucrarea nu mai există pe server sau nu mai aveți acces la ea.'
+      ? 'Modificarea dvs. nu s-a salvat: lucrarea nu mai există pe server sau nu mai e la dvs. (de exemplu, echipa a redeschis raportul sau lucrarea a fost mutată).'
       : `Lucrarea a fost modificată între timp de ${E(K.numeOm(c._modificat_de) || 'altcineva')}${c._modificat ? ', ' + timpRelativ(c._modificat) : ''}.`}${motiv}
     ${pastrez ? 'Alegeți ce versiune rămâne.' + ce : (c.sters ? '' : 'Raportul a fost deja validat sau lucrarea nu mai e alocată dvs., deci rămâne versiunea de pe server.')}
     <div class="actiuni" style="margin-top:10px">
       ${pastrez ? '<button class="buton gol" id="b-conf-a">Păstrez versiunea mea</button>' : ''}
       <button class="buton gol" id="b-conf-s">${c.sters ? 'Renunț la ea' : 'Iau versiunea de pe server'}</button>
     </div></div>`;
+}
+// Lucrările care cer atenție: în conflict sau refuzate de server (A6)
+function lucrariProbleme() { return citesteTot().filter((l) => l._conflict || (l._murdar && l._eroare)); }
+function motivProblema(l) {
+  if (!l._conflict) return 'Serverul n-a primit modificarea' + (l._eroare ? ': ' + l._eroare : '.');
+  if (l._conflict.sters) return 'Modificarea nu s-a salvat: lucrarea nu mai e la dvs. (redeschisă, mutată sau ștearsă).';
+  return `Modificarea nu s-a salvat: lucrarea a fost schimbată între timp de ${K.numeOm(l._conflict._modificat_de) || 'altcineva'}.`;
+}
+function htmlProbleme() {
+  const p = lucrariProbleme();
+  if (!p.length) return '';
+  return `<section class="card" id="probleme-sync"><h2>Lucrări care cer atenția dvs.</h2><div class="corp">
+    ${p.map((l) => `<div class="rand-problema" style="display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--linie)">
+      <div><b>${E(l.client || 'Lucrare fără client')}</b><div class="ajutor" style="margin:2px 0 0">${E(motivProblema(l))}</div></div>
+      <button type="button" class="buton gol" data-problema="${E(l.id)}">Deschide</button></div>`).join('')}
+    <div class="ajutor">Pe fișa lucrării alegeți ce versiune rămâne.</div>
+  </div></section>`;
+}
+function legaProbleme(rad) {
+  (rad || document).querySelectorAll('[data-problema]').forEach((b) => {
+    b.onclick = () => { const l = citesteTot().find((x) => x.id === b.dataset.problema); if (l) { stare.revenireLucrare = stare.ecran === 'lucrare' ? stare.revenireLucrare : stare.ecran; du('lucrare', l); } };
+  });
+}
+// după sincronizare: o lucrare nou intrată în conflict, alta decât cea deschisă, se anunță pe loc
+let problemeVazute = null;
+function anuntaProbleme() {
+  const p = lucrariProbleme();
+  const vechi = problemeVazute;
+  problemeVazute = new Set(p.map((l) => l.id));
+  if (!vechi) return;
+  const deschisa = stare.ecran === 'lucrare' && stare.lucrare ? stare.lucrare.id : null;
+  const noi = p.filter((l) => !vechi.has(l.id) && l.id !== deschisa);
+  if (!noi.length) return;
+  const l = noi[0];
+  let t = document.getElementById('anunt-sync');
+  if (!t) {
+    t = document.createElement('div'); t.id = 'anunt-sync'; t.setAttribute('role', 'alert');
+    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;max-width:min(520px,calc(100vw - 32px));background:#fdecea;border:1px solid #efb7b2;color:var(--rosu,#b3261e);border-radius:12px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:flex;gap:10px;align-items:center;font-size:14px';
+    document.body.appendChild(t);
+  }
+  t.innerHTML = `<div style="flex:1"><b>${E(l.client || 'Lucrare')}</b> · ${E(motivProblema(l))}${noi.length > 1 ? ` (încă ${noi.length - 1})` : ''}</div>
+    <button type="button" class="buton gol" data-problema="${E(l.id)}">Deschide</button><button type="button" class="buton gol" aria-label="Închide" data-inchide>×</button>`;
+  legaProbleme(t);
+  t.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => t.remove()));
+  clearTimeout(anuntaProbleme.ceas);
+  anuntaProbleme.ceas = setTimeout(() => t.remove(), 15000);
 }
 function legaConflict(l) {
   const f = async (aMea) => {
@@ -9940,7 +10077,7 @@ function ecranRaport() {
     if (editabil && !consumValid()) return;
     dataDinCamp();
     if (!rap.persoana || !rap.data) { alert('Completați numele și data terminării înainte de validare.'); return; }
-    if (window.EXT && !window.EXT.gataDeTrimis(l)) return;
+    if (window.EXT && !window.EXT.gataDeTrimis(l, true)) return;
     if (!confirm('Validați raportul? După validare consumul nu se mai modifică decât dacă îl redeschideți.')) return;
     if (!l.antecalcul) {
       const rz = antecalculLucrare(l);
@@ -10111,6 +10248,7 @@ function ecranCont() {
       <div class="ajutor">Lucrările se păstrează pe telefon și se trimit singure când există semnal.</div>
       <button class="adauga" id="b-sync">Sincronizează acum</button>
     </div></section>
+    ${htmlProbleme()}
     <section class="card"><h2>Parola</h2><div class="corp">
       <div class="randuri2">
         ${campText('parola1', 'Parola nouă', '', 'password', 'autocomplete="new-password" minlength="8"')}
@@ -10120,6 +10258,7 @@ function ecranCont() {
     </div></section>`;
   $('#bara-in').innerHTML = '<button class="buton gol" id="b-iesire">Ieșire din cont</button>';
   $('#b-sync').onclick = async () => { await K.sincronizeaza(); ecranCont(); };
+  legaProbleme($('#ecran'));
   $('#b-parola').onclick = async () => {
     const a = $('#f-parola1').value, b = $('#f-parola2').value;
     if (a.length < 8) return alert('Parola trebuie să aibă cel puțin 8 caractere.');
@@ -10320,7 +10459,8 @@ function ecranAdmin() {
       }
       if (id === K.profil.id && rol !== 'admin' && !confirm('Vă scoateți singur rolul de Admin și ieșiți din Administrare. Continuați?')) { reface(); throw new Error('Anulat.'); }
       if (p.activ !== false && !activ && !confirm(`Dezactivați contul ${p.nume || p.email}? Nu mai poate vedea și raporta nimic până nu îl reactivați.`)) { reface(); throw new Error('Anulat.'); }
-      await K.salveazaProfil(id, Object.assign({ nume: $('#f-u_nume_' + CSS.escape(id)).value.trim(), rol, echipa_id: echipa, activ },
+      // rolurile fără echipă (birourile, Partenerul) nu păstrează echipa aleasă (E5)
+      await K.salveazaProfil(id, Object.assign({ nume: $('#f-u_nume_' + CSS.escape(id)).value.trim(), rol, echipa_id: cuEchipa(rol) ? echipa : null, activ },
         elPart ? { partener_id: rol === 'partener' ? partener : null } : {}));
       if (id === K.profil.id && rol !== 'admin') { du(K.rol() ? 'lista' : 'fara_rol'); return 'iesire'; }
       return null;
@@ -10334,9 +10474,14 @@ function ecranAdmin() {
       catch (e) { alert('Nu s-a putut schimba parola: ' + e.message); }
     };
   });
+  // câmpul Echipa se folosește doar la Lider, Membru și Mentenanță
+  const echipaDupaRol = (elRol, elEch) => { if (!elRol || !elEch) return; const f = () => { const are = cuEchipa(elRol.value); elEch.disabled = !are; if (!are) elEch.value = ''; }; elRol.addEventListener('change', f); if (!cuEchipa(elRol.value) && !elEch.value) elEch.disabled = true; };
+  echipaDupaRol($('#f-n_rol'), $('#f-n_echipa'));
+  document.querySelectorAll('[id^="f-u_rol_"]').forEach((el) => echipaDupaRol(el, document.getElementById('f-u_echipa_' + el.id.slice(8))));
   $('#b-cont-nou').onclick = () => ruleaza($('#b-cont-nou'), async () => {
     const d = { nume: $('#f-n_nume').value.trim(), email: $('#f-n_email').value.trim(), parola: $('#f-n_parola').value,
       rol: $('#f-n_rol').value, echipa_id: $('#f-n_echipa').value || null };
+    if (!cuEchipa(d.rol)) d.echipa_id = null;
     if ($('#f-n_partener') && d.rol === 'partener') d.partener_id = $('#f-n_partener').value || null;
     if (!d.nume || !d.email) throw new Error('Completați numele și emailul.');
     if (cuEchipa(d.rol) && !d.echipa_id) throw new Error('Liderul, membrii de echipă și Mentenanța au nevoie de o echipă.');
@@ -10382,7 +10527,7 @@ async function ecranArhiva() {
   $('#ecran').innerHTML = list.length ? list.map((l) => `
     <div class="lucrare" style="cursor:default">
       <div class="titlu">${E(l.client || 'Lucrare fără client')}</div>
-      <div class="info">${E(l.adresa || '')}${l.echipa ? ' · echipa ' + E(l.echipa) : ''} · ${E(STARI[stareLucrare(l)].t)}</div>
+      <div class="info">${E(l.adresa || '')}${l.echipa ? ' · echipa ' + E(l.echipa) : ''} · ${E((([t]) => t.charAt(0).toUpperCase() + t.slice(1))([window.EXT ? window.EXT.stareText(l).t : STARI[stareLucrare(l)].t]))}</div>
       <div class="actiuni" style="margin-top:10px">
         <button class="buton gol" data-restaureaza="${E(l.id)}">Restaurează</button>
         <button class="buton gol pericol" data-sterge-def="${E(l.id)}">Șterge definitiv</button>
@@ -10875,7 +11020,7 @@ function ecranNomenclator() {
   document.querySelectorAll('[data-clasa]').forEach((b) => { b.onclick = () => { n.clasa = b.dataset.clasa; ecranNomenclator(); }; });
   document.querySelectorAll('[data-seg="neg_filtru"] button').forEach((b) => { b.onclick = () => { n.filtruNeg = b.dataset.val; ecranNomenclator(); }; });
   if (tab === 'negasite') {
-    const ruleaza = async (f) => { try { await f(); ecranNomenclator(); } catch (e) { alert(e.message); } };
+    const ruleaza = async (f) => { try { await f(); ecranNomenclator(); } catch (e) { alert(K.mesajEroare(e)); } };
     const x = (b, k) => stare.negasite[+b.dataset[k]];
     document.querySelectorAll('[data-neg-leaga]').forEach((b) => { b.onclick = () => {
       const m = x(b, 'negLeaga'); const val = ($('#f-neg_' + b.dataset.negLeaga).value || '').split(' · ')[0].trim();
@@ -10887,7 +11032,7 @@ function ecranNomenclator() {
     document.querySelectorAll('[data-neg-ignora]').forEach((b) => { b.onclick = () => { const m = x(b, 'negIgnora'); if (confirm(`Ignorați „${m.den}”? Nu mai apare în lista de rezolvat.`)) ruleaza(() => K.salveazaPropunere({ cheie: m.cheie, den: m.den, um: m.um, stare: 'ignorat' })); }; });
     if ($('#b-neg-csv')) $('#b-neg-csv').onclick = () => {
       const neg = new Map(materialeNegasite().map((y) => [y.cheie, y]));
-      const rows = [['Material', 'UM', 'Lucrari', 'Cantitate totala']].concat((K.propuse || []).filter((y) => y.stare === 'cod_cerut').map((y) => [y.den, y.um, (neg.get(y.cheie) || {}).n || '', (neg.get(y.cheie) || {}).cant || '']));
+      const rows = [['Material', 'UM', 'Lucrări', 'Cantitate totală']].concat((K.propuse || []).filter((y) => y.stare === 'cod_cerut').map((y) => [y.den, y.um, (neg.get(y.cheie) || {}).n || '', (neg.get(y.cheie) || {}).cant || '']));
       const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map((r) => r.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
@@ -11310,6 +11455,8 @@ function inapoi() {
   const e = stare.ecran, l = stare.lucrare;
   if ((e === 'form' || e === 'raport') && !iesireCuModificari(inapoi)) return;
   if (['etape', 'probleme', 'client', 'preturi'].includes(e) && !poatePleca(inapoi)) return;
+  // pozele deschise din fișă: „Înapoi” revine pe fișă (D6)
+  if (e === 'poze' && stare.pozeDinFisa && l && window.EXT && K.activ) { stare.pozeDinFisa = false; du('lucrare', l); return; }
   // cu cont, ecranele unei lucrări sunt tab-uri: „Înapoi” iese din lucrare, acolo de unde a fost deschisă
   if (window.EXT && K.activ && K.serverV2 && ['form', 'rezultat', 'raport', 'poze'].includes(e) && l && citesteTot().some((x) => x.id === l.id)) {
     if (stare.alocareNesalvata) {
@@ -11380,6 +11527,11 @@ window.addEventListener('popstate', () => {
 capcana();
 // Închiderea paginii cu modificări nesalvate: browserul întreabă; oricum rămâne ciorna.
 window.addEventListener('beforeunload', (ev) => { if (aSchimbat()) { ev.preventDefault(); ev.returnValue = ''; } });
+// fișa lucrării: ce s-a scris se salvează pe telefon și când pagina se închide sau trece în fundal
+// (reîncărcare, aplicația închisă), nu doar după pauza salvării automate
+const salveazaFisaLaIesire = () => { try { if (stare.ecran === 'lucrare' && window.EXT && window.EXT.salveazaFisaAcum) window.EXT.salveazaFisaAcum(); } catch (e) { /* */ } };
+window.addEventListener('pagehide', salveazaFisaLaIesire);
+document.addEventListener('visibilitychange', () => { if (document.hidden) salveazaFisaLaIesire(); });
 // Orice scriere sau atingere în formular ori raport ține ciorna la zi.
 ['input', 'change', 'click'].forEach((t) => $('#ecran').addEventListener(t, () => {
   if (['form', 'raport'].includes(stare.ecran)) scrieCiorna();
@@ -11409,6 +11561,7 @@ function oferaCiorna() {
 // (s-ar pierde ce se scrie în ele); se actualizează doar textul de stare.
 K.laSchimbare((motiv) => {
   const e = stare.ecran;
+  if (motiv === 'sync') anuntaProbleme();
   if (motiv === 'rol') {
     if (!K.rol()) return du('fara_rol');
     if (e === 'fara_rol' || e === 'lista' || e === 'start') return du(areStart() ? 'start' : 'lista');
@@ -11428,11 +11581,13 @@ K.laSchimbare((motiv) => {
   if ((e === 'start' || e === 'coada' || e === 'departament') && motiv !== 'catalog') return deseneaza();
   // fișa deschisă, fără modificări în lucru: după sincronizare arată ce e pe server (data mutată de
   // Planificare, stocul confirmat de Gestiune), nu copia de la deschidere
-  if (motiv === 'lucrari' && e === 'lucrare' && stare.lucrare && window.EXT && !(window.EXT.fisaAtinsa && window.EXT.fisaAtinsa())
+  if ((motiv === 'lucrari' || motiv === 'sync') && e === 'lucrare' && stare.lucrare && window.EXT && !(window.EXT.fisaAtinsa && window.EXT.fisaAtinsa())
     && !stare.alocareNesalvata && !(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))
     && !document.querySelector('.modal-problema')) {
     const s2 = citesteTot().find((x) => x.id === stare.lucrare.id);
-    if (s2 && s2._v != null && s2._v !== stare.lucrare._v && !stare.lucrare._murdar) {
+    // conflictul apărut pe lucrarea deschisă se arată pe loc pe fișă (A6)
+    const conflictNou = s2 && (s2._conflict || s2._eroare) && !(stare.lucrare._conflict || stare.lucrare._eroare);
+    if (s2 && (conflictNou || (motiv === 'lucrari' && s2._v != null && s2._v !== stare.lucrare._v && !stare.lucrare._murdar))) {
       const y = window.scrollY;
       stare.lucrare = s2; deseneaza(); window.scrollTo(0, y);
       return;
@@ -11456,7 +11611,7 @@ window.APP = {
   get stare() { return stare; }, du, deseneaza, salveaza, E, $, nr, nrK, poate, K, C, M, citesteTot, scurt,
   htmlIstoric, htmlContBara, htmlConflict, legaConflict, htmlAlocare, legaAlocare, htmlAdminLucrare, legaAdminLucrare, calculeazaLucrarea, antecalculLucrare, campuriLipsa,
   lucrareNoua, stareLucrare, STARI, deschide, htmlCardLucrare, areConsum, timpRelativ, ziISO, citesteNumar, consumLinie, fara,
-  poatePleca, acasa, inapoi, ecranLista, numeEchipaL, textSync, dataActivitate,
+  poatePleca, acasa, inapoi, ecranLista, numeEchipaL, textSync, dataActivitate, lucrariProbleme,
 };
 $('#ecran').innerHTML = '<div class="gol-text">Se încarcă…</div>';
 K.porneste().then((s) => {
@@ -11630,6 +11785,8 @@ function cale() {
     if (SUBECRAN[e]) c.push({ t: SUBECRAN[e] });
   } else if (e === 'tipNou') c.push({ t: 'Lucrare nouă' });
   else if (e === 'produs') c.push({ t: 'Produs' });
+  else if (e === 'arhiva') c.push({ t: 'Lucrări arhivate' });
+  else if (e === 'catalog' || e === 'catalogItem') c.push({ t: 'Catalog' });
   else if (e === 'client') c.push({ t: (st.clientEditat && st.clientEditat.nume) || 'Client' });
   // ultimul element nu e legătură
   c[c.length - 1].go = null;
@@ -11717,6 +11874,7 @@ function taburiLucrare() {
       if (id === e) return;
       if (!A().poatePleca(du)) return;
       if (id === 'rezultat') st.rezultatDinLista = true;
+      if (id === 'poze') st.pozeDinFisa = false;   // tab-urile ies din lucrare la „Înapoi”; butonul de pe fișă revine pe fișă
       A().du(id, A().stare.lucrare || l);
     };
     b.onclick = du;
@@ -11850,13 +12008,14 @@ function actualizeaza() {
 /* ------------------------------------- sincronizarea, în antet, pe orice ecran ---- */
 function scurtSync() {
   const s = K.sync;
-  if (s.ruleaza) return { t: 'Se trimite…', c: '' };
-  if (s.eroare) return { t: /Sesiunea/.test(s.eroare) ? 'Intrați din nou în cont' : 'Eroare la trimitere', c: 'rau' };
-  if (!s.online) return { t: s.deTrimis ? `Fără semnal · ${s.deTrimis} de trimis` : 'Fără semnal', c: 'atentie' };
-  if (s.conflicte) return { t: `${s.conflicte} în conflict`, c: 'rau' };
-  if (s.refuzate) return { t: `${s.refuzate} ${s.refuzate === 1 ? 'refuzată' : 'refuzate'}`, c: 'rau' };
-  if (s.deTrimis) return { t: `${s.deTrimis} de trimis`, c: 'atentie' };
-  return { t: 'Sincronizat', c: 'bine' };
+  // m = textul pe telefon îngust, ca titlul (numele clientului) să rămână vizibil
+  if (s.ruleaza) return { t: 'Se trimite…', m: '…', c: '' };
+  if (s.eroare) return { t: /Sesiunea/.test(s.eroare) ? 'Intrați din nou în cont' : 'Eroare la trimitere', m: /Sesiunea/.test(s.eroare) ? 'Cont' : 'Eroare', c: 'rau' };
+  if (!s.online) return { t: s.deTrimis ? `Fără semnal · ${s.deTrimis} de trimis` : 'Fără semnal', m: s.deTrimis ? `${s.deTrimis} netrimis` : 'Offline', c: 'atentie' };
+  if (s.conflicte) return { t: `${s.conflicte} în conflict`, m: `${s.conflicte} conflict`, c: 'rau' };
+  if (s.refuzate) return { t: `${s.refuzate} ${s.refuzate === 1 ? 'refuzată' : 'refuzate'}`, m: `${s.refuzate} refuz.`, c: 'rau' };
+  if (s.deTrimis) return { t: `${s.deTrimis} de trimis`, m: `${s.deTrimis} netrimis`, c: 'atentie' };
+  return { t: 'Sincronizat', m: '', c: 'bine' };
 }
 function indicatorSync() {
   const h = document.querySelector('header .in');
@@ -11865,7 +12024,12 @@ function indicatorSync() {
   if (!b) {
     b = document.createElement('button');
     b.type = 'button'; b.id = 'sync-antet';
-    b.onclick = () => mergi('cont');
+    // o singură lucrare în conflict: clicul duce direct la ea; altfel la „Contul meu”, cu lista lor
+    b.onclick = () => {
+      const p = A().lucrariProbleme ? A().lucrariProbleme() : [];
+      if (p.length === 1 && A().poatePleca(() => b.onclick())) { inchideFoi(); A().stare.revenireLucrare = A().stare.ecran === 'lucrare' ? A().stare.revenireLucrare : A().stare.ecran; A().du('lucrare', p[0]); return; }
+      if (p.length !== 1) mergi('cont');
+    };
     h.appendChild(b);
   }
   const x = scurtSync();
@@ -11873,7 +12037,7 @@ function indicatorSync() {
   b.className = 'sync-a ' + x.c;
   b.title = lung;
   b.setAttribute('aria-label', 'Sincronizare: ' + lung);
-  b.innerHTML = `<span class="sync-p" aria-hidden="true"></span><span class="sync-t">${E(x.t)}</span>`;
+  b.innerHTML = `<span class="sync-p" aria-hidden="true"></span><span class="sync-t">${E(x.t)}</span>${x.m ? `<span class="sync-m" aria-hidden="true">${E(x.m)}</span>` : ''}`;
 }
 let programat = false;
 const curand = () => { if (programat) return; programat = true; requestAnimationFrame(() => { programat = false; actualizeaza(); }); };
@@ -11930,7 +12094,9 @@ body.ui input:focus,body.ui select:focus,body.ui textarea:focus{border-color:var
 }
 /* pe calculator, starea apare în antet doar când cere atenție (fără semnal, de trimis, conflict, sesiune) */
 @media (min-width:1000px){body.ui #sync-antet.bine{display:none}}
-@media (max-width:420px){#sync-antet{max-width:36vw}}
+@media (max-width:420px){#sync-antet{max-width:28vw}#sync-antet .sync-t{display:none}#sync-antet .sync-m{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+#sync-antet .sync-m{display:none}
+@media (max-width:420px){#sync-antet .sync-m{display:inline}}
 /* densitate: mai multe rânduri pe ecran */
 body.ui .card{margin-top:10px;border-radius:10px;box-shadow:none}
 body.ui .card > h2{padding:10px 14px 0;font-size:12px}
@@ -11960,6 +12126,7 @@ body.ui .start-h{margin:14px 0 6px}
 /* tab-urile lucrării */
 .tabs-l{display:flex;gap:4px;overflow-x:auto;margin:10px 0 0;border-bottom:1px solid var(--linie);scrollbar-width:none}
 .tabs-l::-webkit-scrollbar{display:none}
+@media (max-width:400px){.tl{font-size:13px;padding:9px 7px}.tabs-l{gap:0}}
 .tl{flex:none;border:0;background:none;font:inherit;font-size:14px;color:var(--slab);padding:9px 10px;border-bottom:3px solid transparent;cursor:pointer;min-height:44px}
 .tl.on{color:var(--gri);font-weight:700;border-bottom-color:var(--galben)}
 .tl small{margin-left:5px;font-size:11.5px;font-weight:700;color:var(--verde-text)}
@@ -12055,6 +12222,7 @@ body.cu-tab .wrap{margin-bottom:64px}
 .coada-rand:hover{background:#fafaf6}
 .coada-rand b{font-size:14px}
 .coada-rand span{font-size:12.5px;color:var(--slab)}
+.coada-rand span.motiv-resp{color:var(--rosu)}
 .coada-toate{display:block;width:100%;border:0;border-top:1px solid #f0f0ee;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--verde-text);padding:8px 12px;text-align:left;cursor:pointer}
 .tile.coada-cap{justify-content:flex-start}
 .nav-tiles{gap:6px}
