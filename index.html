@@ -4262,7 +4262,9 @@ function salveaza(l) {
   // serverul l-a confirmat cu versiunea `_v`. Doar atunci se preia versiunea nouă; o versiune
   // venită de la altcineva nu are `_baza` și duce, corect, la conflict.
   const prev = i >= 0 ? list[i] : null;
-  if (ACTIV && prev && prev !== l && prev._baza && prev._baza === l.modificat && prev._v != null) {
+  // (Dacă fișa are amprentele de la deschidere, preferăm unirea pe câmpuri de mai jos: versiunea confirmată
+  // poate cuprinde și schimbările altcuiva, unite la trimitere — data mutată, stocul confirmat.)
+  if (ACTIV && prev && prev !== l && prev._baza && prev._baza === l.modificat && prev._v != null && !(l._h && l._v != null && l._v !== prev._v)) {
     l._v = prev._v; l._stare = prev._stare; l._baza = prev._baza;
   }
   // Fișa deschisă e mai veche decât lucrarea de pe telefon (sincronizarea a adus între timp versiunea
@@ -5726,11 +5728,11 @@ function htmlMateriale(lista, ed, p) {
   const m = lista || [];
   return `<div class="sectiune-titlu" style="margin-top:14px">Materiale folosite</div>
     ${m.length ? '' : '<div class="ajutor">Niciun material trecut.</div>'}
-    ${m.map((x, i) => `<div class="randuri3 mat-rand" style="grid-template-columns:1fr 70px 80px auto">
-      ${camp(`${p}_m_den_${i}`, i ? '' : 'Material', x.den, `list="x-nomenclator" ${ed ? '' : 'disabled'}`)}
+    ${m.map((x, i) => `<div class="randuri3 mat-rand">
+      ${camp(`${p}_m_den_${i}`, i ? '' : 'Material', x.den, `list="x-nomenclator" title="${E(x.den || '')}" ${ed ? '' : 'disabled'}`)}
       ${camp(`${p}_m_um_${i}`, i ? '' : 'UM', x.um || 'buc', ed ? '' : 'disabled')}
-      ${camp(`${p}_m_cant_${i}`, i ? '' : 'Cantitate', x.cant, `inputmode="decimal" ${ed ? '' : 'disabled'}`)}
-      ${ed ? `<button type="button" class="sterge" data-sterge-mat="${i}" aria-label="Șterge">×</button>` : ''}</div>`).join('')}
+      ${camp(`${p}_m_cant_${i}`, i ? '' : 'Cantitate', x.cant != null ? x.cant : (x.gresit || ''), `inputmode="decimal" ${x.gresit && x.cant == null ? 'aria-invalid="true" title="Cantitate greșită: scrieți doar un număr (ex. 2 sau 2,5)"' : ''} ${ed ? '' : 'disabled'}`)}
+      ${ed ? `<button type="button" class="sterge" data-sterge-mat="${i}" aria-label="Șterge">×</button>` : ''}</div>${x.gresit && x.cant == null ? `<div class="mesaj warn mat-gresit">Cantitatea „${E(x.gresit)}” nu e un număr. Scrieți doar cifra (ex. 2 sau 2,5).</div>` : ''}`).join('')}
     ${ed ? `<button type="button" class="adauga" id="x-mat-nou">+ Material</button>
     <datalist id="x-nomenclator">${((window.NOMENCLATOR && window.NOMENCLATOR.produse) || []).slice(0, 2000).map((x) => `<option value="${E(x.den)}">`).join('')}</datalist>` : ''}`;
 }
@@ -5964,6 +5966,8 @@ function pasUrmator(l, ed) {
   if (rap.finalizat || rap.validat) return null;
   // la montaj, întâi pre-calculul (materialele), apoi pozele
   if (t === 'montaj_nou' && !l.antecalcul && !l.rezumatSalvat && A().poate('editeaza', l)) return { id: 'precalcul', t: 'Fă pre-calculul' };
+  // ziua e închisă cu PV intermediar: întâi se reia lucrul (abia apoi poze, PV final)
+  if (t === 'montaj_nou' && l.fazaIntermediara) return { id: 'reia', t: 'Reia lucrul' };
   const lipsa = etapeLipsa(l);
   if (lipsa.length) return { id: 'poze', t: `Fă pozele (${lipsa.length} ${lipsa.length === 1 ? 'etapă lipsă' : 'etape lipsă'})` };
   if (t !== 'montaj_nou' && formLipsa(l).length) return { id: 'form', t: 'Completează fișa' };
@@ -6174,6 +6178,7 @@ function legaLucrare(l) {
   };
   if ($('#x-pas')) $('#x-pas').onclick = () => {
     const p = $('#x-pas').dataset.pas;
+    if (p === 'reia') return $('#x-reia') && $('#x-reia').click();
     if (p === 'poze') return $('#x-poze') && $('#x-poze').click();
     if (p === 'pv') return $('#x-pv') && $('#x-pv').click();
     if (p === 'raport') return $('#x-raport') ? $('#x-raport').click() : A().du('raport', l);
@@ -6219,6 +6224,11 @@ function montajDinVizita(vz) {
  * Verificările: Tehnic, Prosumator, Facturare, reținerea (Admin), stocul (Gestiune)
  * Fiecare rol își scrie doar partea lui; serverul pune cine și când.
  * ------------------------------------------------------------------ */
+// închisă definitiv: certificat de prosumator trecut sau facturare „facturat” / „achitat”
+function inchisaDefinitiv(l) {
+  const ve = l.verificari || {};
+  return !!(ve.prosumator || {}).certificat || ['facturat', 'achitat'].includes((ve.facturare || {}).stare);
+}
 function htmlVerificari(l) {
   const ve = l.verificari || {};
   const t = tipL(l);
@@ -6233,13 +6243,15 @@ function htmlVerificari(l) {
   const stariT = [{ v: 'in_analiza', t: 'În analiză' }, { v: 'aprobat', t: t === 'interventie' ? 'Aprobat la plată' : 'Aprobat' },
     { v: 'respins', t: 'Respins (se întoarce la echipă)' }].concat(t === 'interventie' ? [{ v: 'neaprobat', t: 'Neaprobat la plată' }] : []);
   const textT = (s) => (stariT.find((x) => x.v === s) || {}).t || 'nedecis';
+  // lucrarea închisă definitiv (certificat de prosumator sau facturată): decizia o mai schimbă doar Adminul (N3)
+  const tehnicBlocat = inchisaDefinitiv(l) && K.rol() !== 'admin';
   if (vizibil) {
-    blocuri.push(P('verificaTehnic') ? `<div class="verif"><h3>Verificare tehnică</h3>
+    blocuri.push(P('verificaTehnic') && !tehnicBlocat ? `<div class="verif"><h3>Verificare tehnică</h3>
         ${alege('vt-stare', 'Decizia', vt.stare || 'in_analiza', stariT)}
         ${alege('vt-motiv', 'Motiv (la respingere)', vt.motiv || '', [''].concat(MOTIVE))}
         ${zona('vt-obs', 'Observații pentru echipă / management', vt.obs)}
         <button class="adauga" id="x-vt-salv">Salvează decizia tehnică</button>${vt.de ? `<div class="ajutor">Ultima decizie${cine(vt)}</div>` : ''}</div>`
-      : `<div class="verif"><h3>Verificare tehnică</h3><div>${E(textT(vt.stare))}${vt.motiv ? ' · ' + E(vt.motiv) : ''}${cine(vt)}</div>${vt.obs ? `<div class="ajutor">${E(vt.obs)}</div>` : ''}</div>`);
+      : `<div class="verif"><h3>Verificare tehnică</h3><div>${E(textT(vt.stare))}${vt.motiv ? ' · ' + E(vt.motiv) : ''}${cine(vt)}</div>${vt.obs ? `<div class="ajutor">${E(vt.obs)}</div>` : ''}${P('verificaTehnic') && tehnicBlocat ? '<div class="mesaj ok" id="x-vt-blocat">Lucrarea e închisă definitiv (certificat de prosumator sau facturată). Decizia tehnică o mai schimbă doar Adminul.</div>' : ''}</div>`);
     if ((ve.tehnicIstoric || []).length) blocuri.push(`<div class="ajutor">Respingeri anterioare: ${ve.tehnicIstoric.map((x) => `${E(dataRo(x.data))} — ${E(x.motiv || '')}`).join('; ')}</div>`);
   }
   // prosumator
@@ -6270,7 +6282,7 @@ function htmlVerificari(l) {
         ${anexa.length ? `${alege('vf-anexa', 'Materiale suplimentare (anexa semnată)', vf.anexa || '', [{ v: '', t: '—' }, { v: 'de_facturat', t: 'De facturat clientului' }, { v: 'facturat', t: 'Facturate' }, { v: 'achitat', t: 'Achitate' }])}` : ''}
         ${zona('vf-obs', 'Observații facturare', vf.obs)}
         <button class="adauga" id="x-vf-salv">Salvează facturarea</button>${cine(vf) ? `<div class="ajutor">Ultima modificare${cine(vf)}</div>` : ''}
-        ${sp.est || sp.fara.length ? `<div class="ajutor">Materiale cumpărate de partener: ${E(lei(sp.est))} estimat${sp.real !== sp.est ? `, ${E(lei(sp.real))} după consumul raportat` : ''}${sp.fara.length ? ` · ${sp.fara.length} ${sp.fara.length === 1 ? 'linie' : 'linii'} fără preț` : ''}</div>` : ''}</div>`
+        ${sp.est || sp.fara.length ? `<div class="ajutor">Materiale cumpărate de partener: ${A().areConsum(l.raportat) || ['interventie', 'upsales'].includes(tipL(l)) ? `${E(lei(sp.real))} (real, din consum)${sp.real !== sp.est ? ` · estimat ${E(lei(sp.est))}` : ''}` : `${E(lei(sp.est))} (estimat)`}${sp.fara.length ? ` · ${sp.fara.length} ${sp.fara.length === 1 ? 'linie' : 'linii'} fără preț` : ''}</div>` : ''}</div>`
       : `<div class="verif"><h3>Facturare</h3><div>${E({ verificat: 'Verificat, de facturat', facturat: 'Facturat', achitat: 'Achitat' }[vf.stare] || '—')}${cine(vf)}</div></div>`);
   }
   // reținere (Admin)
@@ -6297,6 +6309,7 @@ function legaVerificari(l) {
     A().salveaza(l); if (mesaj) alert(mesaj); ecranLucrare();
   };
   if ($('#x-vt-salv')) $('#x-vt-salv').onclick = () => {
+    if (inchisaDefinitiv(l) && K.rol() !== 'admin') { alert('Lucrarea e închisă definitiv. Decizia tehnică o mai schimbă doar Adminul.'); return; }
     const s = v('vt-stare'), motiv = v('vt-motiv'), obs = v('vt-obs').trim();
     if ((s === 'respins' || s === 'neaprobat') && !motiv) { alert('Alegeți motivul.'); return; }
     if (s === 'respins' && !confirm('Respingeți lucrarea? Se întoarce la echipă cu motivul ales.')) return;
@@ -6580,9 +6593,9 @@ function ecranPreturi() {
       <div class="randuri2">${camp('pr-um', 'UM', 'm')}${camp('pr-pret', 'Preț (lei)', '', 'inputmode="decimal"')}</div>
       <button class="adauga" id="x-pr-nou">+ Adaugă prețul</button></div></section>` : ''}`;
   bara('');
-  const pret = (id) => { const c = A().citesteNumar(v(id)); return typeof c === 'number' && c >= 0 ? c : (v(id).trim() === '' ? null : NaN); };
+  const pret = (id) => { const c = A().citesteNumar(v(id)); return typeof c === 'number' && c > 0 ? c : (v(id).trim() === '' ? null : NaN); };
   // prețul gol nu se salvează (pentru scos e „×”); negativ sau text: mesaj potrivit (E5)
-  const pretBun = (x) => { if (x == null) { alert('Scrieți prețul.'); return false; } if (Number.isNaN(x)) { alert('Prețul trebuie să fie un număr pozitiv (de exemplu 4,50).'); return false; } return true; };
+  const pretBun = (x) => { if (x == null) { alert('Scrieți prețul.'); return false; } if (Number.isNaN(x)) { alert('Prețul trebuie să fie un număr mai mare ca zero (de exemplu 4,50).'); return false; } return true; };
   // prețurile scrise pe alte rânduri și nesalvate încă rămân după redesenare
   const ruleaza = async (f, salvat) => {
     const scrise = [...document.querySelectorAll('#ecran input[data-den]')].filter((x) => x.value !== x.defaultValue && x.dataset.den !== salvat).map((x) => [x.dataset.den, x.value]);
@@ -7137,8 +7150,8 @@ function htmlRaportEchipa(l) {
   const r = [];
   const rand = (et, v) => (v ? `<div class="verif-rand"><span>${E(et)}</span><b>${E(v)}</b></div>` : '');
   if (t === 'interventie') { const x = l.interventie || {}; r.push(rand('Constatat', x.constatat), rand('Efectuat', x.efectuat), rand('Vina', x.vina), rand('Sursa', x.sursa), rand('Sistemul lăsat', x.lasat)); }
-  if (t === 'upsales') { const u = l.upsales || {}; r.push(rand('Echipament', [u.echipament, u.model, u.cant ? '× ' + u.cant : ''].filter(Boolean).join(' ')), rand('Observații', u.obs)); }
-  if (t === 'vizita_tehnica') { const x = l.vizita || {}; r.push(rand('Branșament', x.bransament), rand('Înălțime', x.inaltime_m != null ? x.inaltime_m + ' m' : ''), rand('Distanța invertor – tablou', x.distanta_m != null ? x.distanta_m + ' m' : ''), rand('Observații', x.obs)); }
+  if (t === 'upsales') { const u = l.upsales || {}; r.push(rand('Echipament', [u.echipament, u.model, u.cant ? '× ' + nrText(u.cant) : ''].filter(Boolean).join(' ')), rand('Observații', u.obs)); }
+  if (t === 'vizita_tehnica') { const x = l.vizita || {}; r.push(rand('Branșament', x.bransament), rand('Înălțime', x.inaltime_m != null ? nrText(x.inaltime_m) + ' m' : ''), rand('Distanța invertor – tablou', x.distanta_m != null ? nrText(x.distanta_m) + ' m' : ''), rand('Observații', x.obs)); }
   if (t === 'pif') { const x = l.pif || {}; r.push(rand('Sistem online', x.online ? 'da' : ''), rand('Client instruit', x.instruit ? 'da' : ''), rand('Observații', x.obs)); }
   const rap = l.raportat || {};
   r.push(rand('Observații raport', rap.obs || rap.observatii), rand('Raport trimis', rap.finalizat ? `${rap.finalizat.de || ''}, ${dataRo(rap.finalizat.data)}` : ''),
@@ -7609,7 +7622,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.8';
+const VERSIUNE_APP = '2.8.1';
 const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
 const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
 const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };
@@ -8024,7 +8037,13 @@ table.rap.mic th,table.rap.mic td{padding:6px 6px;border-bottom:1px solid var(--
 table.rap.mic td.n{text-align:right;white-space:nowrap}
 .mat-rand .camp label:empty{display:none}
 .mat-rand{align-items:end}
+.pret-rand .sterge{position:static;flex:0 0 44px;color:var(--rosu)}
 .mat-rand .sterge{position:static;width:44px;height:44px;align-self:end;margin-bottom:2px}
+.mat-rand{grid-template-columns:1fr 70px 80px auto}
+.mat-rand input[aria-invalid="true"]{border-color:var(--rosu);background:#fff5f5}
+.mat-gresit{margin:2px 0 8px;font-size:13px}
+/* pe telefon: numele materialului pe un rând întreg, UM, cantitatea și × dedesubt (N4) */
+@media (max-width:600px){.mat-rand{grid-template-columns:1fr 1fr auto;row-gap:4px;padding-bottom:8px;border-bottom:1px solid var(--linie)}.mat-rand>.camp:first-child{grid-column:1/-1}}
 `;
 document.head.appendChild(css);
 })();
@@ -8585,8 +8604,9 @@ function htmlPreviz(l) {
 function deseneazaListaFiltrata(toate) {
   const tab = cardCurent();
   const q = fara((stare.cauta || '').trim());
-  // căutarea caută în toate lucrările, nu doar în perioada aleasă
-  let list = toate.filter((l) => (q || inPerioada(l)) && inCard(tab, l));
+  // căutarea caută în toate lucrările: oricare perioadă și oricare filă (N6)
+  let list = toate.filter((l) => (q ? !l._arhivat : inPerioada(l) && inCard(tab, l)));
+  const notaCautare = q ? '<div class="ajutor nota-cautare" style="padding:4px 2px 8px">Căutarea arată rezultate din toate lucrările, oricare ar fi fila aleasă.</div>' : '';
   if (q) {
     list = list.filter((l) => fara([l.client, l.adresa, numeEchipaL(l), l.persoana, (l.raportat || {}).persoana]
       .concat((l._alocati || []).map((id) => K.numeOm(id))).join(' ')).includes(q));
@@ -8615,7 +8635,7 @@ function deseneazaListaFiltrata(toate) {
     if (so && SORT[so.k]) list.sort((a, b) => so.d * String(SORT[so.k](a)).localeCompare(String(SORT[so.k](b)), 'ro', { numeric: true }));
     const th = (k, t) => `<th aria-sort="${so && so.k === k ? (so.d > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-s" data-sort="${k}">${t}${so && so.k === k ? (so.d > 0 ? ' ▲' : ' ▼') : ''}</button></th>`;
     if (!list.some((l) => l.id === stare.selLista)) stare.selLista = list.length ? list[0].id : null;
-    el.innerHTML = filtre + `<div class="md"><div class="md-lista">${list.length ? `<table class="tab-l"><thead><tr>${th('client', 'Client')}${th('tip', 'Tip')}${th('stare', 'Stare')}${th('echipa', 'Echipă')}${th('partener', 'Partener')}${th('data', 'Data')}${th('poze', 'Poze')}</tr></thead><tbody>
+    el.innerHTML = notaCautare + filtre + `<div class="md"><div class="md-lista">${list.length ? `<table class="tab-l"><thead><tr>${th('client', 'Client')}${th('tip', 'Tip')}${th('stare', 'Stare')}${th('echipa', 'Echipă')}${th('partener', 'Partener')}${th('data', 'Data')}${th('poze', 'Poze')}</tr></thead><tbody>
       ${list.map(randTabel).join('')}</tbody></table>` : '<div class="gol-text" style="padding:28px 20px">Nicio lucrare nu se potrivește filtrelor.</div>'}</div><aside class="md-det" id="md-det" aria-label="Lucrarea aleasă"></aside></div>`;
     el.querySelectorAll('[data-tf]').forEach((s) => { s.onchange = () => { stare.filtruL = Object.assign({}, stare.filtruL, { [s.dataset.tf]: s.value }); deseneazaListaFiltrata(citesteTot()); }; });
     if ($('#tf-sterge')) $('#tf-sterge').onclick = () => { stare.filtruL = null; deseneazaListaFiltrata(citesteTot()); };
@@ -8655,7 +8675,7 @@ function deseneazaListaFiltrata(toate) {
     arata();
     return;
   }
-  el.innerHTML = list.length ? list.map(htmlCardLucrare).join('')
+  el.innerHTML = list.length ? notaCautare + list.map(htmlCardLucrare).join('')
     : `<div class="gol-text" style="padding:28px 20px">${q ? 'Nicio lucrare nu se potrivește căutării.' : E(tab.gol)}</div>`;
   el.querySelectorAll('[data-deschide]').forEach((b) => {
     b.onclick = () => { const l = citesteTot().find((x) => x.id === b.dataset.deschide); if (l) deschide(l); };
@@ -10005,7 +10025,7 @@ function ecranRaport() {
   };
   // consumul nu poate fi negativ; câmpurile greșite se marchează
   const consumValid = () => {
-    let rau = 0;
+    let rau = 0; const greseli = [];
     document.querySelectorAll('[data-rap], [data-extra][data-k="cant"]').forEach((el) => {
       const c = citesteNumar(el.value);
       const v = c == null ? null : (typeof c === 'number' ? c : NaN);
@@ -10013,9 +10033,17 @@ function ecranRaport() {
       const um = el.dataset.um || (el.dataset.extra != null ? ((rap.extra[+el.dataset.extra] || {}).um || '') : '');
       const gresit = v != null && (!isFinite(v) || v < 0 || (/^buc/i.test(um.trim()) && !Number.isInteger(v)));
       el.classList.toggle('lipsa', gresit);
-      if (gresit) rau++;
+      if (gresit) {
+        rau++;
+        // numele liniei: denumirea din cheia „secțiune|material” sau din rândul materialului în plus
+        const den = el.dataset.rap ? el.dataset.rap.split('|').slice(1).join('|') : ((rap.extra[+el.dataset.extra] || {}).den || 'material în plus');
+        greseli.push(`${den} („${String(el.value).trim()}”)`);
+      }
     });
-    if (rau) { alert(`${rau === 1 ? 'O valoare' : rau + ' valori'} de consum nu ${rau === 1 ? 'e validă' : 'sunt valide'}: consumul se trece ca număr pozitiv (la bucăți, întreg) sau se lasă gol.`); return false; }
+    if (rau) {
+      const prim = document.querySelector('[data-rap].lipsa, [data-extra].lipsa'); if (prim) prim.focus();
+      alert(`${rau === 1 ? 'Valoarea de consum nu e validă' : rau + ' valori de consum nu sunt valide'}: ${greseli.slice(0, 6).join('; ')}${greseli.length > 6 ? '…' : ''}.\nConsumul se trece ca număr pozitiv (la bucăți, întreg) sau se lasă gol.`); return false;
+    }
     // un material în plus are nevoie de denumire, altfel nu apare în PDF
     const faraNume = [];
     rap.extra.forEach((x, i) => { if (!String(x.den || '').trim() && (x.cant != null || String(x.um || '').trim() !== 'buc')) faraNume.push(i); });
@@ -11587,7 +11615,10 @@ K.laSchimbare((motiv) => {
     const s2 = citesteTot().find((x) => x.id === stare.lucrare.id);
     // conflictul apărut pe lucrarea deschisă se arată pe loc pe fișă (A6)
     const conflictNou = s2 && (s2._conflict || s2._eroare) && !(stare.lucrare._conflict || stare.lucrare._eroare);
-    if (s2 && (conflictNou || (motiv === 'lucrari' && s2._v != null && s2._v !== stare.lucrare._v && !stare.lucrare._murdar))) {
+    // după o salvare, fișa rămâne pe obiectul trimis: se ia copia din telefon când serverul a confirmat
+    // o versiune nouă (a noastră unită cu a altora) sau când trimiterea a plecat între timp
+    const maiNoua = s2 && s2._v != null && (s2._v !== stare.lucrare._v || (!!stare.lucrare._murdar && !s2._murdar));
+    if (s2 && (conflictNou || maiNoua)) {
       const y = window.scrollY;
       stare.lucrare = s2; deseneaza(); window.scrollTo(0, y);
       return;
@@ -12010,8 +12041,8 @@ function scurtSync() {
   const s = K.sync;
   // m = textul pe telefon îngust, ca titlul (numele clientului) să rămână vizibil
   if (s.ruleaza) return { t: 'Se trimite…', m: '…', c: '' };
-  if (s.eroare) return { t: /Sesiunea/.test(s.eroare) ? 'Intrați din nou în cont' : 'Eroare la trimitere', m: /Sesiunea/.test(s.eroare) ? 'Cont' : 'Eroare', c: 'rau' };
-  if (!s.online) return { t: s.deTrimis ? `Fără semnal · ${s.deTrimis} de trimis` : 'Fără semnal', m: s.deTrimis ? `${s.deTrimis} netrimis` : 'Offline', c: 'atentie' };
+  if (s.eroare) return { t: /Sesiunea/.test(s.eroare) ? 'Intrați din nou în cont' : 'Eroare la trimitere', m: /Sesiunea/.test(s.eroare) ? 'Reintrați' : 'Eroare', c: 'rau' };
+  if (!s.online) return { t: s.deTrimis ? `Fără semnal · ${s.deTrimis} de trimis` : 'Fără semnal', m: s.deTrimis ? `Fără semnal · ${s.deTrimis}` : 'Fără semnal', c: 'atentie' };
   if (s.conflicte) return { t: `${s.conflicte} în conflict`, m: `${s.conflicte} conflict`, c: 'rau' };
   if (s.refuzate) return { t: `${s.refuzate} ${s.refuzate === 1 ? 'refuzată' : 'refuzate'}`, m: `${s.refuzate} refuz.`, c: 'rau' };
   if (s.deTrimis) return { t: `${s.deTrimis} de trimis`, m: `${s.deTrimis} netrimis`, c: 'atentie' };
