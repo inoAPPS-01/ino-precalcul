@@ -4586,7 +4586,7 @@ const eRevocataText = (e) => !!e && /session_not_found|session.*(not found|does 
 const MESAJ_REVOCAT = 'Parola contului a fost schimbată de Admin. Intrați cu parola primită.';
 // telefonul iese din cont; lucrările netrimise rămân pe telefon și pleacă la următoarea intrare în același cont
 async function iesireRevocata() {
-  try { localStorage.setItem('ino_mesaj_login', MESAJ_REVOCAT); } catch (e) { /* */ }
+  try { localStorage.setItem('ino_mesaj_login', MESAJ_REVOCAT); if (profil && profil.email) localStorage.setItem('ino_email_ultim', profil.email); } catch (e) { /* */ }
   // ce e scris pe ecran (fișa, formularul, PV-ul semnat dar nesalvat) se pune întâi pe telefon,
   // cât profilul e încă încărcat; ciornele rămân și se oferă după reintrarea în același cont
   anunta('inainte_iesire');
@@ -4594,7 +4594,9 @@ async function iesireRevocata() {
   anunta('iesit');
 }
 function mesajLogin() { try { const m = localStorage.getItem('ino_mesaj_login'); return m || ''; } catch (e) { return ''; } }
-function stergeMesajLogin() { try { localStorage.removeItem('ino_mesaj_login'); } catch (e) { /* */ } }
+function stergeMesajLogin() { try { localStorage.removeItem('ino_mesaj_login'); localStorage.removeItem('ino_email_ultim'); } catch (e) { /* */ } }
+// emailul contului scos de Admin, precompletat pe ecranul de intrare (omul scrie doar parola primită)
+function emailUltim() { try { return localStorage.getItem('ino_email_ultim') || ''; } catch (e) { return ''; } }
 
 let promisiune = null;
 function sincronizeaza() {
@@ -5150,13 +5152,24 @@ async function salveazaSetare(cheie, valoare) {
   await sincronizeaza();
 }
 const CAMPURI_CLIENT = ['nume', 'telefon', 'email', 'adresa', 'judet', 'nr_contract', 'data_contract', 'tip_finantare', 'putere_kwp', 'obs', 'contract'];
+// v2.8.4: ce include contractul (cabluri, împământare, copex, MC4) și contractul separat al bateriei
+const CAMPURI_CLIENT_V284 = ['continut_contract', 'contract_baterie'];
+let serverV284 = null;   // false: serverul nu are încă migrarea v2.8.4 (coloanele noi lipsesc)
 async function salveazaClient(c) {
   const campuri = {};
-  CAMPURI_CLIENT.forEach((k) => { if (k in c) campuri[k] = c[k] === '' || c[k] === undefined ? null : c[k]; });
+  CAMPURI_CLIENT.concat(serverV284 === false ? [] : CAMPURI_CLIENT_V284).forEach((k) => { if (k in c) campuri[k] = c[k] === '' || c[k] === undefined ? null : c[k]; });
   campuri.nume = String(c.nume || '').replace(/\s+/g, ' ').trim();
+  const scrie = (x) => (c.id ? sb.from('clienti').update(x).eq('id', c.id).select() : sb.from('clienti').insert(x).select());
   let r;
-  if (c.id) r = await asteapta(sb.from('clienti').update(campuri).eq('id', c.id).select());
-  else r = await asteapta(sb.from('clienti').insert(campuri).select());
+  try { r = await asteapta(scrie(campuri)); }
+  catch (e) {
+    // server fără migrarea v2.8.4: clientul se salvează fără cantitățile din contract și fără bateria separată
+    if (!CAMPURI_CLIENT_V284.some((k) => k in campuri) || !/continut_contract|contract_baterie|column|schema cache/i.test(String(e && e.message))) throw e;
+    serverV284 = false;
+    CAMPURI_CLIENT_V284.forEach((k) => delete campuri[k]);
+    r = await asteapta(scrie(campuri));
+    alert('Clientul a fost salvat, dar fără cantitățile din contract și fără contractul bateriei: pe server lipsește migrarea v2.8.4. Anunțați Adminul.');
+  }
   await sincronizeaza();
   return r && r[0];
 }
@@ -5292,7 +5305,7 @@ window.CONT = {
   numeOm: (id) => { const p = oameni.profiluri.find((x) => x.id === id); return p ? (p.nume || p.email) : ''; },
   catalogEditabil, aplicaCatalog, CATALOG_INCLUS, reaplica,
   salveazaProdus, salveazaCorespondenta, incarcaFisa, linkFisa, seteazaActive,
-  mesajLogin, stergeMesajLogin,
+  mesajLogin, stergeMesajLogin, emailUltim,
   salveazaProfil, creeazaUtilizator, parolaUtilizator, stergeUtilizator, echipaNoua, redenumesteEchipa, salveazaCatalog,
   arhiva, arhiveaza, sterge,
   // inoINSTALL
@@ -5457,6 +5470,26 @@ function standardContract(retea, kW) {
   const r = (STANDARD[retea] || []).find((x) => kW <= x[0] + 1e-9);
   return r ? { kW: r[0], solar: r[1], ac: r[2], impamantare: r[3], copex: r[4] } : null;
 }
+// Ce e inclus pentru lucrarea asta: întâi cantitățile din contractul clientului (citite din PDF sau scrise la client),
+// apoi, pentru ce lipsește din contract, tabelul standard (după rețea și puterea invertorului).
+function inclusInContract(l, rz) {
+  rz = rz || l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat) || {};
+  const cl = l.client_id && (K.clienti || []).find((x) => x.id === l.client_id);
+  const k = (cl && cl.continut_contract) || null;
+  const retea = l.retea || rz.retea || (k && k.retea);
+  const std = standardContract(retea, +rz.invertor_kW || (k && +k.invertor_kW) || 0);
+  if (!k || !['solar', 'ac', 'impamantare', 'copex', 'canal', 'mc4'].some((x) => typeof k[x] === 'number')) return std;
+  const n = (x) => (typeof k[x] === 'number' ? k[x] : null);
+  const copex = n('copex') != null || n('canal') != null ? (n('copex') || 0) + (n('canal') || 0) : std && std.copex;
+  return {
+    dinContract: true, nr: cl.nr_contract || '',
+    solar: n('solar') != null ? n('solar') : std && std.solar,
+    ac: n('ac') != null ? n('ac') : std && std.ac,
+    impamantare: n('impamantare') != null ? n('impamantare') : std && std.impamantare,
+    copex: copex == null ? null : copex,
+    mc4: n('mc4'),
+  };
+}
 
 /* ------------------------------------------------------------------ *
  * Materialele pe care partenerii le cumpără singuri (decizia din 22 octombrie): cablul solar, cablurile
@@ -5503,16 +5536,20 @@ function anexaCalculata(l) {
   if (!['montaj_nou', 'upsales'].includes(tipL(l))) return [];
   const linii = liniiLucrare(l);
   const rz = l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat) || {};
-  const std = standardContract(l.retea || rz.retea, +rz.invertor_kW || 0);
+  const std = inclusInContract(l, rz);
   const out = [];
   const suma = (re) => linii.filter((x) => re.test(x.den)).reduce((s, x) => s + (x.real != null ? x.real : x.cant || 0), 0);
   if (std) {
-    [['Cablu solar 6 mm²', /^Cablu solar/i, std.solar], ['Cablu AC', /^Cablu AC/i, std.ac],
-      ['Conductor de împământare MYF', /^Conductor MYF/i, std.impamantare], ['Copex / canal cablu', /^(Copex|Canal cablu)/i, std.copex]]
-      .forEach(([den, re, inclus]) => {
+    const unde = std.dinContract ? `în contractul ${std.nr ? 'nr. ' + std.nr : 'clientului'}` : 'în contract (tabelul standard)';
+    [['Cablu solar 6 mm²', /^Cablu solar/i, std.solar, 'm'], ['Cablu AC', /^Cablu AC/i, std.ac, 'm'],
+      ['Conductor de împământare MYF', /^Conductor MYF/i, std.impamantare, 'm'], ['Copex / canal cablu', /^(Copex|Canal cablu)/i, std.copex, 'm'],
+      ['Conectori MC4 (pereche)', /^Conectori MC4/i, std.mc4, 'buc']]
+      .forEach(([den, re, inclus, um]) => {
+        if (inclus == null) return;
         const folosit = Math.ceil(suma(re));
         const real = linii.some((x) => re.test(x.den) && x.real != null);
-        if (folosit > inclus) out.push({ den, um: 'm', cant: folosit - inclus, nota: `${folosit} m ${real ? 'folosiți' : 'estimați'}, ${inclus} m incluși în contract` });
+        const u = um === 'm' ? ' m' : '';
+        if (folosit > inclus) out.push({ den, um, cant: folosit - inclus, nota: `${folosit}${u} ${real ? 'folosiți' : 'estimați'}, ${inclus}${u} incluși ${unde}` });
       });
   }
   ((l.raportat || {}).extra || []).forEach((x) => { if (x.den && +x.cant > 0) out.push({ den: x.den, um: x.um || 'buc', cant: +x.cant, nota: 'material în plus raportat' }); });
@@ -7368,6 +7405,7 @@ function ecranVerifica() {
       ${DECISE.includes(vt.stare) ? `<div class="mesaj ${vt.stare === 'aprobat' ? 'ok' : 'warn'}" style="margin-top:0">Decizia actuală: <b>${E((stari.find((x) => x.v === vt.stare) || {}).t || vt.stare)}</b>${vt.motiv ? ' · ' + E(vt.motiv) : ''}${vt.de ? ` · ${E(vt.de)}, ${E(oraRo(vt.data))}` : ''}</div>` : ''}
       ${ed ? `${lipsa.length ? `<div class="mesaj warn" style="margin-top:0">Lipsesc ${lipsa.length} ${lipsa.length === 1 ? 'etapă' : 'etape'} de poze obligatorii: ${E(lipsa.map((e) => e.t).join(', '))}.</div>` : ''}
         ${zona('vv-obs', 'Observații (opțional, la aprobare)', vt.stare === 'aprobat' ? vt.obs || '' : '')}
+        ${['facturat', 'achitat'].includes(((l.verificari || {}).facturare || {}).stare) && !DECISE.includes(vt.stare) ? `<div class="mesaj info" style="margin-top:0">Lucrarea e deja marcată <b>${E(l.verificari.facturare.stare === 'achitat' ? 'achitată' : 'facturată')}</b> de Facturare. După decizia dvs. se închide definitiv: decizia o mai schimbă apoi doar Adminul.</div>` : ''}
         ${t === 'interventie' ? '<div class="ajutor"><b>Respins</b> = se întoarce la echipă pentru corectare. <b>Neaprobat la plată</b> = se închide, fără plată către partener.</div>' : ''}
         <div class="ajutor">La respingere se alege motivul în fereastra care se deschide. Scurtături pe calculator: A aprobă, R respinge, → următoarea.</div>`
     : blocataDef ? '<div class="mesaj ok" id="x-vt-blocat">Lucrarea e închisă definitiv (certificat de prosumator, sau facturată după decizia tehnică). Decizia tehnică o mai schimbă doar Adminul.</div>'
@@ -7589,34 +7627,109 @@ const textClient = (c) => [c.adresa, c.judet].filter(Boolean).join(', ');
 
 // Citirea contractului: textul PDF-ului (PDF.js, ca la fișele tehnice), apoi câmpurile clientului.
 // Contractele diferă: ce nu se găsește rămâne gol; ce se găsește apare pe galben, de verificat.
+// Contractele InoCOM (model din 3 noiembrie 2026): din octombrie, un sistem cu baterie are două contracte,
+// unul pentru sistemul fotovoltaic și unul pentru baterie (care trimite la numărul contractului FV).
+// Din tabelul de produse se iau cantitățile incluse (cablu solar, cablu AC, împământare, copex, canal, MC4):
+// ele sunt referința anexei de materiale suplimentare, înaintea tabelului standard de cabluri.
+const TEL_INO = ['0735320363', '0215551748'];
+function continutDinContract(randuri) {
+  const rand = randuri.map((x) => String(x || '').replace(/\s+/g, ' ').trim());
+  const u = rand.join(' ');
+  const num = (s) => +String(s).replace(',', '.');
+  // ultima cantitate din rând: „… 2 ani 60 ml”, „COPEX 30M”, „CONECTORI MC4 -2”
+  const cant = (re, um) => {
+    const r = rand.find((x) => re.test(x));
+    if (!r) return null;
+    const m = r.match(um === 'buc' ? /(\d+(?:[.,]\d+)?)\s*(?:buc|perechi|per)?\s*$/i : /(\d+(?:[.,]\d+)?)\s*(?:ml|m\.?l?\.?|metri)\s*$/i)
+      || (um === 'buc' ? r.match(/-\s*(\d+)\s*$/) : null);
+    return m ? num(m[1]) : null;
+  };
+  const k = {};
+  const kw = u.match(/invertor(?:ul)?\s+de\s+(\d+(?:[.,]\d+)?)\s*kw\b/i) || u.match(/invertor[^.]{0,40}?\b(\d+(?:[.,]\d+)?)\s*kw\b/i);
+  if (kw) k.invertor_kW = num(kw[1]);
+  const kwp = u.match(/sistem(?:ul|ului)?\s+fotovoltaic\s+(?:de\s+)?(\d+(?:[.,]\d+)?)\s*kw\s*p/i);
+  if (kwp) k.kwp = num(kwp[1]);
+  const solar = cant(/cablu\s+solar/i, 'm'); if (solar != null) k.solar = solar;
+  const acR = rand.find((x) => /cablu\s+(?:de\s+)?(?:alimentare|ac|putere)\b/i.test(x) && /\d\s*x\s*\d/i.test(x));
+  if (acR) {
+    const ac = cant(/cablu\s+(?:de\s+)?(?:alimentare|ac|putere)\b/i, 'm'); if (ac != null) k.ac = ac;
+    const s = acR.match(/(\d)\s*x\s*(\d+(?:[.,]\d+)?)\s*mm/i); if (s) { k.ac_fire = +s[1]; k.ac_mm2 = num(s[2]); }
+    if (/trifazat/i.test(acR) || (s && +s[1] >= 4)) k.retea = 'tri'; else if (/monofazat/i.test(acR) || (s && +s[1] === 3)) k.retea = 'mono';
+  }
+  if (!k.retea && /\bLP3\b|-LP3|SG0\dLP3|trifazat/i.test(u)) k.retea = 'tri';
+  else if (!k.retea && /\bLP1\b|-LP1|monofazat/i.test(u)) k.retea = 'mono';
+  const imp = cant(/(?:priz[ăa]\s+(?:de\s+)?p[ăa]m[âa]nt|[îi]mp[ăa]m[âa]ntare|conductor\s+(?:de\s+)?legare)/i, 'm'); if (imp != null) k.impamantare = imp;
+  const cop = rand.find((x) => /^\s*(?:\d+\s+)?copex\b/i.test(x) || /\bcopex\s+\d/i.test(x));
+  if (cop) { const m = cop.match(/copex\s*(\d+(?:[.,]\d+)?)\s*m?/i) || cop.match(/(\d+(?:[.,]\d+)?)\s*m\s*$/i); if (m) k.copex = num(m[1]); }
+  const can = rand.find((x) => /canal\s+(?:de\s+)?cablu/i.test(x));
+  if (can) { const m = can.match(/canal\s+(?:de\s+)?cablu\s*(\d+(?:[.,]\d+)?)\s*m?/i) || can.match(/(\d+(?:[.,]\d+)?)\s*m\s*$/i); if (m) k.canal = num(m[1]); }
+  const mc4 = rand.find((x) => /conector(?:i)?\s+mc4|mc4/i.test(x));
+  if (mc4) { const m = mc4.match(/mc4\s*[-:x]?\s*(\d+)/i) || mc4.match(/(\d+)\s*(?:buc|perechi)?\s*$/i); if (m) k.mc4 = +m[1]; }
+  return k;
+}
+function bateriaDinContract(randuri) {
+  const u = randuri.join(' ').replace(/\s+/g, ' ');
+  if (!/sistem(?:ul|ului)?\s+de\s+stocare/i.test(u)) return null;
+  const b = {};
+  const kwh = u.match(/capacitatea\s+de\s+(\d+(?:[.,]\d+)?)\s*kwh/i); if (kwh) b.kwh = +kwh[1].replace(',', '.');
+  const leg = u.match(/contract(?:ul)?\s+nr\.?\s*(\d[\w\/-]{0,20})\s+din\s+(?:data\s+de\s+)?(\d{1,2})[./-](\d{1,2})[./-](\d{4})/i);
+  if (leg) { b.contract_fv = leg[1]; b.data_fv = `${leg[4]}-${leg[3].padStart(2, '0')}-${leg[2].padStart(2, '0')}`; }
+  // rândurile de produse: „1 Uhome 16 kWh 10 ani 2 buc”
+  b.produse = randuri.map((x) => String(x).replace(/\s+/g, ' ').trim())
+    .map((x) => x.match(/^\d{1,2}\s+(.{3,80}?\d+(?:[.,]\d+)?\s*kwh)\b.*?(\d+)\s*buc\s*$/i))
+    .filter(Boolean).map((m) => ({ den: m[1].trim(), cant: +m[2] }));
+  if (!b.produse.length) delete b.produse;
+  return b;
+}
 function campuriDinContract(randuri) {
   const t = randuri.join('\n');
-  const u = t.replace(/\s+/g, ' ');
+  // fără subsolul cu datele de contact inoSOLAR și fără blocul vânzătorului (telefonul, e-mailul, sediul Ino)
+  const u = t.replace(/\s+/g, ' ').split(/Pentru informa[țţt]ii suplimentare/i)[0]
+    .replace(/Art\.?\s*1\.1\.?.{0,700}?calitate\s+de\s+v[âa]nz[ăa]tor\s*\/\s*prestator/i, 'calitate de Vanzator/Prestator');
   const g = (re, f) => { const m = u.match(re); return m ? (f ? f(m) : m[1]).trim() : ''; };
   const curata = (x) => x.replace(/[,;:.\s]+$/, '').replace(/^[,;:.\s]+/, '');
   const r = {};
-  r.nr_contract = g(/contract(?:ul)?(?:\s+de\s+[a-zăâîșț]+){0,4}\s+nr\.?\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\/\-.]{0,30})/i, (m) => curata(m[1]));
-  const d = u.match(/(?:din|data(?:\s+de)?)\s*[:]?\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})/i);
+  // modelul InoCOM: „CONTRACT DE VÂNZARE CU MONTAJ Nr. 11383/23-10-2026”
+  const ino = u.match(/contract\s+de\s+v[âa]nzare(?:[\s-]+cump[ăa]rare)?(?:\s+cu\s+montaj)?\s+nr\.?\s*[:.]?\s*(\d[\w-]{0,20})\s*\/\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})/i);
+  if (ino) { r.nr_contract = ino[1]; r.data_contract = `${ino[4]}-${ino[3].padStart(2, '0')}-${ino[2].padStart(2, '0')}`; }
+  const benef = u.match(/calitate\s+de\s+v[âa]nz[ăa]tor\s*\/\s*prestator\s+(?:ş|ș|s)i\s+(.{3,120}?)\s*,\s*(?:cu\s+sediul|cu\s+domiciliul|domiciliat|cnp|identificat|posesor|n[ăa]scut)/i);
+  const locMontaj = u.match(/la\s+(?:loca[țţt]ia|adresa)\s+din\s+(.{5,160}?),\s*jud(?:e[țţ]ul)?\.?\s*([A-ZĂÂÎȘȚŞŢ][A-Za-zăâîșțşţĂÂÎȘȚŞŢ-]+)/i);
+  if (!r.nr_contract) r.nr_contract = g(/contract(?:ul)?(?:\s+de\s+[a-zăâîșț]+){0,4}\s+nr\.?\s*[:.]?\s*([A-Za-z0-9][A-Za-z0-9\/\-.]{0,30})/i, (m) => curata(m[1]));
+  const d = !r.data_contract && u.match(/(?:din|data(?:\s+de)?)\s*[:]?\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})/i);
   if (d) r.data_contract = `${d[3]}-${d[2].padStart(2, '0')}-${d[1].padStart(2, '0')}`;
   // numele: după eticheta beneficiarului (oricum scrisă), cuvintele cu majusculă de după ea
   const et = /(?:beneficiar(?:ul)?|client(?:ul)?|cump[ăa]r[ăa]tor(?:ul)?|achizitor(?:ul)?|nume(?:le)?(?:\s+[șs]i\s+prenume(?:le)?)?)\s*[:,]\s*/ig;
-  let mEt; r.nume = '';
+  let mEt; r.nume = benef ? curata(benef[1]) : '';
   while (!r.nume && (mEt = et.exec(u))) {
     const n = u.slice(mEt.index + mEt[0].length).replace(/^(?:dl|dna|domnul|doamna|d-na|d-l)\.?\s+/i, '')
       .match(/^([A-ZĂÂÎȘȚ][A-Za-zĂÂÎȘȚăâîșț'\-]+(?:\s+[A-ZĂÂÎȘȚ][A-Za-zĂÂÎȘȚăâîșț'\-]+){1,3})/);
     if (n) r.nume = n[1];
   }
-  if (/^(SC|SRL|S\.C\.|INO|KROMO)/i.test(r.nume) || /inosolar|ino solar/i.test(r.nume)) r.nume = '';
-  r.adresa = g(/(?:adres[ăa](?:\s+de\s+(?:implementare|instalare|montaj))?|domiciliat[ăa]?\s+(?:[îi]n)|cu\s+domiciliul\s+(?:[îi]n)|loca[țt]ia\s+(?:de\s+)?(?:montaj|implementare))\s*[:,]?\s*(.{6,160}?)(?=,?\s*(?:jud(?:e[țt]ul)?\b|identificat|posesor|cnp|telefon|tel\b|tel\.|e-?mail|act\b|seria|cod po[șs]tal|$))/i, (m) => curata(m[1]));
-  const j = u.match(/jud(?:e[țt]ul)?\.?\s*[:]?\s*([A-ZĂÂÎȘȚ][a-zăâîșț]+(?:[\s-][A-ZĂÂÎȘȚ][a-zăâîșț]+)?)/);
+  if (/^(S\.?C\.?\s+INO|SRL|INO|KROMO)/i.test(r.nume) || /inosolar|ino solar|inocom/i.test(r.nume)) r.nume = '';
+  if (locMontaj) r.adresa = curata(locMontaj[1]);
+  else r.adresa = g(/(?:adres[ăa](?:\s+de\s+(?:implementare|instalare|montaj))?|domiciliat[ăa]?\s+(?:[îi]n)|cu\s+domiciliul\s+(?:[îi]n)|loca[țt]ia\s+(?:de\s+)?(?:montaj|implementare))\s*[:,]?\s*(.{6,160}?)(?=,?\s*(?:jud(?:e[țt]ul)?\b|identificat|posesor|cnp|telefon|tel\b|tel\.|e-?mail|act\b|seria|cod po[șs]tal|$))/i, (m) => curata(m[1]));
+  const j = locMontaj ? [null, locMontaj[2]] : u.match(/jud(?:e[țt]ul)?\.?\s*[:]?\s*([A-ZĂÂÎȘȚ][a-zăâîșț]+(?:[\s-][A-ZĂÂÎȘȚ][a-zăâîșț]+)?)/);
   if (j) { const x = JUDETE.find((y) => A().fara(y) === A().fara(j[1]) || A().fara(j[1]).startsWith(A().fara(y))); if (x) r.judet = x; }
   if (!r.judet && /bucure[șs]ti/i.test(r.adresa || '')) r.judet = 'București';
   const tel = u.match(/(?:tel(?:efon)?|mobil|nr\.?\s*tel)\.?\s*[:]?\s*(\+?4?0?\s?7\d{2}[\s.-]?\d{3}[\s.-]?\d{3})/i) || u.match(/\b(07\d{2}[\s.-]?\d{3}[\s.-]?\d{3})\b/);
-  if (tel) r.telefon = tel[1].replace(/[\s.-]/g, '');
+  if (tel && !TEL_INO.includes(tel[1].replace(/[\s.-]/g, '').replace(/^\+?40/, '0'))) r.telefon = tel[1].replace(/[\s.-]/g, '');
   const em = (u.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g) || []).find((x) => !/inosolar|kromotec|inogroup/i.test(x));
   if (em) r.email = em;
-  const kw = u.match(/(\d{1,3}(?:[.,]\d{1,3})?)\s*kW\s*p?\b/i);
+  const kw = u.match(/(\d{1,3}(?:[.,]\d{1,3})?)\s*kW\s*p\b/i) || u.match(/(\d{1,3}(?:[.,]\d{1,3})?)\s*kW\s*p?\b/i);
   if (kw) r.putere_kwp = +kw[1].replace(',', '.');
+  // contractul de baterie: numărul și data lui merg la baterie, iar clientul se leagă de contractul FV
+  const bat = bateriaDinContract(randuri);
+  if (bat) {
+    bat.nr = r.nr_contract; bat.data = r.data_contract;
+    delete r.putere_kwp;
+    if (bat.contract_fv) { r.nr_contract = bat.contract_fv; r.data_contract = bat.data_fv; } else { delete r.nr_contract; delete r.data_contract; }
+    delete bat.contract_fv; delete bat.data_fv;
+    Object.keys(bat).forEach((x) => bat[x] == null && delete bat[x]);
+    r.contract_baterie = bat;
+  } else {
+    const k = continutDinContract(randuri);
+    if (Object.keys(k).length) r.continut_contract = k;
+  }
   r.tip_finantare = /casa\s+verde/i.test(u) ? 'Casa Verde' : /repower/i.test(u) ? 'REPowerEU' : /leasing/i.test(u) ? 'Leasing' : '';
   Object.keys(r).forEach((k) => { if (r[k] === '' || r[k] == null || Number.isNaN(r[k])) delete r[k]; });
   return r;
@@ -7675,8 +7788,18 @@ function ecranClienti() {
   if ($('#x-cl-nou')) $('#x-cl-nou').onclick = () => { st.client = { nume: '', data_contract: azi() }; st.clientCitit = null; A().du('client'); };
   if ($('#x-cl-pdf')) $('#x-cl-pdf').onchange = async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
-    st.client = { nume: '' }; st.clientPdf = f;
-    await citesteContract(f);
+    st.client = { nume: '' }; st.clientPdf = null; st.clientPdfBat = null;
+    const tip = await citesteContract(f);
+    // același contract FV deja în registru (de ex. a venit întâi contractul bateriei, sau invers): se completează clientul existent
+    const nrFV = (st.client.nr_contract || '').trim();
+    const exista = nrFV && (K.clienti || []).find((x) => String(x.nr_contract || '').trim() === nrFV);
+    if (exista) {
+      const citit = st.clientCitit || {};
+      st.client = Object.assign({}, exista);
+      Object.keys(citit).forEach((k) => { if (k === 'contract_baterie' || k === 'continut_contract' || !st.client[k]) st.client[k] = citit[k]; });
+      st.clientExistent = true;
+    }
+    if (tip === 'baterie') st.clientPdfBat = f; else st.clientPdf = f;
     A().du('client');
   };
 }
@@ -7687,8 +7810,52 @@ async function citesteContract(f) {
     if (!randuri.join('').trim()) { st.clientCitit = {}; alert('PDF-ul nu are text (e scanat). Completați datele de mână; contractul se atașează oricum.'); return; }
     const r = campuriDinContract(randuri);
     st.clientCitit = r;
-    Object.keys(r).forEach((k) => { if (!st.client[k]) st.client[k] = r[k]; });
+    const c = st.client;
+    // contractul bateriei: datele lui merg la baterie; dacă trimite la alt contract FV decât cel al clientului, se spune
+    if (r.contract_baterie && c.nr_contract && r.nr_contract && String(c.nr_contract).trim() !== r.nr_contract)
+      alert(`Contractul bateriei (nr. ${r.contract_baterie.nr || '?'}) trimite la contractul FV nr. ${r.nr_contract}, dar clientul are contractul nr. ${c.nr_contract}. Verificați că e clientul potrivit.`);
+    Object.keys(r).forEach((k) => {
+      if (k === 'contract_baterie') c.contract_baterie = Object.assign({}, c.contract_baterie || {}, r[k], (c.contract_baterie || {}).pdf ? { pdf: c.contract_baterie.pdf } : {});
+      else if (k === 'continut_contract') c.continut_contract = r[k];
+      else if (!c[k]) c[k] = r[k];
+    });
+    return r.contract_baterie ? 'baterie' : 'sistem';
   } catch (e) { st.clientCitit = {}; alert('Contractul nu s-a putut citi: ' + e.message + '. Completați datele de mână.'); }
+  return null;
+}
+// Cantitățile incluse în contractul clientului (cabluri, împământare, copex, canal, MC4): editabile, se compară în anexă
+const CONTINUT = [['solar', 'Cablu solar (m)'], ['ac', 'Cablu AC (m)'], ['impamantare', 'Împământare (m)'], ['copex', 'Copex (m)'], ['canal', 'Canal cablu (m)'], ['mc4', 'Conectori MC4 (perechi)']];
+function htmlContinutContract(c, ed) {
+  const k = c.continut_contract || {};
+  const din = 'continut_contract' in (A().stare.clientCitit || {});
+  const n = (x) => (x == null || x === '' ? '' : String(x).replace('.', ','));
+  const cel = ([cheie, et]) => `<div class="camp"><label for="x-cc_${cheie}">${E(et)}</label><input type="text" inputmode="decimal" id="x-cc_${cheie}" value="${E(n(k[cheie]))}"${din && k[cheie] != null ? ' class="citit"' : ''} ${ed ? '' : 'disabled'}></div>`;
+  return `<div class="ajutor" style="margin-top:4px"><b>Incluse în contract</b>${din ? ' <span class="eticheta warn">din contract</span>' : ''}: peste aceste cantități, materialele trec în anexa de facturat clientului. Goale = se ia tabelul standard de cabluri inoSOLAR.</div>
+    <div class="randuri2">${alege('cc_retea', 'Rețea', k.retea || '', [['', '—'], ['mono', 'monofazat'], ['tri', 'trifazat']].map(([v, t]) => ({ v, t })), ed ? '' : 'disabled')}${cel(['invertor_kW', 'Invertor (kW)'])}</div>
+    <div class="randuri2">${CONTINUT.slice(0, 2).map(cel).join('')}</div>
+    ${k.ac_fire && k.ac_mm2 ? `<div class="ajutor">Cablu AC în contract: ${E(k.ac_fire + '×' + n(k.ac_mm2))} mm².</div>` : ''}
+    <div class="randuri2">${CONTINUT.slice(2, 4).map(cel).join('')}</div>
+    <div class="randuri2">${CONTINUT.slice(4).map(cel).join('')}</div>`;
+}
+function citesteContinut(c) {
+  if (!$('#x-cc_solar')) return;
+  const k = Object.assign({}, c.continut_contract || {});
+  CONTINUT.concat([['invertor_kW']]).forEach(([cheie]) => { const x = A().citesteNumar(v('cc_' + cheie)); if (typeof x === 'number' && isFinite(x) && x >= 0) k[cheie] = x; else delete k[cheie]; });
+  const r = v('cc_retea'); if (r) k.retea = r; else delete k.retea;
+  c.continut_contract = Object.keys(k).length ? k : null;
+}
+function htmlBaterie(c, ed) {
+  const b = c.contract_baterie;
+  const st = A().stare;
+  if (!b && !st.clientPdfBat) return ed ? `<div class="actiuni"><label class="buton gol"><input type="file" accept="application/pdf" id="x-cb-pdf" hidden>Atașează contractul bateriei (PDF)</label></div>
+    <div class="ajutor">La sistemele cu stocare, bateria are contract separat, care trimite la contractul sistemului.</div>` : '';
+  const x = b || {};
+  return `<h3 style="margin:14px 0 4px">Contractul bateriei${'contract_baterie' in (st.clientCitit || {}) ? ' <span class="eticheta warn">din contract</span>' : ''}</h3>
+    <div class="md-kv" style="margin-top:4px">${x.nr ? `<span>Nr. contract</span><b>${E(x.nr)}${x.data ? ' din ' + E(dataRo(x.data)) : ''}</b>` : ''}${x.kwh ? `<span>Capacitate</span><b>${E(nr(x.kwh))} kWh</b>` : ''}${(x.produse || []).map((p) => `<span>Baterie</span><b>${E(p.den)} × ${E(p.cant)}</b>`).join('')}${!x.nr && !x.kwh ? '<span>—</span><b>Datele nu s-au putut citi din PDF.</b>' : ''}</div>
+    <div class="actiuni">${x.pdf ? '<button class="buton gol" id="x-cb-vezi">Deschide contractul bateriei</button>' : ''}
+      ${ed ? `<label class="buton gol"><input type="file" accept="application/pdf" id="x-cb-pdf" hidden>${x.pdf || st.clientPdfBat ? 'Înlocuiește PDF-ul bateriei' : 'Atașează PDF-ul bateriei'}</label>` : ''}
+      ${ed && b ? '<button class="buton gol" id="x-cb-scoate">Scoate bateria</button>' : ''}</div>
+    ${st.clientPdfBat ? `<div class="ajutor">PDF ales: ${E(st.clientPdfBat.name)}. Se încarcă la salvare.</div>` : ''}`;
 }
 function ecranClient() {
   const st = A().stare;
@@ -7715,6 +7882,8 @@ function ecranClient() {
       <div class="actiuni">${c.contract ? '<button class="buton gol" id="x-c-vezi">Deschide contractul PDF</button>' : ''}
         ${ed ? `<label class="buton gol"><input type="file" accept="application/pdf" id="x-c-pdf" hidden>${c.contract || st.clientPdf ? 'Înlocuiește PDF-ul' : 'Atașează contractul PDF'}</label>` : ''}</div>
       ${st.clientPdf ? `<div class="ajutor">PDF ales: ${E(st.clientPdf.name)}. Se încarcă la salvare.</div>` : ''}
+      ${htmlContinutContract(c, ed)}
+      ${htmlBaterie(c, ed)}
     </div></section>
     ${c.id ? `<section class="card"><h2>Lucrări (${lucrari.length})</h2><div class="corp">${lucrari.map((l) => A().htmlCardLucrare(l)).join('') || '<div class="ajutor">Nicio lucrare încă.</div>'}</div></section>` : ''}`;
   // clientul fără nicio lucrare (nici arhivată), adăugat din greșeală sau dublat, îl poate șterge Adminul (E3)
@@ -7722,14 +7891,20 @@ function ecranClient() {
   bara(ed ? sterge + (c.id && A().poate('creeaza') ? '<button class="buton gol" id="x-c-lucrare">+ Lucrare pentru client</button>' : '') + '<button class="buton" id="x-c-salv">Salvează clientul</button>' : sterge);
   if ($('#x-c-sterge')) $('#x-c-sterge').onclick = async () => {
     if (!confirm(`Ștergeți clientul „${c.nume || ''}” din registru? Nu are nicio lucrare. Ștergerea nu se poate anula.`)) return;
-    try { await K.stergeClient(c.id); st.clientPdf = null; st.clientCitit = null; A().du('clienti'); } catch (e) { alert(e.message); }
+    try { await K.stergeClient(c.id); st.clientPdf = null; st.clientPdfBat = null; st.clientCitit = null; A().du('clienti'); } catch (e) { alert(e.message); }
   };
   const citeste = () => {
     ['nume', 'adresa', 'telefon', 'email', 'nr_contract', 'data_contract', 'putere_kwp'].forEach((k) => { c[k] = (v('c_' + k) || '').trim(); });
     c.judet = v('c_judet') || ''; c.tip_finantare = v('c_tip_finantare') || ''; c.obs = (v('c_obs') || '').trim();
     const p = A().citesteNumar(c.putere_kwp); c.putere_kwp = typeof p === 'number' ? p : null;
+    citesteContinut(c);
   };
-  if ($('#x-c-pdf')) $('#x-c-pdf').onchange = async (ev) => { const f = ev.target.files[0]; if (!f) return; citeste(); st.clientPdf = f; await citesteContract(f); ecranClient(); };
+  // orice PDF de contract se poate pune pe oricare buton: tipul (sistem / baterie) se recunoaște din text
+  const laPdf = async (ev) => { const f = ev.target.files[0]; if (!f) return; citeste(); const tip = await citesteContract(f); if (tip === 'baterie') st.clientPdfBat = f; else st.clientPdf = f; ecranClient(); };
+  if ($('#x-c-pdf')) $('#x-c-pdf').onchange = laPdf;
+  if ($('#x-cb-pdf')) $('#x-cb-pdf').onchange = laPdf;
+  if ($('#x-cb-vezi')) $('#x-cb-vezi').onclick = async () => { try { window.open(await K.linkContract(c.contract_baterie.pdf), '_blank'); } catch (e) { alert(e.message); } };
+  if ($('#x-cb-scoate')) $('#x-cb-scoate').onclick = () => { if (!confirm('Scoateți contractul bateriei de la acest client? Se aplică la salvare.')) return; citeste(); c.contract_baterie = null; st.clientPdfBat = null; ecranClient(); };
   if ($('#x-c-vezi')) $('#x-c-vezi').onclick = async () => { try { window.open(await K.linkContract(c.contract), '_blank'); } catch (e) { alert(e.message); } };
   document.querySelectorAll('[data-deschide]').forEach((b) => { b.onclick = () => { const l = lucrari.find((x) => x.id === b.dataset.deschide); if (l) { st.revenireLucrare = 'client'; A().deschide(l); } }; });
   if ($('#x-c-lucrare')) $('#x-c-lucrare').onclick = () => { st.nou = null; st.clientNou = c.id; A().du('tipNou'); };
@@ -7741,7 +7916,11 @@ function ecranClient() {
       const rand = await K.salveazaClient(c);
       if (rand && rand.id) c.id = rand.id;
       if (st.clientPdf && c.id) { c.contract = await K.incarcaContract(c.id, st.clientPdf); await K.salveazaClient({ id: c.id, nume: c.nume, contract: c.contract }); }
-      st.clientPdf = null; st.clientCitit = null;
+      if (st.clientPdfBat && c.id) {
+        c.contract_baterie = Object.assign({}, c.contract_baterie || {}, { pdf: await K.incarcaContract(c.id, st.clientPdfBat) });
+        await K.salveazaClient({ id: c.id, nume: c.nume, contract_baterie: c.contract_baterie });
+      }
+      st.clientPdf = null; st.clientPdfBat = null; st.clientCitit = null; st.clientExistent = false;
       st.client = Object.assign({}, (K.clienti || []).find((x) => x.id === c.id) || c);
       ecranClient();
     } catch (e) { alert(e.message); b.disabled = false; b.textContent = 'Salvează clientul'; }
@@ -7775,7 +7954,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.8.3';
+const VERSIUNE_APP = '2.8.4';
 const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
 const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
 const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };
@@ -8016,12 +8195,12 @@ window.EXT = {
     pv: () => A().du('lucrare'),
     parteneri: laAdmin, preturi: laAdmin, rapoarte: laAdmin, calendar: () => { A().stare.cal && (A().stare.cal.sel = null); A().du(areStart() ? 'start' : 'lista'); },
     coada: () => A().du('start'), departament: () => A().du('start'), borderou: () => A().du('start'), probleme: () => A().du(areStart() ? 'start' : 'lista'), etape: () => A().du('start'), clienti: () => A().du('start'),
-    client: () => { const st = A().stare; st.clientPdf = null; st.clientCitit = null; A().du(vedeClienti() ? 'clienti' : 'start'); },
+    client: () => { const st = A().stare; st.clientPdf = null; st.clientPdfBat = null; st.clientCitit = null; st.clientExistent = false; A().du(vedeClienti() ? 'clienti' : 'start'); },
     verifica: () => { const st = A().stare; const r = st.revenireVerifica || st.revenireLucrare; st.revenireVerifica = null; st.revenireLucrare = null; A().du(['coada', 'departament'].includes(r) ? r : 'start'); },
   },
   deschide, butoaneLista, legaLista, areStart, COZI, htmlBannerLista, htmlTipScurt, htmlInfoCard, gataDeTrimis, stareText: STARE_TEXT,
   // pentru teste
-  TIPURI, ETAPE, etapeLucrare, etapeLipsa, standardContract, anexaCalculata, sumaPartener, ePartener, urcaPozele,
+  TIPURI, ETAPE, etapeLucrare, etapeLipsa, standardContract, inclusInContract, campuriDinContract, anexaCalculata, sumaPartener, ePartener, urcaPozele,
   itemiMeniu, mergiLa, infoScurt, DEPARTAMENTE, modificariNesalvate, fisaAtinsa: () => fisaAtinsa, tipL, dataPlan, pozeEtapa, salveazaFisaAcum, pastreazaPV, oferaPV,
 };
 
@@ -10386,7 +10565,7 @@ function ecranLogin() {
     ${K.mesajLogin && K.mesajLogin() ? `<div class="mesaj warn" id="login-mesaj" role="alert">${E(K.mesajLogin())}</div>` : ''}
     <section class="card"><div class="corp">
       <form id="f-login" autocomplete="on">
-        ${campText('login_email', 'Email', '', 'email', 'autocomplete="username" required')}
+        ${campText('login_email', 'Email', K.emailUltim ? K.emailUltim() : '', 'email', 'autocomplete="username" required')}
         ${campText('login_parola', 'Parola', '', 'password', 'autocomplete="current-password" required')}
         <div class="rosu" id="login-eroare" hidden></div>
         <button class="buton" id="b-login" type="submit" style="width:100%;margin-top:16px">Intră</button>
@@ -10426,6 +10605,7 @@ function confirmaIesire() {
 function problemaParola(p, cine) {
   const x = String(p == null ? '' : p);
   const ce = cine || 'Parola';
+  if (!x) return 'Scrieți ' + ce.charAt(0).toLowerCase() + ce.slice(1) + '.';
   if (!x.trim()) return ce + ' nu poate fi formată doar din spații.';
   if (x.trim().length < 8) return ce + ' trebuie să aibă cel puțin 8 caractere (fără spațiile de la început și de la sfârșit).';
   if (x.length > 72) return ce + ' poate avea cel mult 72 de caractere.';
@@ -10604,7 +10784,7 @@ function ecranAdmin() {
     <aside class="panou-dr" id="panou-conturi" aria-label="Conturi">
       <div class="panou-cap"><b>Conturi (${profiluri.length})</b><button type="button" class="panou-x" id="b-panou-x" aria-label="Închide">&times;</button></div>
       <div class="panou-corp">
-        ${fara ? `<div class="mesaj warn" style="margin-top:0">${fara === 1 ? 'Un cont nu are' : fara + ' conturi nu au'} rol și nu văd nimic până nu primesc unul.</div>` : ''}
+        ${fara ? `<div class="mesaj warn" style="margin-top:0">${fara === 1 ? 'Un cont nu are' : fara + ' conturi nu au'} rol și nu ${fara === 1 ? 'vede' : 'văd'} nimic până nu ${fara === 1 ? 'primește' : 'primesc'} unul.</div>` : ''}
         <input type="search" id="f-cauta-cont" placeholder="nume, email, rol, echipă" aria-label="Caută un cont" value="${E(stare.cautaCont || '')}">
         <div id="lista-conturi">${profiluri.map(cardCont).join('')}</div>
         <div class="ajutor" style="margin-top:10px">Liderul și membrii au nevoie de echipă; Adminul și Sales nu. Un cont dezactivat nu mai vede nimic. Contul șters dispare definitiv; lucrările lui rămân.</div>
@@ -10817,7 +10997,9 @@ function analizeazaImport(text) {
   const rez = [];
   randuri.forEach((linie, i) => {
     const sep = linie.includes('\t') ? '\t' : linie.includes(';') ? ';' : ',';
-    const c = linie.split(sep).map((x) => x.trim().replace(/^"(.*)"$/, '$1').trim());
+    // „-”, „–”, „n/a” puse în Excel în loc de celulă goală înseamnă gol; ş/ţ cu sedilă (Excel, cp1250) devin ș/ț
+    const c = linie.split(sep).map((x) => x.trim().replace(/^"(.*)"$/, '$1').trim())
+      .map((x) => (/^(?:[-\u2010-\u2015]+|n\/?a|—)$/i.test(x) ? '' : x.replace(/Ş/g, 'Ș').replace(/ş/g, 'ș').replace(/Ţ/g, 'Ț').replace(/ţ/g, 'ț')));
     if (i === 0 && fara(c[0]) === 'nume' && /mail/.test(fara(c[1] || ''))) return;   // capul de tabel din CSV
     const [nume = '', email = '', rolT = '', echipaT = '', partenerT = ''] = c;
     const r = { nr: i + 1, linie, nume: nume.replace(/\s+/g, ' '), email: email.toLowerCase(), rolT, echipaT, partenerT, erori: [], note: [] };
@@ -10845,6 +11027,7 @@ function analizeazaImport(text) {
       else r.partener = p;
     }
     if (r.rol === 'partener' && !partenerT) r.erori.push('rolul Partener cere firma parteneră');
+    if (r.rol === 'admin') r.note.push('atenție: cont de Admin, cu toate drepturile');
     rez.push(r);
   });
   return rez;
@@ -10853,6 +11036,10 @@ function analizeazaImport(text) {
 function textDinFisier(buf) {
   const b = new Uint8Array(buf || new ArrayBuffer(0));
   let t;
+  // Excel „Text Unicode (*.txt)” = UTF-16, cu BOM
+  if (b.length >= 2 && ((b[0] === 0xff && b[1] === 0xfe) || (b[0] === 0xfe && b[1] === 0xff))) {
+    try { return new TextDecoder(b[0] === 0xff ? 'utf-16le' : 'utf-16be').decode(b).replace(/^\ufeff/, ''); } catch (e) { /* */ }
+  }
   try { t = new TextDecoder('utf-8', { fatal: true }).decode(b); }
   catch (e) { try { t = new TextDecoder('windows-1250').decode(b); } catch (e2) { t = new TextDecoder('utf-8').decode(b); } }
   return t.replace(/^\ufeff/, '');
@@ -10917,7 +11104,7 @@ function legaImportConturi() {
       txt.value = stare.importText;
       if (!document.body.contains(zona)) return;
       const g = bune.length - ok;
-      $('#imp-progres').outerHTML = `<div class="mesaj ${g || sarite.length ? 'warn' : 'ok'}" id="imp-progres">${ok} ${ok === 1 ? 'cont creat' : 'conturi create'}${g ? `, ${g} cu eroare (vedeți tabelul)` : ''}${sarite.length ? `. ${sarite.length} ${sarite.length === 1 ? 'rând cu greșeli a fost sărit' : 'rânduri cu greșeli au fost sărite'}; au rămas în casetă, de corectat` : ''}. Dați fiecărui om emailul și parola de început; la prima intrare își alege parola lui.</div>
+      $('#imp-progres').outerHTML = `<div class="mesaj ${g || sarite.length ? 'warn' : 'ok'}" id="imp-progres">${ok} ${ok === 1 ? 'cont creat' : 'conturi create'}${g ? `, ${g} cu eroare (vedeți tabelul)` : ''}${sarite.length ? `. ${sarite.length} ${sarite.length === 1 ? 'rând cu greșeli a fost sărit; a rămas în casetă, de corectat' : 'rânduri cu greșeli au fost sărite; au rămas în casetă, de corectat'}` : ''}. Dați fiecărui om emailul și parola de început; la prima intrare își alege parola lui.</div>
         <button class="buton gol" id="b-imp-gata" style="margin-top:10px">Gata, arată conturile</button>`;
       $('#b-imp-gata').onclick = () => { ecranAdmin(); };
     };
