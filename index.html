@@ -5254,6 +5254,31 @@ function linkR2(cheie) {
   cozaR2.chei.add(cheie);
   return new Promise((ok, rau) => cozaR2.asteapta.push([cheie, ok, rau]));
 }
+// câte verificări cu AI s-au făcut luna aceasta (toate lucrările); null = nu se poate afla (fără server)
+async function contorAI() {
+  if (!serverV4()) return null;
+  const inceput = new Date(); inceput.setDate(1); inceput.setHours(0, 0, 0, 0);
+  const { count, error } = await sb.from('verificari_ai').select('id', { count: 'exact', head: true }).gte('creat', inceput.toISOString());
+  if (error) return null;
+  return count || 0;
+}
+// câte SMS-uri de anunț s-au trimis luna aceasta (v2.8.5); null dacă serverul nu are încă tabelul
+async function contorSMS() {
+  if (!serverV4()) return null;
+  const inceput = new Date(); inceput.setDate(1); inceput.setHours(0, 0, 0, 0);
+  const { count, error } = await sb.from('sms_trimise').select('id', { count: 'exact', head: true }).gte('creat', inceput.toISOString());
+  if (error) return null;
+  return count || 0;
+}
+async function smsLucrare(lucrareId) {
+  if (!serverV4()) return [];
+  const { data, error } = await sb.from('sms_trimise').select('creat, telefon, pentru').eq('lucrare_id', lucrareId).order('creat', { ascending: false }).limit(5);
+  return error ? [] : data || [];
+}
+async function anuntaSMS(lucrareId, telefon) {
+  await sincronizeaza();
+  return invoca('anunt-sms', { lucrare_id: lucrareId, telefon });
+}
 async function verificaPozeAI(lucrareId, etape) {
   await sincronizeaza();
   return invoca('verifica-poze-ai', { lucrare_id: lucrareId, etape });
@@ -5323,7 +5348,7 @@ window.CONT = {
   get config() { return config(); },
   get probleme() { return extra.probleme || []; },
   get numereDepartamente() { return extra.departamente || null; },
-  verificaPozeAI, ultimaVerificareAI, raporteazaProblema, salveazaProblema, linkCaptura,
+  verificaPozeAI, ultimaVerificareAI, contorAI, contorSMS, anuntaSMS, smsLucrare, raporteazaProblema, salveazaProblema, linkCaptura,
   // până la prima sincronizare se ia ce s-a aflat ultima dată; un server fără migrare merge ca înainte (fără poze și PV obligatorii)
   get serverV2() { return serverV2 != null ? serverV2 : extra.v2 !== false; },
 };
@@ -5589,9 +5614,12 @@ const pozaLocala = (id) => bdOp('readonly', (s) => s.get(id));
 const scriePozaLocala = (rec) => bdOp('readwrite', (s) => s.put(rec));
 const stergePozaLocala = (id) => bdOp('readwrite', (s) => s.delete(id));
 
-function micsoreaza(fisier) {
-  return new Promise((rez, rej) => {
+function micsoreaza(fisier, cuAnaliza) {
+  return new Promise(async (rez, rej) => {
     if (/pdf/i.test(fisier.type)) { rez({ blob: fisier, tip: 'application/pdf' }); return; }
+    // data și locul se citesc din fișierul original: poza micșorată nu mai are EXIF
+    let exif = null;
+    if (cuAnaliza && /jpe?g/i.test(fisier.type || fisier.name || '')) { try { exif = exifDinJpeg(await fisier.arrayBuffer()); } catch (e) { exif = null; } }
     const url = URL.createObjectURL(fisier);
     const img = new Image();
     img.onload = () => {
@@ -5600,12 +5628,134 @@ function micsoreaza(fisier) {
       c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
       c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
       URL.revokeObjectURL(url);
-      c.toBlob((b) => (b ? rez({ blob: b, tip: 'image/jpeg', w: c.width, h: c.height }) : rej(new Error('Poza nu s-a putut micșora.'))), 'image/jpeg', CALITATE);
+      let v = null;
+      if (cuAnaliza) { try { v = Object.assign(analizaImagine(c), exif || {}); } catch (e) { v = exif; } }
+      c.toBlob((b) => (b ? rez({ blob: b, tip: 'image/jpeg', w: c.width, h: c.height, v }) : rej(new Error('Poza nu s-a putut micșora.'))), 'image/jpeg', CALITATE);
     };
     img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Fișierul nu e o poză pe care telefonul o poate citi.')); };
     img.src = url;
   });
 }
+
+/* ------------------------------------------------------------------ *
+ * Verificările automate ale pozelor, fără AI și fără cost (v2.8.5, 10 noiembrie 2026).
+ * La încărcare, pe telefon, se calculează pentru fiecare poză:
+ *   h    — amprenta vizuală (dHash, 64 biți): aceeași poză urcată de două ori se recunoaște
+ *          chiar dacă a fost micșorată sau recomprimată;
+ *   lum  — luminozitatea medie (0–255): sub 35 = prea întunecată;
+ *   clar — claritatea (variația laplacianului pe 256 px): sub 20 = posibil mișcată / neclară;
+ *   dt   — data și ora la care a fost făcută (din EXIF, când telefonul o păstrează);
+ *   gps  — locul [lat, lon] (din EXIF, când telefonul îl păstrează).
+ * Rezultatul e doar un semnal pentru Tehnic: nu blochează nimic.
+ * ------------------------------------------------------------------ */
+const PRAG_LUM = 35, PRAG_CLAR = 20, PRAG_DUP = 4, PRAG_KM = 1, PRAG_ZILE = 2;
+// EXIF dintr-un JPEG: DateTimeOriginal și coordonatele GPS (doar ce ne trebuie, fără bibliotecă)
+function exifDinJpeg(buf) {
+  try {
+    const v = new DataView(buf);
+    if (v.getUint16(0) !== 0xffd8) return null;
+    let o = 2;
+    while (o + 4 < v.byteLength) {
+      const m = v.getUint16(o);
+      if (m === 0xffe1 && v.getUint32(o + 4) === 0x45786966) return citesteTiff(v, o + 10);
+      if ((m & 0xff00) !== 0xff00) return null;
+      o += 2 + v.getUint16(o + 2);
+    }
+  } catch (e) { /* poză fără EXIF sau EXIF stricat */ }
+  return null;
+}
+function citesteTiff(v, t) {
+  const le = v.getUint16(t) === 0x4949;
+  const u16 = (x) => v.getUint16(x, le), u32 = (x) => v.getUint32(x, le);
+  const ifd = (x) => { const n = u16(x), r = {}; for (let i = 0; i < n; i++) { const e = x + 2 + i * 12; r[u16(e)] = { tip: u16(e + 2), n: u32(e + 4), val: e + 8 }; } return r; };
+  const ascii = (e) => { const off = e.n > 4 ? t + u32(e.val) : e.val; let s = ''; for (let i = 0; i < e.n - 1; i++) s += String.fromCharCode(v.getUint8(off + i)); return s; };
+  const rat = (e) => { const off = t + u32(e.val); const r = []; for (let i = 0; i < e.n; i++) { const a = u32(off + i * 8), b = u32(off + i * 8 + 4); r.push(b ? a / b : 0); } return r; };
+  const ifd0 = ifd(t + u32(t + 4));
+  const out = {};
+  if (ifd0[0x8769]) {
+    const ex = ifd(t + u32(ifd0[0x8769].val));
+    const d = ex[0x9003] || ex[0x9004];
+    const m = d && ascii(d).match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/);
+    if (m && m[1] !== '0000') out.dt = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`;
+  }
+  if (!out.dt && ifd0[0x0132]) { const m = ascii(ifd0[0x0132]).match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2})/); if (m && m[1] !== '0000') out.dt = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`; }
+  if (ifd0[0x8825]) {
+    const g = ifd(t + u32(ifd0[0x8825].val));
+    if (g[2] && g[4]) {
+      const grade = (e) => { const [a, b, c] = rat(e); return a + b / 60 + c / 3600; };
+      let lat = grade(g[2]), lon = grade(g[4]);
+      if (g[1] && String.fromCharCode(v.getUint8(g[1].val)) === 'S') lat = -lat;
+      if (g[3] && String.fromCharCode(v.getUint8(g[3].val)) === 'W') lon = -lon;
+      if (lat || lon) out.gps = [+lat.toFixed(5), +lon.toFixed(5)];
+    }
+  }
+  return Object.keys(out).length ? out : null;
+}
+// amprenta, luminozitatea și claritatea, din poza deja desenată pe ecran (canvas)
+function analizaImagine(sursa) {
+  const tonuri = (w, h) => {
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true }); x.drawImage(sursa, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h).data; const g = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) g[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+    return g;
+  };
+  const sw = sursa.width || sursa.naturalWidth, sh = sursa.height || sursa.naturalHeight;
+  // dHash 9×8: fiecare bit spune dacă pixelul e mai luminos decât vecinul din dreapta
+  const a = tonuri(9, 8); let h = '';
+  for (let y = 0; y < 8; y++) { let n = 0; for (let x = 0; x < 8; x++) n = (n << 1) | (a[y * 9 + x] > a[y * 9 + x + 1] ? 1 : 0); h += (n >>> 0).toString(16).padStart(2, '0'); }
+  const W = 256, H = Math.max(8, Math.round(256 * sh / Math.max(1, sw)));
+  const g = tonuri(W, H);
+  let s = 0; for (let i = 0; i < g.length; i++) s += g[i];
+  const lum = s / g.length;
+  let m = 0, m2 = 0, n = 0;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const i = y * W + x; const L = g[i - 1] + g[i + 1] + g[i - W] + g[i + W] - 4 * g[i];
+    m += L; m2 += L * L; n++;
+  }
+  const clar = n ? m2 / n - (m / n) * (m / n) : 0;
+  return { h, lum: Math.round(lum), clar: Math.round(clar) };
+}
+const distHash = (a, b) => { if (!a || !b || a.length !== b.length) return 99; let d = 0; for (let i = 0; i < a.length; i += 2) { let x = parseInt(a.substr(i, 2), 16) ^ parseInt(b.substr(i, 2), 16); while (x) { d += x & 1; x >>= 1; } } return d; };
+const km = (p, q) => { const R = 6371, r = Math.PI / 180; const dLa = (q[0] - p[0]) * r, dLo = (q[1] - p[1]) * r; const s = Math.sin(dLa / 2) ** 2 + Math.cos(p[0] * r) * Math.cos(q[0] * r) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(s)); };
+const ziua = (x) => (x ? new Date(String(x).slice(0, 10) + 'T12:00:00').getTime() : NaN);
+// Semnalele pentru o lucrare: { id_poza: ['text', ...] } și un rezumat pe tipuri
+function semnalePoze(l, toate) {
+  const lista = Object.entries(l.poze || {}).filter(([k]) => k !== '_sterse').flatMap(([etapa, v]) => (Array.isArray(v) ? v : []).map((p) => ({ etapa, p })));
+  const out = {}, nr = { dublura: 0, intuneric: 0, neclar: 0, data: 0, loc: 0 };
+  const pune = (id, t, tip) => { (out[id] = out[id] || []).push(t); nr[tip]++; };
+  // pozele altor lucrări pe care le vede omul (pentru dublurile între clienți)
+  const altele = (toate || []).filter((x) => x.id !== l.id && x.poze).flatMap((x) => Object.entries(x.poze).filter(([k]) => k !== '_sterse')
+    .flatMap(([, v]) => (Array.isArray(v) ? v : []).filter((p) => p.v && p.v.h).map((p) => ({ l: x, p }))));
+  const ziLucrare = ziua((l.planificare || {}).data);
+  const gps = lista.filter((x) => x.p.v && x.p.v.gps).map((x) => x.p.v.gps);
+  const centru = gps.length >= 2 ? [gps.map((g) => g[0]).sort((a, b) => a - b)[Math.floor(gps.length / 2)], gps.map((g) => g[1]).sort((a, b) => a - b)[Math.floor(gps.length / 2)]] : null;
+  lista.forEach(({ p }, i) => {
+    const v = p.v; if (!v) return;
+    if (v.h) {
+      const aici = lista.find((y, j) => j !== i && y.p.v && distHash(v.h, y.p.v.h) <= PRAG_DUP);
+      if (aici) pune(p.id, 'aceeași poză apare de două ori pe lucrare', 'dublura');
+      const alta = altele.find((y) => distHash(v.h, y.p.v.h) <= PRAG_DUP);
+      if (alta) pune(p.id, `aceeași poză apare și la ${alta.l.client || 'altă lucrare'}`, 'dublura');
+    }
+    if (typeof v.lum === 'number' && v.lum < PRAG_LUM) pune(p.id, 'prea întunecată', 'intuneric');
+    else if (typeof v.clar === 'number' && v.clar < PRAG_CLAR) pune(p.id, 'posibil neclară sau mișcată', 'neclar');
+    if (v.dt) {
+      const ref = isNaN(ziLucrare) ? ziua(p.data) : ziLucrare;
+      const zile = Math.abs(ziua(v.dt) - ref) / 864e5;
+      if (zile > PRAG_ZILE) pune(p.id, `făcută pe ${dataRo(v.dt.slice(0, 10))}`, 'data');
+    }
+    if (v.gps && centru) { const d = km(v.gps, centru); if (d > PRAG_KM) pune(p.id, `făcută la ${d < 10 ? d.toFixed(1).replace('.', ',') : Math.round(d)} km de restul pozelor`, 'loc'); }
+  });
+  return { pePoza: out, nr, total: Object.keys(out).length };
+}
+function htmlSemnale(s) {
+  if (!s.total) return '<div class="mesaj ok">Verificarea automată a pozelor nu a găsit nimic deosebit.</div>';
+  const t = [['dublura', 'dubluri'], ['intuneric', 'prea întunecate'], ['neclar', 'posibil neclare'], ['data', 'cu altă dată'], ['loc', 'din alt loc']]
+    .filter(([k]) => s.nr[k]).map(([k, x]) => `${s.nr[k]} ${x}`).join(', ');
+  return `<div class="mesaj warn">Verificarea automată a pozelor: ${E(t)}. Pozele sunt marcate cu ⚠; apăsați pe poză pentru detalii.</div>`;
+}
+const marcajPoza = (s, id) => (s.pePoza[id] ? `<span class="poza-semn" title="${E(s.pePoza[id].join('; '))}">⚠ ${E(s.pePoza[id][0])}${s.pePoza[id].length > 1 ? ' +' + (s.pePoza[id].length - 1) : ''}</span>` : '');
 
 // Lucrarea de pe telefon, cea mai nouă (pozele se pot urca în timp ce ecranul arată altă copie)
 const lucrareDinTelefon = (id) => K.citesteTot().find((x) => x.id === id);
@@ -5621,11 +5771,13 @@ function actualizeazaPoza(lucrareId, pozaId, f) {
 async function adaugaPoze(l, etapa, fisiere) {
   const cine = (K.profil && (K.profil.nume || K.profil.email)) || 'pe acest telefon';
   for (const f of fisiere) {
-    const m = await micsoreaza(f);
+    const m = await micsoreaza(f, true);
     const id = 'P' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     await scriePozaLocala({ id, lucrareId: l.id, etapa, blob: m.blob, tip: m.tip, creat: new Date().toISOString() });
     l.poze = Object.assign({}, l.poze || {});
-    l.poze[etapa] = (l.poze[etapa] || []).concat({ id, local: true, tip: m.tip, data: new Date().toISOString(), de: cine });
+    const ref = { id, local: true, tip: m.tip, data: new Date().toISOString(), de: cine };
+    if (m.v) ref.v = m.v;
+    l.poze[etapa] = (l.poze[etapa] || []).concat(ref);
   }
   A().salveaza(l);
   urcaPozele();
@@ -5975,7 +6127,7 @@ function ecranLucrare() {
         ${l.tipFinantare ? `<div><span>Proiect</span><b>${E(l.tipFinantare)}</b></div>` : ''}
         ${CU_PROSUMATOR.includes(t) ? `<div><span>Prosumator</span><b>${l.prosumatorSolicitat ? 'cerut de client' : 'necerut'}</b></div>` : ''}
         ${rz && rz.kWp ? `<div><span>Sistem</span><b>${E(A().nrK(rz.kWp))} kWp · ${E(rz.panouri)} panouri${rz.invertorModel ? ' · ' + E(rz.invertorModel) : ''}</b></div>` : ''}
-      </div></div></section>`;
+      </div>${htmlAnuntSMS(l)}</div></section>`;
   const bannere = (vt && vt.stare === 'respins' && !rap.finalizat ? `<div class="mesaj warn"><b>Respins de ${E(vt.de || 'Tehnic')}${vt.data ? ' pe ' + E(dataRo(vt.data)) : ''}:</b> ${E(vt.motiv || '')}${vt.obs ? '<br>' + E(vt.obs) : ''}<br>Corectați și trimiteți din nou.</div>` : '')
     + (l.fazaIntermediara ? `<div class="mesaj info">Zi închisă cu proces verbal de fază intermediară pe ${E(dataRo(l.fazaIntermediara.data))}${l.fazaIntermediara.obs ? ': ' + E(l.fazaIntermediara.obs) : ''}. Lucrarea continuă cu „Reia lucrul”.</div>` : '')
     + (l._v == null && K.activ ? '<div class="mesaj info">Lucrarea nu e încă pe server. Pozele se urcă după prima sincronizare.</div>' : '');
@@ -6174,19 +6326,66 @@ function gataDeTrimis(l, valid) {
   return true;
 }
 
+/* ------------------------------------------------------------------ *
+ * Anunțul datei planificate prin SMS (v2.8.5): pleacă doar la buton, de la Planificare sau Admin.
+ * Textul e fix (fără diacritice, ca SMS-ul să încapă într-un singur mesaj); serverul îl compune la fel,
+ * din data planificată de pe server și telefonul de contact din Setări.
+ * ------------------------------------------------------------------ */
+const ANUNT_TIP = { montaj_nou: ['montajul sistemului fotovoltaic', 'programat'], pif: ['punerea in functiune a sistemului fotovoltaic', 'programata'],
+  upsales: ['montajul echipamentului suplimentar', 'programat'], interventie: ['interventia la sistemul fotovoltaic', 'programata'],
+  vizita_tehnica: ['vizita tehnica', 'programata'] };
+function textAnuntSMS(tip, data, contact) {
+  const [ce, prog] = ANUNT_TIP[tip] || ANUNT_TIP.montaj_nou;
+  const [a, l, z] = String(data || '').slice(0, 10).split('-');
+  return `inoSOLAR: Buna ziua, ${ce} este ${prog} pe ${z}.${l}.${a}, intre 07:00 si 12:00.${contact ? ' Pentru intrebari: ' + contact + '.' : ''}`;
+}
+const poateAnuntSMS = () => !!(K.activ && K.serverV4 && K.config && K.config.sms && ['admin', 'planificare'].includes(K.rol()));
+function htmlAnuntSMS(l) {
+  const data = ((l.planificare || {}).data || '').slice(0, 10);
+  if (!poateAnuntSMS() || !data) return '';
+  const cl = l.client_id && (K.clienti || []).find((c) => c.id === l.client_id);
+  const tel = l.telefon || (cl && cl.telefon) || '';
+  return `<div class="anunt-sms" id="anunt-sms"><div class="ajutor" id="anunt-sms-ist"></div>
+    ${tel ? `<div class="actiuni"><button type="button" class="buton gol" id="x-anunt-sms">Anunță clientul prin SMS</button></div>`
+    : '<div class="ajutor">Pentru anunțul prin SMS, completați telefonul clientului.</div>'}
+  </div>`;
+}
+// istoricul anunțurilor vine de pe server („sms_trimise”), nu din lucrare: nu se pierde și nu se poate modifica
+async function legaAnuntSMS(l) {
+  if (!$('#anunt-sms')) return;
+  const data = ((l.planificare || {}).data || '').slice(0, 10);
+  const b = $('#x-anunt-sms');
+  if (b) b.onclick = async () => {
+    const cl = l.client_id && (K.clienti || []).find((c) => c.id === l.client_id);
+    const tel = l.telefon || (cl && cl.telefon) || '';
+    const text = textAnuntSMS(tipL(l), data, ((K.setari || {}).sms || {}).contact || '');
+    if (!confirm(`Se trimite un SMS (cu cost) la ${tel}:\n\n„${text}”\n\nTrimiteți?`)) return;
+    b.disabled = true; b.textContent = 'Se trimite…';
+    try { await K.anuntaSMS(l.id, tel); alert('SMS-ul a plecat.'); }
+    catch (e) { alert(e.neconfigurat ? 'SMS-ul nu e pornit pe server.' : e.message); }
+    A().du('lucrare', l);
+  };
+  let ist = [];
+  try { ist = await K.smsLucrare(l.id); } catch (e) { ist = []; }
+  const ultim = ist[0];
+  const el = $('#anunt-sms-ist');
+  if (!el || !ultim) return;
+  const aceeasi = String(ultim.pentru || '').slice(0, 10) === data;
+  el.innerHTML = `Anunțat prin SMS pe ${E(oraRo(ultim.creat))} la ${E(ultim.telefon)}, pentru ${E(dataRo(String(ultim.pentru || '').slice(0, 10)))}.${aceeasi ? '' : ' <b>Data s-a schimbat de atunci.</b>'}`;
+  if (b && !b.disabled) b.textContent = aceeasi ? 'Retrimite anunțul prin SMS' : 'Anunță noua dată prin SMS';
+}
+
 // Codul de confirmare (M3 + O1): după semnătură, clientul primește un cod de 6 cifre (e-mail, SMS sau WhatsApp)
 const NUME_CANAL = { email: 'e-mail', sms: 'SMS', whatsapp: 'WhatsApp' };
 const NUME_CANAL_M = { email: 'E-mail', sms: 'SMS', whatsapp: 'WhatsApp' };
 // canalele pornite pe server; un server fără funcția „configurare” merge ca în v2.2 (doar e-mail)
 const canaleCod = () => (K.serverV4 && K.config && Object.keys(K.config).length ? ['email', 'sms', 'whatsapp'].filter((c) => K.config[c]) : ['email']);
-// canalul ales: cel apăsat de om; altfel SMS când telefonul clientului e cunoscut (pe teren e mai la îndemână)
+// canalul ales: cel apăsat de om; altfel e-mailul (SMS-ul costă, se alege doar dacă îl vrea liderul — v2.8.5)
 function canalCod(l, canale) {
   const st = A().stare;
   const ales = (st.codCanal || {})[l.id];
   if (canale.includes(ales)) return ales;
-  const cl = l.client_id && (K.clienti || []).find((c) => c.id === l.client_id);
-  if (canale.includes('sms') && (l.telefon || (cl && cl.telefon))) return 'sms';
-  return canale[0];
+  return canale.includes('email') ? 'email' : canale[0];
 }
 const textConfirmat = (c) => `${c.canal && c.canal !== 'email' ? NUME_CANAL[c.canal] : 'e-mail'} la ${c.email || ''}`;
 function htmlCodPV(l, ed) {
@@ -6256,6 +6455,7 @@ function legaLucrare(l) {
   if ($('#x-rezultat')) $('#x-rezultat').onclick = () => du('rezultat', l);
   if ($('#x-raport')) $('#x-raport').onclick = () => du('raport', l);
   if ($('#x-poze')) $('#x-poze').onclick = () => { if (poateTeren(l)) salveazaTot(); A().stare.pozeDinFisa = true; du('poze', l); };
+  legaAnuntSMS(l);
   if ($('#x-pv')) $('#x-pv').onclick = () => { salveazaTot(); A().stare.pvMod = 'final'; du('pv', l); };
   if ($('#x-pv-refa')) $('#x-pv-refa').onclick = () => { if (!confirm('Refaceți semnătura clientului? Procesul verbal semnat se înlocuiește.')) return; salveazaTot(); A().stare.pvMod = 'final'; du('pv', l); };
   if ($('#x-pv-pdf')) $('#x-pv-pdf').onclick = () => pvPDF(l);
@@ -6480,20 +6680,22 @@ function ecranPoze() {
   titlu(A().scurt(l.client || 'Lucrare'), 'poze pe etape');
   const lipsa = etapeLipsa(l);
   const neurcate = Object.values(l.poze || {}).flat().filter((p) => p.local).length;
-  $('#ecran').innerHTML = (lipsa.length ? `<div class="mesaj warn">${lipsa.length === 1 ? 'O etapă obligatorie nu are' : lipsa.length + ' etape obligatorii nu au'} poze încă.</div>` : '<div class="mesaj ok">Toate etapele obligatorii au poze.</div>')
+  const semn = semnalePoze(l, K.citesteTot());
+  const cuAnaliza = Object.values(l.poze || {}).flat().some((p) => p && p.v);
+  $('#ecran').innerHTML = (cuAnaliza ? htmlSemnale(semn) : '') + (lipsa.length ? `<div class="mesaj warn">${lipsa.length === 1 ? 'O etapă obligatorie nu are' : lipsa.length + ' etape obligatorii nu au'} poze încă.</div>` : '<div class="mesaj ok">Toate etapele obligatorii au poze.</div>')
     + (neurcate ? `<div class="mesaj info">${neurcate === 1 ? 'O poză e' : neurcate + ' poze sunt'} doar pe telefon; ${K.activ ? (neurcate === 1 ? 'se urcă singură când e semnal.' : 'se urcă singure când e semnal.') : 'fără cont, pozele rămân pe acest telefon.'}</div>` : '')
     + etapeLucrare(l).map((e) => {
       const p = pozeEtapa(l, e.k);
       return `<section class="card etapa${e.o && !p.length ? ' lipsa' : ''}"><h2>${E(e.t)}${e.o ? '' : ' <span class="opt">opțional</span>'}</h2><div class="corp">
-        <div class="poze-grila">${p.map((x) => `<div class="poza${x.local ? ' neurcata' : ''}"><img data-poza="${E(x.id)}" data-t="${E(e.t)}" alt="${E(e.t)}" loading="lazy">
+        <div class="poze-grila">${p.map((x) => `<div class="poza${x.local ? ' neurcata' : ''}${semn.pePoza[x.id] ? ' semnal' : ''}"><img data-poza="${E(x.id)}" data-t="${E(e.t)}" data-semn="${E((semn.pePoza[x.id] || []).join('; '))}" alt="${E(e.t)}" loading="lazy">${marcajPoza(semn, x.id)}
           ${ed ? `<button type="button" class="poza-x" data-sterge-poza="${E(x.id)}" data-etapa="${E(e.k)}" aria-label="Șterge poza">×</button>` : ''}</div>`).join('')}
           ${p.length ? '' : '<div class="ajutor">Nicio poză.</div>'}</div>
         ${ed ? `<div class="actiuni"><label class="buton gol"><input type="file" accept="image/*" capture="environment" data-etapa="${E(e.k)}" hidden>Cameră</label>
           <label class="buton gol"><input type="file" accept="image/*,application/pdf" multiple data-etapa="${E(e.k)}" hidden>Galerie</label></div>` : ''}
       </div></section>`;
-    }).join('') + (poateAI() ? htmlAI(l) : '');
+    }).join('') + (vedeAI() ? htmlAI(l) : '');
   bara('<button class="buton gol" id="x-gata-poze">Înapoi la fișa lucrării</button>');
-  if (poateAI()) legaAI(l);
+  if (vedeAI()) legaAI(l);
   $('#x-gata-poze').onclick = () => A().du('lucrare', l);
   document.querySelectorAll('input[type=file][data-etapa]').forEach((inp) => {
     inp.onchange = async () => {
@@ -7385,10 +7587,13 @@ function ecranVerifica() {
       ${l.prosumatorSolicitat ? '<div class="verif-rand"><span>Prosumator</span><b>cerut de client</b></div>' : ''}
       <button type="button" class="link-buton" id="x-v-fisa">Fișa completă a lucrării</button>
     </div></section>`;
-  const poze = `<section class="card"><h2>Poze pe etape ${lipsa.length ? `<span class="stare rau">${lipsa.length} lipsă</span>` : '<span class="stare validat">complete</span>'}</h2><div class="corp">
+  const semn = semnalePoze(l, K.citesteTot());
+  const cuAnaliza = Object.values(l.poze || {}).flat().some((p) => p && p.v);
+  const poze = `<section class="card"><h2>Poze pe etape ${lipsa.length ? `<span class="stare rau">${lipsa.length} lipsă</span>` : '<span class="stare validat">complete</span>'}${semn.total ? ` <span class="stare atentie">${semn.total} de verificat</span>` : ''}</h2><div class="corp">
+      ${cuAnaliza ? htmlSemnale(semn) : ''}
       ${etape.map((e) => { const p = pozeEtapa(l, e.k); return `<div class="verif-etapa${e.o && !p.length ? ' lipsa' : ''}">
         <div class="verif-etapa-t">${E(e.t)}${e.o ? '' : ' <i>(opțional)</i>'}${!p.length ? ` <b>${e.o ? 'LIPSEȘTE' : '—'}</b>` : ''}</div>
-        ${p.length ? `<div class="poze-grila">${p.map((x) => `<div class="poza"><img data-poza="${E(x.id)}" data-t="${E(e.t)}" alt="" loading="lazy"></div>`).join('')}</div>` : ''}</div>`; }).join('')}
+        ${p.length ? `<div class="poze-grila">${p.map((x) => `<div class="poza${semn.pePoza[x.id] ? ' semnal' : ''}"><img data-poza="${E(x.id)}" data-t="${E(e.t)}" data-semn="${E((semn.pePoza[x.id] || []).join('; '))}" alt="" loading="lazy">${marcajPoza(semn, x.id)}</div>`).join('')}</div>` : ''}</div>`; }).join('')}
     </div></section>`;
   const pv = l.pv;
   const anexa = l.anexa && (l.anexa.linii || []).length ? l.anexa.linii : [];
@@ -7489,7 +7694,7 @@ function mareste(img) {
   let i = toate.indexOf(img);
   const o = document.createElement('div');
   o.className = 'poza-mare';
-  const arata = () => { o.innerHTML = `<img src="${toate[i].src}" alt=""><div class="poza-mare-t">${E(toate[i].dataset.t || '')} · ${i + 1} / ${toate.length}</div>
+  const arata = () => { o.innerHTML = `<img src="${toate[i].src}" alt=""><div class="poza-mare-t">${E(toate[i].dataset.t || '')} · ${i + 1} / ${toate.length}${toate[i].dataset.semn ? `<br><b>⚠ ${E(toate[i].dataset.semn)}</b>` : ''}</div>
     <button type="button" class="pm-x" aria-label="Închide">×</button>${toate.length > 1 ? '<button type="button" class="pm-st" aria-label="Poza anterioară">‹</button><button type="button" class="pm-dr" aria-label="Poza următoare">›</button>' : ''}`;
     o.querySelector('.pm-x').onclick = () => o.remove();
     if (o.querySelector('.pm-st')) { o.querySelector('.pm-st').onclick = (ev) => { ev.stopPropagation(); i = (i - 1 + toate.length) % toate.length; arata(); }; o.querySelector('.pm-dr').onclick = (ev) => { ev.stopPropagation(); i = (i + 1) % toate.length; arata(); }; }
@@ -7954,8 +8159,13 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.8.4';
-const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
+const VERSIUNE_APP = '2.8.5';
+// v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
+// în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
+const setariAI = () => Object.assign({ activ: true, plafon: 50, cost: 1.5 }, (K.setari || {}).ai || {});
+const poateAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && setariAI().activ !== false && ['admin', 'tehnic'].includes(K.rol()));
+// rezultatul îl vede și echipa (liderul, mentenanța), ca să știe ce are de refăcut; butonul îl au doar Tehnicul și Adminul
+const vedeAI = () => !!(K.activ && K.serverV4 && K.config && K.config.ai && ['admin', 'tehnic', 'lider', 'mentenanta'].includes(K.rol()));
 const aiCache = new Map();   // id lucrare → { stare: 'incarc' | 'gata' | 'lucrez' | 'eroare', rand, eroare }
 const VERDICT = { ok: { t: 'dovedită', c: 'ok' }, problema: { t: 'problemă', c: 'rau' }, lipsa_dovada: { t: 'fără dovadă', c: 'rau' } };
 const RECOMANDARE = { aprobare: { t: 'AI: se poate aproba', c: 'ok' }, de_verificat: { t: 'AI: de verificat de om', c: 'warn' }, respingere: { t: 'AI: de respins', c: 'rau' } };
@@ -7981,6 +8191,44 @@ function htmlAI(l) {
     ${buton ? `<div class="actiuni">${buton}</div>` : ''}
   </div></section>`;
 }
+// Admin → „Servicii plătite”: AI pe poze (oprit / pornit, plafon lunar, cost estimat) și SMS (telefonul de contact
+// din mesaje), cu contoarele lunii. Setările stau pe server („setari”: ai, sms); plafonul îl verifică și serverul.
+function htmlServicii() {
+  if (!K.activ || !K.serverV3 || K.rol() !== 'admin') return '';
+  const a = setariAI(), sm = Object.assign({ contact: '' }, (K.setari || {}).sms || {});
+  const cfg = K.config || {};
+  return `<section class="card" id="servicii"><h2>Servicii plătite</h2><div class="corp">
+    <div class="sectiune-titlu" style="margin-top:0">Verificare AI a pozelor ${cfg.ai ? '' : '<span class="eticheta warn">cheia AI nu e pusă pe server</span>'}</div>
+    <div class="ajutor">Costă pe fiecare lucrare verificată. O pornesc doar Tehnicul și Adminul, cu confirmare. Verificările fără AI (dubluri, dată, loc, poze neclare) rulează mereu, gratuit.</div>
+    ${bifa('ai-activ', 'Verificarea cu AI e pornită', a.activ !== false)}
+    <div class="randuri2">${camp('ai-plafon', 'Plafon lunar (verificări; 0 = fără plafon)', String(a.plafon || 0), 'inputmode="numeric"')}${camp('ai-cost', 'Cost estimat pe verificare (lei)', String(a.cost).replace('.', ','), 'inputmode="decimal"')}</div>
+    <div class="ajutor" id="x-ai-contor">Luna aceasta: se încarcă…</div>
+    <div class="sectiune-titlu">SMS ${cfg.sms ? '' : '<span class="eticheta warn">contul de SMS nu e pus pe server</span>'}</div>
+    <div class="ajutor">SMS-urile pleacă doar la apăsarea unui buton: codul de confirmare al procesului verbal și anunțul datei planificate. Fiecare SMS se plătește.</div>
+    <div class="randuri2">${camp('sms-contact', 'Telefon de contact în anunțul datei', sm.contact || '', 'inputmode="tel"', 'tel')}</div>
+    <div class="ajutor" id="x-sms-contor">Luna aceasta: se încarcă…</div>
+    <div class="actiuni"><button class="buton" id="x-serv-salv">Salvează setările</button></div>
+  </div></section>`;
+}
+async function legaServicii() {
+  if (!$('#servicii')) return;
+  $('#x-serv-salv').onclick = async () => {
+    const plafon = A().citesteNumar(v('ai-plafon')), cost = A().citesteNumar(v('ai-cost'));
+    if (typeof plafon !== 'number' || plafon < 0 || !Number.isInteger(plafon)) { alert('Plafonul lunar trebuie să fie un număr întreg (0 = fără plafon).'); return; }
+    if (typeof cost !== 'number' || cost < 0) { alert('Costul estimat trebuie să fie un număr (lei).'); return; }
+    const tel = v('sms-contact').trim();
+    if (tel && !/^[+\d][\d\s.-]{7,16}$/.test(tel)) { alert('Telefonul de contact nu pare valid (ex. 0735 320 363).'); return; }
+    try {
+      await K.salveazaSetare('ai', { activ: $('#x-ai-activ').checked, plafon, cost });
+      await K.salveazaSetare('sms', { contact: tel });
+      alert('Setările au fost salvate.');
+    } catch (e) { alert(e.message); }
+  };
+  const a = setariAI();
+  const [ai, sms] = await Promise.all([K.contorAI().catch(() => null), K.contorSMS().catch(() => null)]);
+  if ($('#x-ai-contor')) $('#x-ai-contor').textContent = ai == null ? 'Luna aceasta: necunoscut (fără legătură cu serverul).' : `Luna aceasta: ${ai} ${ai === 1 ? 'verificare' : 'verificări'} cu AI${a.plafon ? ' din ' + a.plafon : ''}, cost estimat ${lei(ai * a.cost)}.`;
+  if ($('#x-sms-contor')) $('#x-sms-contor').textContent = sms == null ? 'Luna aceasta: necunoscut (serverul nu are încă migrarea v2.8.5).' : `Luna aceasta: ${sms} ${sms === 1 ? 'anunț trimis' : 'anunțuri trimise'} prin SMS.`;
+}
 async function incarcaAI(l) {
   aiCache.set(l.id, { stare: 'incarc' });
   try { aiCache.set(l.id, { stare: 'gata', la: Date.now(), rand: await K.ultimaVerificareAI(l.id) }); } catch (e) { aiCache.set(l.id, { stare: 'gata', la: Date.now(), rand: null }); }
@@ -7999,6 +8247,12 @@ function legaAI(l) {
   if (!b) return;
   b.onclick = async () => {
     const vechi = aiCache.get(l.id) || {};
+    // costul se asumă înainte: confirmare cu costul estimat și cât s-a folosit luna asta
+    const sa = setariAI();
+    let luna = null;
+    try { luna = await K.contorAI(); } catch (e) { luna = null; }
+    if (luna != null && sa.plafon && luna >= sa.plafon) { alert(`S-a atins plafonul lunar: ${luna} din ${sa.plafon} verificări cu AI luna aceasta. Adminul îl poate mări din Setări.`); return; }
+    if (!confirm(`Verificarea cu AI costă aproximativ ${lei(sa.cost)} pe lucrare.${luna != null ? `\nLuna aceasta: ${luna} din ${sa.plafon || 'nelimitat'} verificări${sa.plafon ? '' : ''} (cost estimat ${lei(luna * sa.cost)}).` : ''}\n\nFolosiți-o doar când e nevoie (urgențe, cazuri neclare). Continuați?`)) return;
     aiCache.set(l.id, { stare: 'lucrez', rand: vechi.rand });
     redeseneazaAI(l);
     try {
@@ -8200,7 +8454,8 @@ window.EXT = {
   },
   deschide, butoaneLista, legaLista, areStart, COZI, htmlBannerLista, htmlTipScurt, htmlInfoCard, gataDeTrimis, stareText: STARE_TEXT,
   // pentru teste
-  TIPURI, ETAPE, etapeLucrare, etapeLipsa, standardContract, inclusInContract, campuriDinContract, anexaCalculata, sumaPartener, ePartener, urcaPozele,
+  TIPURI, ETAPE, etapeLucrare, etapeLipsa, standardContract, inclusInContract, campuriDinContract, anexaCalculata,
+  htmlServicii, legaServicii, semnalePoze, exifDinJpeg, textAnuntSMS, sumaPartener, ePartener, urcaPozele,
   itemiMeniu, mergiLa, infoScurt, DEPARTAMENTE, modificariNesalvate, fisaAtinsa: () => fisaAtinsa, tipL, dataPlan, pozeEtapa, salveazaFisaAcum, pastreazaPV, oferaPV,
 };
 
@@ -8353,6 +8608,10 @@ table.cal td.tinta:hover{background:var(--galben-deschis)}
 .poza{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--fundal);border:1px solid var(--linie)}
 .poza img{width:100%;height:100%;object-fit:cover;display:block;cursor:zoom-in}
 .poza.neurcata::after{content:'pe telefon';position:absolute;left:4px;bottom:4px;background:rgba(45,43,45,.8);color:#fff;font-size:10.5px;border-radius:4px;padding:1px 5px}
+.anunt-sms{margin-top:10px;padding-top:8px;border-top:1px solid var(--linie)}
+.poza.semnal{outline:3px solid var(--galben,#e0a100);outline-offset:-3px}
+.poza-semn{position:absolute;left:0;right:0;bottom:0;background:rgba(45,43,45,.85);color:#ffd166;font-size:11px;line-height:1.25;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+.stare.atentie{background:#fff3cd;color:#7a5a00}
 .poza-x{position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(45,43,45,.8);color:#fff;font-size:18px;line-height:28px;cursor:pointer}
 label.buton{display:inline-flex;align-items:center;justify-content:center;cursor:pointer}label.buton.ocupat{opacity:.5;pointer-events:none}
 .semnatura{position:relative;border:1.5px dashed var(--gri-2);border-radius:10px;background:#fff;margin-top:10px}
@@ -10830,6 +11089,7 @@ function ecranAdmin() {
     <section class="card"><h2>Date</h2><div class="corp">
       <div class="actiuni"><button class="buton gol" id="b-catalog">Catalog de echipamente</button><button class="buton gol" id="b-nomenclator">Nomenclator și recepție</button><button class="buton gol" id="b-arhiva">Lucrări arhivate</button>${window.EXT && K.serverV2 ? '<button class="buton gol" id="b-parteneri">Parteneri</button><button class="buton gol" id="b-preturi">Prețuri materiale parteneri</button><button class="buton gol" id="b-rapoarte-admin">Rapoarte</button>' : ''}</div>
     </div></section>
+    ${window.EXT && window.EXT.htmlServicii ? window.EXT.htmlServicii() : ''}
     ${panou}`;
   $('#bara-in').innerHTML = `<button class="buton gol" id="b-lista">${areStart() ? 'Înapoi la start' : 'Înapoi la lucrări'}</button>`;
   $('#b-lista').onclick = () => du(areStart() ? 'start' : 'lista');
@@ -10966,6 +11226,7 @@ function ecranAdmin() {
   if ($('#b-rapoarte-admin')) $('#b-rapoarte-admin').onclick = () => du('rapoarte');
   $('#b-arhiva').onclick = () => du('arhiva');
   $('#b-nomenclator').onclick = () => du('nomenclator');
+  if (window.EXT && window.EXT.legaServicii) window.EXT.legaServicii();
 }
 
 // Import conturi din listă (Admin): rânduri „nume; email; rol; echipă; partener”, verificate înainte de creare.
