@@ -1,7 +1,8 @@
 // sw.js — aplicația instalată pe telefon pornește și fără semnal.
-// Pagina se ia întâi de pe internet (ca versiunile noi să ajungă imediat); fără semnal, din memoria telefonului.
+// Din v2.8.7 pagina se deschide imediat din memoria telefonului/calculatorului și se verifică în spate la internet.
+// O versiune nouă se instalează în spate; aplicația arată atunci „Versiune nouă – Reîncarcă”.
 // Cererile către server (Supabase) nu trec pe aici: lucrările le ține aplicația, separat.
-const CACHE = 'ino-install-v2.8.6';
+const CACHE = 'ino-install-v2.8.7';
 const FISIERE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
@@ -13,11 +14,15 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const r = e.request;
   if (r.method !== 'GET' || new URL(r.url).origin !== self.location.origin) return;
+  const dinRetea = fetch(r, { cache: 'no-cache' }).then((raspuns) => {
+    if (raspuns && raspuns.ok) { const copie = raspuns.clone(); caches.open(CACHE).then((c) => c.put(r, copie)); }
+    return raspuns;
+  });
   e.respondWith(
-    // pagina și fișierele se verifică mereu la server (nu din memoria browserului, care ținea versiunea veche)
-    fetch(r, { cache: 'no-cache' }).then((raspuns) => {
-      if (raspuns && raspuns.ok) { const copie = raspuns.clone(); caches.open(CACHE).then((c) => c.put(r, copie)); }
-      return raspuns;
-    }).catch(() => caches.match(r).then((x) => x || (r.mode === 'navigate' ? caches.match('./index.html') : undefined)))
+    // întâi din memorie (pornire imediată); fișierul se reîmprospătează în spate pentru deschiderea următoare
+    caches.match(r, { ignoreSearch: r.mode === 'navigate' }).then((x) => {
+      if (x) { e.waitUntil(dinRetea.catch(() => {})); return x; }
+      return dinRetea.catch(() => caches.match(r).then((y) => y || (r.mode === 'navigate' ? caches.match('./index.html') : undefined)));
+    })
   );
 });
