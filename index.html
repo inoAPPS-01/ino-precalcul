@@ -3594,6 +3594,8 @@ function pdfjs() {
   incarcare = new Promise((rez, rej) => {
     const s = document.createElement('script');
     s.src = PDFJS_URL;
+    // v2.9.5: cu CORS, răspunsul se poate păstra întreg de service worker (sw.js), nu ca răspuns „opac”
+    s.crossOrigin = 'anonymous';
     s.onload = () => {
       if (!radacina.pdfjsLib) { incarcare = null; rej(new Error('Cititorul de PDF nu s-a încărcat.')); return; }
       radacina.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
@@ -3858,7 +3860,14 @@ async function citesteFisier(fisier) {
   return citeste(await randuriDinPdf(date));
 }
 
-const API = { citeste, citesteFisier, randuriDinPdf, curat, PDFJS_URL, PDFJS_WORKER };
+// v2.9.5: PDF.js se aduce din timp, cu semnal, ca service worker-ul să-l păstreze; citirea contractelor merge apoi și fără semnal.
+// Fără service worker (pagina deschisă din fișier, teste) nu face nimic.
+function preincarca() {
+  if (typeof navigator === 'undefined' || typeof fetch === 'undefined' || !navigator.onLine || !navigator.serviceWorker || !navigator.serviceWorker.controller) return Promise.resolve(false);
+  return Promise.all([fetch(PDFJS_URL, { mode: 'cors' }), fetch(PDFJS_WORKER, { mode: 'cors' })]).then((r) => r.every((x) => x.ok));
+}
+
+const API = { citeste, citesteFisier, randuriDinPdf, curat, preincarca, PDFJS_URL, PDFJS_WORKER };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 else radacina.CITIRE_FISA = API;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -5328,6 +5337,21 @@ async function arhiveaza(l, da) {
   if (da) scrieTot(citesteLista().filter((x) => x.id !== l.id));
   await sincronizeaza();
 }
+// v2.9.5: arhivarea în lot (Admin): fiecare lucrare e marcată pe server, pe rând; o singură sincronizare la final.
+// Întoarce ce a mers și ce nu, ca ecranul să spună exact.
+async function arhiveazaLot(lista) {
+  const ok = [], erori = [];
+  for (const l of lista) {
+    try {
+      const r = await asteapta(sb.from('lucrari').update({ arhivat: true }).eq('id', l.id).select());
+      if (!r || !r.length) throw new Error('Serverul nu a găsit lucrarea sau nu aveți drept să o arhivați.');
+      ok.push(l.id);
+    } catch (e) { erori.push({ id: l.id, client: l.client, mesaj: e.message }); }
+  }
+  if (ok.length) scrieTot(citesteLista().filter((x) => !ok.includes(x.id)));
+  await sincronizeaza();
+  return { ok, erori };
+}
 async function sterge(l) {
   if (l._v != null) {
     const r = await asteapta(sb.from('lucrari').delete().eq('id', l.id).select());
@@ -5623,7 +5647,7 @@ window.CONT = {
   salveazaProdus, salveazaCorespondenta, incarcaFisa, linkFisa, seteazaActive,
   mesajLogin, stergeMesajLogin, emailUltim,
   salveazaProfil, creeazaUtilizator, parolaUtilizator, stergeUtilizator, echipaNoua, redenumesteEchipa, salveazaCatalog,
-  arhiva, arhiveaza, sterge,
+  arhiva, arhiveaza, arhiveazaLot, sterge,
   // inoINSTALL
   stareV2, tipL,
   get parteneri() { return extra.parteneri || []; },
@@ -9300,7 +9324,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.4';
+const VERSIUNE_APP = '2.9.5';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
@@ -12668,6 +12692,13 @@ function catalogDeEditat(tab) {
   return { date: JSON.parse(JSON.stringify(K.catalogEditabil())), tab: tab || 'PANOURI', modificat: false, versiune: K.catalogVersiune };
 }
 
+// v2.9.5: candidatele la arhivarea în lot — pe server (au versiune), nearhivate, închise definitiv, cu ultima modificare mai veche de N luni
+function candidatiArhivare(luni) {
+  const prag = new Date(); prag.setMonth(prag.getMonth() - luni);
+  const p = prag.toISOString();
+  return K.citesteLista().filter((l) => l._v != null && !l._arhivat && !l._murdar && stareLucrare(l) === 'inchis'
+    && String(l._modificat || l.modificat || '') !== '' && String(l._modificat || l.modificat) < p);
+}
 async function ecranArhiva() {
   $('#titlu').innerHTML = 'Lucrări arhivate<span class="sub">vizibile doar pentru Admin</span>';
   $('#btn-inapoi').hidden = false;
@@ -12678,7 +12709,18 @@ async function ecranArhiva() {
   try { list = await K.arhiva(); }
   catch (e) { $('#ecran').innerHTML = `<div class="mesaj warn" style="margin-top:14px">Arhiva nu s-a putut încărca: ${E(e.message)}</div>`; return; }
   if (stare.ecran !== 'arhiva') return;
-  $('#ecran').innerHTML = list.length ? list.map((l) => `
+  // v2.9.5: arhivarea în lot — lucrările închise definitiv, nemodificate de N luni (implicit 6); rămân pe server, în arhivă
+  const luniImplicit = Math.max(1, parseInt(stare.arhivaLuni, 10) || 6);
+  const nrText = (n) => `${n} ${n === 1 ? 'lucrare' : 'lucrări'}`;
+  const c0 = candidatiArhivare(luniImplicit);
+  const lot = `<div class="card" id="x-arh-lot" style="margin:0 0 12px">
+      <div class="titlu">Arhivare în lot</div>
+      <div class="ajutor" style="margin-top:4px">Lucrările închise definitiv și nemodificate de cel puțin
+        <input type="number" id="x-arh-luni" min="1" max="120" value="${luniImplicit}" style="width:64px" aria-label="Luni"> luni:
+        <b id="x-arh-nr">${nrText(c0.length)}</b>. Rămân pe server, în arhivă, și se pot restaura; dispar de pe telefoane la următoarea sincronizare.</div>
+      <div class="actiuni" style="margin-top:10px"><button class="buton" id="b-arh-lot" ${c0.length ? '' : 'disabled'}>Arhivează</button></div>
+    </div>`;
+  $('#ecran').innerHTML = lot + (list.length ? list.map((l) => `
     <div class="lucrare" style="cursor:default">
       <div class="titlu">${E(l.client || 'Lucrare fără client')}</div>
       <div class="info">${E(l.adresa || '')}${l.echipa ? ' · echipa ' + E(l.echipa) : ''} · ${E((([t]) => t.charAt(0).toUpperCase() + t.slice(1))([window.EXT ? window.EXT.stareText(l).t : STARI[stareLucrare(l)].t]))}</div>
@@ -12686,7 +12728,30 @@ async function ecranArhiva() {
         <button class="buton gol" data-restaureaza="${E(l.id)}">Restaurează</button>
         <button class="buton gol pericol" data-sterge-def="${E(l.id)}">Șterge definitiv</button>
       </div>
-    </div>`).join('') : '<div class="gol-text">Nicio lucrare arhivată.</div>';
+    </div>`).join('') : '<div class="gol-text">Nicio lucrare arhivată.</div>');
+  const luniAlese = () => Math.max(1, parseInt($('#x-arh-luni').value, 10) || 6);
+  $('#x-arh-luni').oninput = () => {
+    stare.arhivaLuni = luniAlese();
+    const c = candidatiArhivare(stare.arhivaLuni);
+    $('#x-arh-nr').textContent = nrText(c.length);
+    $('#b-arh-lot').disabled = !c.length;
+  };
+  $('#b-arh-lot').onclick = async () => {
+    const luni = luniAlese();
+    const c = candidatiArhivare(luni);
+    if (!c.length) return;
+    const text = `${nrText(c.length)} închise definitiv și nemodificate de cel puțin ${luni} luni. Rămân în arhivă și se pot restaura.`;
+    const da = window.UI && window.UI.intreaba
+      ? await window.UI.intreaba({ titlu: `Arhivați ${nrText(c.length)}?`, text, butoane: [{ t: 'Arhivează', v: 'da' }, { t: 'Renunț', v: '', c: 'gol' }] })
+      : (confirm(`Arhivați ${nrText(c.length)}? ${text}`) ? 'da' : '');
+    if (da !== 'da') return;
+    $('#b-arh-lot').disabled = true; $('#b-arh-lot').textContent = 'Se arhivează…';
+    let rez;
+    try { rez = await K.arhiveazaLot(c); }
+    catch (e) { alert('Arhivarea nu s-a putut face: ' + e.message); ecranArhiva(); return; }
+    if (rez.erori.length) alert(`${nrText(rez.ok.length)} arhivate. Nu s-au putut arhiva: ${rez.erori.map((x) => (x.client || x.id) + ' (' + x.mesaj + ')').join('; ')}`);
+    ecranArhiva();
+  };
   document.querySelectorAll('[data-restaureaza]').forEach((b) => {
     b.onclick = async () => {
       try { await K.arhiveaza(list.find((x) => x.id === b.dataset.restaureaza), false); ecranArhiva(); }
@@ -13840,6 +13905,10 @@ K.porneste().then((s) => {
   if (stare.ecran === 'lista' && areStart()) stare.ecran = 'start';
   deseneaza();
   if (['lista', 'start'].includes(stare.ecran)) oferaCiorna();
+  // v2.9.5: rolurile care citesc contracte primesc PDF.js în memoria telefonului din timp (o dată, ~1,4 MB), ca să meargă și fără semnal
+  if (stare.ecran !== 'login' && K.activ && window.CITIRE_FISA && ['admin', 'planificare', 'sales'].includes(K.rol())) {
+    setTimeout(() => { window.CITIRE_FISA.preincarca().catch(() => {}); }, 8000);
+  }
 });
 })();
 
