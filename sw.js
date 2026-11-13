@@ -2,7 +2,7 @@
 // Din v2.8.7 pagina se deschide imediat din memoria telefonului/calculatorului și se verifică în spate la internet.
 // O versiune nouă se instalează în spate; aplicația arată atunci „Versiune nouă – Reîncarcă”.
 // Cererile către server (Supabase) nu trec pe aici: lucrările le ține aplicația, separat.
-const CACHE = 'ino-install-v2.9.3';
+const CACHE = 'ino-install-v2.9.4';
 const FISIERE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {

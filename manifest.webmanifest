@@ -1,7 +1,7 @@
 {
-  "name": "inoSOLAR — Pre-calcul materiale",
-  "short_name": "Pre-calcul",
-  "description": "Pre-calcul de materiale și raportarea consumului pentru sisteme fotovoltaice 3–30 kWp.",
+  "name": "inoINSTALL — inoSOLAR",
+  "short_name": "inoINSTALL",
+  "description": "Pre-calculul materialelor, planificarea, pozele, procesul verbal, verificările și facturarea montajelor fotovoltaice inoSOLAR (3–30 kWp).",
   "lang": "ro",
   "start_url": "./",
   "scope": "./",
