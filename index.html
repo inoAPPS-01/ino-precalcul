@@ -1356,6 +1356,9 @@ const BATERIE_LV = {
   deye_SG01LP1_12K: { 12: [35, 300, 220], 14: [35, 300, 250], 16: [50, 350, 290] },
   deye_SG04LP3_mic: { 5: [35, 150, 120], 6: [50, 200, 150] },
   deye_SG04LP3:     { 5: [35, 150, 120], 6: [50, 200, 150], 8: [70, 250, 190], 10: [95, 300, 210], 12: [120, 300, 240] },
+  // SG05LP3 14–20 kW: verificat pe 13 nov 2026 cu manualul SUN-14-20K-SG05LP3-EU-SM2 (Chart 3-2: 50 mm² la 14/15/16 kW, 70 mm² la 18/20 kW;
+  // fișa tehnică: curent maxim 260/280/300/330/350 A). Manualul cere protecție DC separată, dimensionată după curentul bateriei,
+  // dar nu dă o valoare: rămâne regula ≥ 1,25 × curentul maxim, marcată „de confirmat”.
   deye_SG05LP3:     { 14: [50, null, 260], 15: [50, null, 280], 16: [50, null, 300], 18: [70, null, 330], 20: [70, null, 350] },
 };
 const INTRERUPATOARE_DC_A = [125, 150, 160, 200, 250, 300, 350, 400, 450, 500, 630];
@@ -3199,6 +3202,7 @@ window.NOMENCLATOR_INCLUS = [
   ["n356", "BCS5", "Baterie CANADIAN SOLAR 5KW - BBCS5", "buc", "baterie"],
   ["n357", "MK2-55CM", "MINIRAIL K2 55CM", "buc", "altul"],
   ["n358", "PFCS525", "Panou Fotovoltaic CANADIAN SOLAR 525W", "buc", "panou"],
+  ["n359", "SN4.4", "sina 4.4m", "buc", "altul"],
 ];
 
 </script>
@@ -3260,6 +3264,7 @@ const EXACT = {
   'Covoraș de protecție sub picior': 'COVCAUC',
   'Dală de beton pentru lest': 'DALBET40040060',
   'Bare de șină de 3,6 m': 'SN3.6',
+  'Bare de șină de 4,4 m': 'SN4.4',   // v2.9.9: Ino are și 4,4 m; cod propus după modelul SN3.6 (decizie Clau, 13 nov)
   // 2. Invertor și stocare
   'Modul de putere Huawei LUNA2000-5KW-C0': 'HPML5',
   'Modul de putere Huawei LUNA2000-10KW-C1': 'HPML10',
@@ -3405,8 +3410,8 @@ const FARA_COD_INTENTIONAT = [/^Set de etichete de avertizare PV$/, /^Schemă mo
   // v2.9.7 (decizie Clau, 13 nov): nacela e serviciu închiriat, nisipul se cumpără local — nu sunt produse din depozit
   /^Nacelă$/, /^Nisip pentru patul cablului$/];
 const COD_DE_CREAT = [
-  // v2.9.7: fără produs în nomenclator azi; codurile vin de la Ino (nomenclatorul are doar șina de 3,6 m)
-  /^Bandă avertizoare /, /^Cablu de comunicație RS485/, /^Diferențial backup /, /^Bare de șină de 4,4 m$/,
+  // v2.9.7: fără produs în nomenclator azi; codurile vin de la Ino. v2.9.9: și stația de încărcare auto cu cablul ei
+  /^Bandă avertizoare /, /^Cablu de comunicație RS485/, /^Diferențial backup /, /^Stație de încărcare auto /, /^Cablu stație auto /,
   /^Colier UV$/, /^Șurub /, /^Piuliță și șaibă$/, /^Diblu /, /^Etanșant butil$/, /^Garnitură EPDM$/, /^Trecere etanșă /,
   /^Suport cu etanșare pentru șindrilă$/, /^Presetupă /, /^Pin pentru /, /^Papuc pentru conductorul de împământare$/,
   /^Clemă de împământare$/, /^Platbandă de împământare$/, /^Cutie de control priză de pământ$/, /^Conductor PE 6 mm²/,
@@ -9467,7 +9472,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.8';
+const VERSIUNE_APP = '2.9.9';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
