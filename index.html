@@ -2428,8 +2428,9 @@ function calculeaza(intrare) {
       nota: `${notaCurent(acInv)}; de la borna invertorului la cutie, aproape de invertor` });
   }
   if (input.distantaInvertorBransament_m > 0) {
+    // v2.9.7: și tubul îngropat poartă cablul în notă, ca nomenclatorul să aleagă diametrul (FI 40 / FI 50)
     cabluri.push(ingropat
-      ? { den: 'Tub de protecție pentru traseu îngropat', um: 'm', cant: input.distantaInvertorBransament_m }
+      ? { den: 'Tub de protecție pentru traseu îngropat', um: 'm', cant: input.distantaInvertorBransament_m, nota: `pentru cablul ${nrConductoare}×${ac.sectiune} mm²${input.materialCabluAC === 'aluminiu' ? ' aluminiu' : ''}` }
       : { den: 'Copex sau canal cablu', um: 'm', cant: input.distantaInvertorBransament_m, nota: `pentru cablul ${nrConductoare}×${ac.sectiune} mm²` });
     if (ingropat) {
       // NTE 007/08/00: cablul îngropat stă pe pat de nisip și are bandă avertizoare deasupra
@@ -3224,14 +3225,23 @@ let deLaServer = false;
 const fara = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /* ---------------------------------------------------------------- cheia ---- */
+// v2.9.7: marca invertorului, din lucrare sau, dacă lipsește, din modelul ales (prin catalog); altfel cheia
+// smart meterului rămânea „Smart meter trifazat · ” și linia apărea fără cod
+function marcaInvertor(l) {
+  if (!l) return '';
+  if (l.invertorBrand) return l.invertorBrand;
+  const C = typeof window !== 'undefined' ? window.CATALOG : null;
+  const inv = l.invertorModel && C && Array.isArray(C.INVERTOARE) ? C.INVERTOARE.find((i) => i.model === l.invertorModel) : null;
+  return (inv && inv.brand) || '';
+}
 function cheie(x, l) {
   const den = String(x.den || '');
   const det = String(x.det || '').trim();
   if (den === 'Panouri fotovoltaice') return 'Panou · ' + det;
-  if (den === 'Invertor') return 'Invertor · ' + [l && l.invertorBrand, det].filter(Boolean).join(' ');
+  if (den === 'Invertor') return 'Invertor · ' + [marcaInvertor(l), det].filter(Boolean).join(' ');
   if (den === 'Baterie') return 'Baterie · ' + det;
   if (den === 'Dongle de comunicație') return 'Dongle · ' + det;
-  if (/^Smart meter /.test(den)) return den + ' · ' + ((l && l.invertorBrand) || '');
+  if (/^Smart meter /.test(den)) return den + ' · ' + marcaInvertor(l);
   return den;
 }
 
@@ -3373,6 +3383,9 @@ const VARIANTE = {
   'Pilon': ['SLS2X3', 'SLS2X5', 'SLS2X3-30G-DOL', 'SLS2X5-30G-DOL', 'SLS2X5-DOL'],
   'Copex pentru cablurile DC': COPEX,
   'Copex sau canal cablu': COPEX.concat(['CCC', 'CC60x40']),
+  // v2.9.7: traseul îngropat merge în copex roșu (FI 40 implicit; FI 50 de la cablul de 25 mm² în sus)
+  'Tub de protecție pentru traseu îngropat': ['COPEXFI40R', 'COPEXFI50R'],
+  'Tub de protecție pentru traseul DC îngropat': ['COPEXFI40R', 'COPEXFI50R'],
   'Tablou AC IP65': TABLOURI,
   'Tablou DC IP65': TABLOURI,
   'Tablou de backup': TABLOURI,
@@ -3386,8 +3399,12 @@ Object.keys(VARIANTE).forEach((k) => { if (/^Întreruptor AC /.test(k)) VARIANTE
 
 // Linii fără produs în nomenclator: unele așteaptă un cod nou de la Ino, altele rămân fără cod, intenționat
 // (decizia din 13 octombrie). Cele intenționate nu mai apar ca „fără cod” de completat.
-const FARA_COD_INTENTIONAT = [/^Set de etichete de avertizare PV$/, /^Schemă monofilară/, /^Verificare PRAM$/, /^Grindă înclinată pentru cadru$/, /^Conector grindă–șină$/];
+const FARA_COD_INTENTIONAT = [/^Set de etichete de avertizare PV$/, /^Schemă monofilară/, /^Verificare PRAM$/, /^Grindă înclinată pentru cadru$/, /^Conector grindă–șină$/,
+  // v2.9.7 (decizie Clau, 13 nov): nacela e serviciu închiriat, nisipul se cumpără local — nu sunt produse din depozit
+  /^Nacelă$/, /^Nisip pentru patul cablului$/];
 const COD_DE_CREAT = [
+  // v2.9.7: fără produs în nomenclator azi; codurile vin de la Ino (nomenclatorul are doar șina de 3,6 m)
+  /^Bandă avertizoare /, /^Cablu de comunicație RS485/, /^Diferențial backup /, /^Bare de șină de 4,4 m$/,
   /^Colier UV$/, /^Șurub /, /^Piuliță și șaibă$/, /^Diblu /, /^Etanșant butil$/, /^Garnitură EPDM$/, /^Trecere etanșă /,
   /^Suport cu etanșare pentru șindrilă$/, /^Presetupă /, /^Pin pentru /, /^Papuc pentru conductorul de împământare$/,
   /^Clemă de împământare$/, /^Platbandă de împământare$/, /^Cutie de control priză de pământ$/, /^Conductor PE 6 mm²/,
@@ -3425,6 +3442,11 @@ function copexDupaCablu(k, x) {
     const fire = +m[1], s = +m[2].replace(',', '.');
     return fire <= 3 && s <= 6 ? 'COPEX25' : fire * s <= 80 ? 'COPEX32' : 'CCC';
   }
+  // v2.9.7: tubul pentru traseul îngropat, după secțiunea cablului din notă (fără notă: FI 40)
+  if (/^Tub de protecție pentru traseu/.test(k)) {
+    const m = n.match(/(\d+)×(\d+(?:[.,]\d+)?) mm²/);
+    return m && +m[2].replace(',', '.') >= 25 ? 'COPEXFI50R' : 'COPEXFI40R';
+  }
   return null;
 }
 // Descărcătorul DC: după tensiunea din notă (cel mult 600 V sau peste). Tipul 1+2 nu are echivalent.
@@ -3450,6 +3472,7 @@ const SUGESTII = [
   [/^ATS/, ['ATSSUNTREE2P63A', 'ATSSUNTREE4P63A', 'ATSOPEN2P63A', 'ATSOPEN4P63A']],
   [/^Electrod de împământare/, ['EV2IS', 'EV2IP']],
   [/^Copex/, ['COPEX16', 'COPEX25', 'COPEX32', 'CCC', 'CC60x40']],
+  [/^Tub de protecție pentru traseu/, ['COPEXFI40R', 'COPEXFI50R']],
   [/^Întreruptor (AC|backup) 3P 25 A/, ['SAC253P+N', 'SAC253P+NE']],
   [/^Întreruptor (AC|backup) 3P 32 A/, ['SAC32', 'SAC32S']],
   [/^Întreruptor (AC|backup) 3P 40 A/, ['SAC40S|3P+N']],
@@ -6690,17 +6713,23 @@ function aratPVIntermediar(l, x) {
   document.querySelectorAll('.foaie').forEach((f) => f.remove());
   const m = document.createElement('div');
   m.className = 'modal-problema foaie';
+  // v2.9.7: și câmpurile structurate (stadiul pe etape, rămas, starea la plecare, reluarea, instalatorul), cu PDF
+  const numeEt = (k) => (etapeLucrare(l).find((e) => e.k === k) || { t: k }).t;
+  const facute = x.etapeFacute || x.etape || [];
   m.innerHTML = `<div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="pvi-t">
-    <h2 id="pvi-t">PV de fază intermediară</h2>
-    <p><b>Client:</b> ${E(l.client || '—')}<br><b>Data:</b> ${E(oraRo(x.data))}<br><b>Semnat de:</b> ${E(x.nume || '—')}</p>
-    <div class="sectiune-titlu">Stadiul la plecare</div><p>${E(x.obs || '— (nescris)')}</p>
-    ${(x.etape || []).length ? `<div class="ajutor">Etape cu poze în ziua aceea: ${E(x.etape.map((k) => (etapeLucrare(l).find((e) => e.k === k) || { t: k }).t).join(', '))}</div>` : ''}
+    <h2 id="pvi-t">PV de fază intermediară${x.zi ? ' · ziua ' + E(x.zi) : ''}</h2>
+    <p><b>Client:</b> ${E(l.client || '—')}<br><b>Data:</b> ${E(oraRo(x.data))}<br><b>Semnat de:</b> ${E(x.nume || '—')}${x.instalator ? '<br><b>Instalator:</b> ' + E(x.instalator.nume || '—') : ''}</p>
+    <div class="sectiune-titlu">Lucrări executate azi</div><p>${E(x.obs || '— (nescris)')}</p>
+    ${x.ramas ? `<div class="sectiune-titlu">Rămase de executat</div><p>${E(x.ramas)}</p>` : ''}
+    ${facute.length ? `<div class="ajutor">${x.etapeFacute ? 'Etape făcute' : 'Etape cu poze în ziua aceea'}: ${E(facute.map(numeEt).join(', '))}</div>` : ''}
+    ${x.confirmari ? `<div class="ajutor">${x.confirmari.dc ? '✓' : '✗'} instalația DC deconectată și izolată · ${x.confirmari.sig ? '✓' : '✗'} zona de lucru în siguranță${x.materiale ? ' · materiale rămase la client: ' + E(x.materiale) : ''}${x.reluare ? ' · reluare estimată: ' + E(oraRo(x.reluare)) : ''}</div>` : ''}
     ${x.semnatura ? `<img class="verif-semn" src="${E(x.semnatura)}" alt="Semnătura clientului" style="max-width:100%">` : ''}
-    <div class="actiuni"><button class="buton" id="x-pvi-ok">Închide</button></div></div>`;
+    <div class="actiuni"><button class="buton gol" id="x-pvi-pdf">PDF</button><button class="buton" id="x-pvi-ok">Închide</button></div></div>`;
   document.body.appendChild(m);
   document.body.classList.add('cu-modal');
   const inchide = () => { m.remove(); document.body.classList.remove('cu-modal'); };
   m.querySelector('#x-pvi-ok').onclick = inchide;
+  m.querySelector('#x-pvi-pdf').onclick = () => pvIntermediarPDF(l, x);
   m.addEventListener('click', (ev) => { if (ev.target === m) inchide(); });
   m.querySelector('#x-pvi-ok').focus();
 }
@@ -7253,16 +7282,25 @@ function textPV(l) {
  * Upsales și faza intermediară rămân pe procesul verbal simplu, până vin modelele lor.
  * Anexa nr. 1 (fișa de intervenție tehnică) se adaugă când o trimite Ino.
  * ------------------------------------------------------------------ */
-const MODEL_PV = { montaj_nou: 'montaj', pif: 'montaj', interventie: 'interventie' };
+// v2.9.7 (decizie Clau, 13 nov; Ino a recomandat să propunem noi modelele): Upsales are modelul lui, construit pe
+// cel de montaj — sistemul existent, echipamentul suplimentar cu seria lui, testele PIF obligatorii, constatări a)–d).
+const MODEL_PV = { montaj_nou: 'montaj', pif: 'montaj', interventie: 'interventie', upsales: 'upsales' };
 const modelPV = (l, mod) => (mod === 'final' ? MODEL_PV[tipL(l)] || null : null);
-const TITLU_PV_MODEL = { montaj: 'PROCES VERBAL LA TERMINAREA LUCRĂRILOR aferente CENTRALEI FOTOVOLTAICE', interventie: 'PROCES VERBAL al INTERVENȚIEI aferente CENTRALEI FOTOVOLTAICE' };
+const TITLU_PV_MODEL = { montaj: 'PROCES VERBAL LA TERMINAREA LUCRĂRILOR aferente CENTRALEI FOTOVOLTAICE', interventie: 'PROCES VERBAL al INTERVENȚIEI aferente CENTRALEI FOTOVOLTAICE',
+  upsales: 'PROCES VERBAL DE MONTAJ ECHIPAMENT SUPLIMENTAR aferent CENTRALEI FOTOVOLTAICE' };
+const TITLU_FAZA = 'PROCES VERBAL DE FAZĂ INTERMEDIARĂ (stadiul lucrărilor)';
+const ECHIPAMENT_CU_SERIE = ['Invertor', 'Baterie'];
 const CONSTATARI = {
   montaj: [['fin', 'a) Au fost finalizate lucrările de construcții-montaj'], ['anti', 'b) Proba de antiinsularizare (prin lipsa tensiunii în rețea) a fost executată'],
     ['echip', 'c) Au fost prezentate beneficiarului echipamentele principale'], ['app', 'd) A fost prezentată beneficiarului aplicația de monitorizare a producției']],   // v2.9.3: „d)”, nu încă un „c)” (T5 #16)
   interventie: [['fin', 'a) Au fost finalizate lucrările de intervenție'], ['anti', 'b) Proba de antiinsularizare (prin lipsa tensiunii în rețea) a fost executată'],
     ['mas', 'c) Au fost făcute măsurători'], ['echip', 'd) Au fost prezentate beneficiarului echipamentele principale'], ['app', 'e) A fost prezentată beneficiarului aplicația de monitorizare a producției']],
+  upsales: [['fin', 'a) Au fost finalizate lucrările de montaj a echipamentului suplimentar'], ['anti', 'b) Proba de antiinsularizare (prin lipsa tensiunii în rețea) a fost executată'],
+    ['echip', 'c) Echipamentul suplimentar a fost integrat în sistem și prezentat beneficiarului'], ['app', 'd) Aplicația de monitorizare arată echipamentul nou și a fost prezentată beneficiarului']],
 };
-const DECLARATIE_MONTAJ = 'Declar că am luat la cunoștință și îmi asum datele înscrise în prezentul Proces-Verbal. Confirm că montajul sistemului fotovoltaic a fost realizat conform contractului, că sunt de acord și mulțumit(ă) de execuție și funcționare, iar la data semnării nu am alte obiecțiuni sau reclamații. Prin prezenta se constată îndeplinirea obligațiilor contractuale de către executant.';
+const DECLARATIE_UPSALES = 'Declar că am luat la cunoștință și îmi asum datele înscrise în prezentul Proces-Verbal. Confirm că montajul echipamentului suplimentar la sistemul fotovoltaic a fost realizat conform contractului, că sunt de acord și mulțumit(ă) de execuție și funcționare, iar la data semnării nu am alte obiecțiuni sau reclamații. Prin prezenta se constată îndeplinirea obligațiilor contractuale de către executant.';
+const DECLARATIE_FAZA = 'Beneficiarul confirmă stadiul lucrărilor de mai sus. Lucrarea nu este finalizată, iar sistemul fotovoltaic nu este pus în funcțiune până la semnarea procesului verbal final.';
+const DECLARATIE_MONTAJ ='Declar că am luat la cunoștință și îmi asum datele înscrise în prezentul Proces-Verbal. Confirm că montajul sistemului fotovoltaic a fost realizat conform contractului, că sunt de acord și mulțumit(ă) de execuție și funcționare, iar la data semnării nu am alte obiecțiuni sau reclamații. Prin prezenta se constată îndeplinirea obligațiilor contractuale de către executant.';
 const RECOMANDARI_MONTAJ = ['Urmărirea în timp a echipamentelor instalate', 'Efectuarea lucrărilor de mentenanță anuale cu o firmă autorizată ANRE'];
 const AC_TRI = ['L1-N', 'L2-N', 'L3-N', 'L1-L2', 'L1-L3', 'L2-L3'], AC_MONO = ['L1-N'];
 const IZ_TRI = ['L1-L2', 'L2-L3', 'L1-L3', 'L1-PE', 'L2-PE', 'L3-PE'], IZ_MONO = ['L1-PE'];
@@ -7296,10 +7334,10 @@ function valoriInitialePV(l) {
     retea: l.retea || rz.retea || 'tri', nrs: String(Math.min(MAX_STRINGURI_PV, Math.max(1, +rz.stringuri || 1))),
     cab_rosu: String(suma(/^Cablu solar .*roșu/i)), cab_negru: String(suma(/^Cablu solar .*negru/i)), cab_alim: String(suma(/^Cablu AC/i)),
     cab_com: String(suma(/^Cablu de comunica/i)), cab_imp: String(suma(/^Conductor MYF/i)), cab_tarusi: String(suma(/^Electrod de împământare/i)), cab_copex: String(suma(/^(Copex|Canal cablu)/i)),
-    inst_nume: (K.profil && K.profil.nume) || '',
+    inst_nume: (K.profil && K.profil.nume) || '', ech_sn: '',
   }, (() => {
-    // intervenția (și PIF-ul fără pre-calcul): echipamentele vin din procesul verbal anterior al clientului
-    if (!['interventie', 'pif'].includes(tipL(l))) return {};
+    // intervenția, Upsales (v2.9.7) și PIF-ul fără pre-calcul: echipamentele vin din procesul verbal anterior al clientului
+    if (!['interventie', 'pif', 'upsales'].includes(tipL(l))) return {};
     const si = sistemClient(l);
     if (!si) return {};
     const t = (x) => (x == null || x === '' ? '' : String(x).replace('.', ','));
@@ -7344,12 +7382,15 @@ function htmlPVModel(l, model) {
     <div class="ajutor" style="margin-top:0">După modelul inoSOLAR. ${model === 'interventie' ? 'Testele PIF se completează doar dacă la intervenție s-au făcut măsurători.' : 'Măsurătorile sunt obligatorii: procesul verbal nu se poate semna fără ele.'}</div>
     ${model === 'montaj' ? `<div class="sectiune-titlu">Branșament</div><div class="grila-mas">${nrCamp('bmp_a', 'Siguranța BMP', 'A')}${nrCamp('bmp_mm2', 'Secțiune cablu BMP–TG', 'mm²')}</div>
       ${alege('pm-afm', 'Program', pvM.afm || '', [{ v: '', t: '— alegeți —' }, { v: 'AFM', t: 'AFM' }, { v: 'NON AFM', t: 'NON AFM' }])}` : ''}
-    <div class="sectiune-titlu">Echipamentele centralei fotovoltaice</div>
+    <div class="sectiune-titlu">${model === 'upsales' ? 'Sistemul existent (cum rămâne după montaj)' : 'Echipamentele centralei fotovoltaice'}</div>
     ${pvM._dinSistem && !(l.pv && l.pv.masuratori) ? `<div class="mesaj ok" id="x-pm-din-sistem">Completate din procesul verbal anterior al clientului${typeof pvM._dinSistem === 'string' && pvM._dinSistem ? ' (' + E(dataRo(new Date(pvM._dinSistem))) + ')' : ''}. Verificați pe loc, mai ales seria invertorului dacă a fost schimbat.</div>` : ''}
     <div class="camp"><label for="x-pm-inv_tip">Invertor (tip)</label><input type="text" id="x-pm-inv_tip" value="${E(pvM.inv_tip || '')}"></div>
     <div class="camp"><label for="x-pm-inv_sn">Invertor (S/N)</label><input type="text" id="x-pm-inv_sn" value="${E(pvM.inv_sn || '')}" autocomplete="off" autocapitalize="characters"></div>
     <div class="grila-mas">${nrCamp('pan_nr', 'Panouri', 'buc')}${nrCamp('pan_w', 'Putere panou', 'W')}</div>
     <div class="camp"><label for="x-pm-stoc">Stocare (buc + tip)</label><input type="text" id="x-pm-stoc" value="${E(pvM.stoc || '')}" placeholder="fără stocare"></div>
+    ${model === 'upsales' ? (() => { const u = l.upsales || {}; const cereSN = ECHIPAMENT_CU_SERIE.includes(u.echipament); return `<div class="sectiune-titlu">Echipamentul suplimentar montat</div>
+      <div class="ajutor" id="x-pm-ech-text">${E(u.echipament || '—')}${u.cant ? ' × ' + E(nrText(u.cant)) : ''}${u.model ? ' · ' + E(u.model) : ''} (din fișa lucrării). ${u.echipament === 'Invertor' ? 'Invertorul nou se scrie mai sus, cu seria lui.' : 'Dacă s-a schimbat și invertorul, scrieți mai sus invertorul nou.'}</div>
+      <div class="camp"><label for="x-pm-ech_sn">S/N echipament nou${cereSN ? '' : ' (dacă are)'}</label><input type="text" id="x-pm-ech_sn" value="${E(pvM.ech_sn || '')}" autocomplete="off" autocapitalize="characters"></div>`; })() : ''}
     <div class="sectiune-titlu">Componența sistemului</div>
     ${[['comp_bmp', 'BMP'], ['comp_str', 'Structură'], ['comp_tab', 'Tablou C.C. și C.A.']].map(([k, et]) => `<label class="bifa"><input type="checkbox" id="x-pm-${k}" ${pvM[k] ? 'checked' : ''}><span>${E(et)}</span></label>`).join('')}
     ${model === 'interventie' ? `<div class="sectiune-titlu">Teste PIF</div>${daNu('c_mas', 'c) Au fost făcute măsurători?')}
@@ -7359,7 +7400,7 @@ function htmlPVModel(l, model) {
   <section class="card"><h2>${model === 'montaj' ? 'Constatările comisiei de recepție' : 'Constatările la recepție'}</h2><div class="corp">
     ${CONSTATARI[model].filter(([k]) => !(model === 'interventie' && k === 'mas')).map(([k, et]) => daNu('c_' + k, et)).join('')}
     ${daNu('admitere', 'Admiterea recepției la terminarea lucrărilor')}
-    ${model === 'montaj' ? `<div class="ajutor">Comisia recomandă: ${E(RECOMANDARI_MONTAJ.join('; '))}.</div>` : ''}
+    ${['montaj', 'upsales'].includes(model) ? `<div class="ajutor">Comisia recomandă: ${E(RECOMANDARI_MONTAJ.join('; '))}.</div>` : ''}
     <div class="camp"><label for="x-pm-obs">Observații și constatări</label><textarea id="x-pm-obs" rows="3">${E(pvM.obs || '')}</textarea></div>
   </div></section>
   ${model === 'montaj' ? `<section class="card"><h2>Cabluri și materiale folosite</h2><div class="corp">
@@ -7376,7 +7417,7 @@ function legaPVModel(model) {
   if ($('#x-pm-c_mas')) $('#x-pm-c_mas').addEventListener('change', red);
 }
 // valorile verificate, sau lista de câmpuri lipsă; avertismentele (valori neobișnuite) nu opresc salvarea
-function verificaPVModel(model, tip) {
+function verificaPVModel(model, tip, l) {
   cititPV();
   const M = pvM, lipsa = [], atentie = [], chei = [];
   // cere === false: câmp de test PIF la intervenția fără măsurători — nu se cere și nu se păstrează;
@@ -7411,6 +7452,12 @@ function verificaPVModel(model, tip) {
   if (r.panouri.buc != null && !Number.isInteger(r.panouri.buc)) { lipsa.push('numărul de panouri (număr întreg)'); chei.push('pan_nr'); }
   r.stocare = String(M.stoc || '').trim();
   r.componente = ['comp_bmp', 'comp_str', 'comp_tab'].filter((k) => M[k]).map((k) => ({ comp_bmp: 'BMP', comp_str: 'Structură', comp_tab: 'Tablou C.C. și C.A.' })[k]);
+  if (model === 'upsales') {
+    // v2.9.7: echipamentul suplimentar, din fișă; seria lui e obligatorie la invertor și baterie
+    const u = (l && l.upsales) || {};
+    r.echipament = { ce: u.echipament || '', cant: u.cant != null ? u.cant : null, model: u.model || '', sn: String(M.ech_sn || '').trim() };
+    if (ECHIPAMENT_CU_SERIE.includes(u.echipament) && !r.echipament.sn) { lipsa.push('seria (S/N) echipamentului nou'); chei.push('ech_sn'); }
+  }
   r.priza = [num('pp1', 'priza de pământ, valoarea 1', cereM), num('pp2', 'priza de pământ, valoarea 2', cereM)];
   r.ac = Object.fromEntries((tri ? AC_TRI : AC_MONO).map((x) => [x, num('ac_' + cheieM(x), 'tensiunea c.a. ' + x, cereM)]));
   r.dc = Array.from({ length: ns }, (_, i) => num('dc_' + (i + 1), `tensiunea c.c. string ${i + 1}`, cereM));
@@ -7450,7 +7497,7 @@ function pvMdinSalvat(l) {
   const o = { retea: m.retea || 'tri', nrs: String(m.nrStringuri || (m.dc || []).length || 1), inv_tip: (m.invertor || {}).tip || '', inv_sn: (m.invertor || {}).sn || '',
     pan_nr: t((m.panouri || {}).buc), pan_w: t((m.panouri || {}).w), stoc: m.stocare || '', admitere: m.admitere || '', obs: m.obs || '',
     comp_bmp: (m.componente || []).includes('BMP'), comp_str: (m.componente || []).includes('Structură'), comp_tab: (m.componente || []).includes('Tablou C.C. și C.A.'),
-    pp1: t((m.priza || [])[0]), pp2: t((m.priza || [])[1]), inst_nume: (pv.instalator || {}).nume || '' };
+    pp1: t((m.priza || [])[0]), pp2: t((m.priza || [])[1]), inst_nume: (pv.instalator || {}).nume || '', ech_sn: (m.echipament || {}).sn || '' };
   if (m.model === 'montaj') Object.assign(o, { bmp_a: t(m.bmp_a), bmp_mm2: t(m.bmp_mm2), afm: m.afm || '' });
   Object.entries(m.ac || {}).forEach(([k, x]) => { o['ac_' + cheieM(k)] = t(x); });
   (m.dc || []).forEach((x, i) => { o['dc_' + (i + 1)] = t(x); });
@@ -7561,27 +7608,28 @@ function ecranPV() {
     + `<section class="card"><h2>${E(mod === 'final' ? TIPURI[t].pv : 'Proces verbal de fază intermediară')}</h2><div class="corp pv-text">
       <p><b>Client:</b> ${E(l.client || '—')}<br><b>Adresa:</b> ${E(l.adresa || '—')}<br><b>Data:</b> ${E(dataRo(new Date()))}<br>
       <b>Executant:</b> inoSOLAR${l.partener_id ? ', prin ' + E(K.numePartener(l.partener_id)) : ''}${l.echipa ? ', ' + E(numeEchipaText(l.echipa)) : ''}</p>
-      ${mod === 'final' ? textPV(l).map((x) => `<p>${E(x)}</p>`).join('') : `<p>Lucrarea nu s-a terminat azi și continuă într-o zi următoare. Stadiul la plecare:</p>${zona('pv-obs', 'Ce s-a făcut azi / ce rămâne', '')}`}
+      ${mod === 'final' ? textPV(l).map((x) => `<p>${E(x)}</p>`).join('') : htmlFazaIntermediara(l)}
       ${anexa.length ? `<div class="sectiune-titlu">Anexă — materiale suplimentare</div>
         <div class="ajutor">Cantitățile vin din estimarea lucrării (pre-calcul), față de lungimile incluse în contract.</div>
         <table class="rap mic"><tr><th>Material</th><th>Cant.</th></tr>${anexa.map((x) => `<tr><td>${E(x.den)}<span class="det">${E(x.nota || '')}</span></td><td class="n">${E(nr(x.cant))} ${E(x.um)}</td></tr>`).join('')}</table>
         ${bifa('pv-anexa', 'Clientul acceptă materialele suplimentare din anexă, facturate separat', false)}` : ''}
     </div></section>
     ${model ? htmlPVModel(l, model) : ''}
-    ${model ? `<section class="card"><h2>Instalator</h2><div class="corp" id="pv-instalator">
-      <div class="camp"><label for="x-pm-inst_nume">Numele instalatorului</label><input type="text" id="x-pm-inst_nume" value="${E(pvM.inst_nume || '')}"></div>
+    ${model || mod === 'intermediar' ? `<section class="card"><h2>Instalator</h2><div class="corp" id="pv-instalator">
+      <div class="camp"><label for="x-pm-inst_nume">Numele instalatorului</label><input type="text" id="x-pm-inst_nume" value="${E((pvM && pvM.inst_nume) || (K.profil && K.profil.nume) || '')}"></div>
       <div class="semnatura"><canvas id="x-semn-inst" width="600" height="220"></canvas><span class="semn-loc">Semnătura instalatorului</span></div>
       <button type="button" class="adauga" id="x-semn-inst-sterge">Șterge semnătura</button>
     </div></section>` : ''}
     <section class="card"><h2>Semnătura clientului</h2><div class="corp">
-      ${model === 'montaj' ? `<div class="pv-declaratie">${E(DECLARATIE_MONTAJ)}</div>` : ''}
+      ${model === 'montaj' ? `<div class="pv-declaratie">${E(DECLARATIE_MONTAJ)}</div>` : model === 'upsales' ? `<div class="pv-declaratie">${E(DECLARATIE_UPSALES)}</div>` : mod === 'intermediar' ? `<div class="pv-declaratie">${E(DECLARATIE_FAZA)}</div>` : ''}
       ${camp('pv-nume', 'Numele clientului (cel care semnează)', l.client || '')}
       <div class="semnatura"><canvas id="x-semn" width="600" height="220"></canvas><span class="semn-loc">Semnați aici cu degetul</span></div>
       <button type="button" class="adauga" id="x-semn-sterge">Șterge semnătura</button>
     </div></section>`;
   bara(`<button class="buton gol" id="x-pv-renunt">Renunță</button><button class="buton" id="x-pv-salv"${lipsa.length || deScris.length ? ' disabled' : ''}>Salvează PV-ul semnat</button>`);
   pregatesteSemnatura($('#x-semn'));
-  if (model) { pregatesteSemnatura($('#x-semn-inst'), true); legaPVModel(model); $('#x-semn-inst-sterge').onclick = () => pregatesteSemnatura($('#x-semn-inst'), true); }
+  if ($('#x-semn-inst')) { pregatesteSemnatura($('#x-semn-inst'), true); $('#x-semn-inst-sterge').onclick = () => pregatesteSemnatura($('#x-semn-inst'), true); }
+  if (model) legaPVModel(model);
   // „Refă semnătura”: semnătura instalatorului din PV-ul salvat rămâne (o poate șterge); a clientului se ia din nou
   if (model && mod === 'final' && l.pv && l.pv.instalator && l.pv.instalator.semnatura && semnInst && semnInst.gol) {
     const img0 = new Image();
@@ -7605,8 +7653,15 @@ function ecranPV() {
   $('#x-pv-salv').onclick = () => {
     let masuratori = null, instalator = null;
     // întâi datele tehnice și instalatorul (marcate pe ecran), abia apoi semnătura clientului
+    // v2.9.7: faza intermediară are formularul ei structurat; se verifică înainte de semnătura clientului
+    let faza = null;
+    if (mod === 'intermediar') {
+      faza = citesteFazaIntermediara(l);
+      if (faza.lipsa.length) { alert('Procesul verbal de fază intermediară nu se poate salva. Lipsesc:\n• ' + faza.lipsa.join('\n• ')); if (faza.focus) { const el = $('#x-' + faza.focus); if (el) { el.scrollIntoView({ block: 'center' }); try { el.focus(); } catch (e) { /* */ } } } return; }
+      if (!semnInst || semnInst.gol) { $('#x-semn-inst').scrollIntoView({ block: 'center' }); alert('Instalatorul trebuie să semneze în chenarul lui.'); return; }
+    }
     if (model) {
-      const vm = verificaPVModel(model, tipL(l));
+      const vm = verificaPVModel(model, tipL(l), l);
       if (vm.lipsa.length) { marcheazaLipsaPV(vm.chei); alert(`Procesul verbal nu se poate salva fără datele obligatorii (marcate cu roșu). Lipsesc:\n• ${vm.lipsa.slice(0, 12).join('\n• ')}${vm.lipsa.length > 12 ? `\n… și încă ${vm.lipsa.length - 12}` : ''}`); return; }
       const numeInst = String(pvM.inst_nume || '').trim();
       if (!numeInst) { marcheazaLipsaPV(['inst_nume']); alert('Scrieți numele instalatorului.'); return; }
@@ -7619,15 +7674,16 @@ function ecranPV() {
     if (!nume) { $('#x-pv-nume').classList.add('lipsa'); $('#x-pv-nume').scrollIntoView({ block: 'center' }); alert('Scrieți numele celui care semnează.'); return; }
     if (!semnatura || semnatura.gol) { $('#x-semn').scrollIntoView({ block: 'center' }); alert('Clientul trebuie să semneze în chenar.'); return; }
     if (anexa.length && !v('pv-anexa')) { alert('Bifați acordul clientului pentru anexa de materiale suplimentare (sau discutați cu el înainte de semnare).'); return; }
-    if (mod === 'intermediar' && !v('pv-obs').trim()) { alert('Scrieți stadiul la plecare: ce s-a făcut azi și ce rămâne.'); $('#x-pv-obs').focus(); return; }
     if (masuratori) {
       const at = masuratori._atentie; delete masuratori._atentie;
       if (at.length && !confirm(`Atenție, valori neobișnuite:\n• ${at.join('\n• ')}\n\nSalvați procesul verbal așa?`)) return;
     }
     const imagine = imagineSemnatura();
     if (mod === 'intermediar') {
-      l.fazaIntermediara = { data: new Date().toISOString(), nume, semnatura: imagine, obs: v('pv-obs').trim(),
-        etape: etapeLucrare(l).filter((e) => pozeEtapa(l, e.k).length).map((e) => e.k) };
+      // v2.9.7: structurat — ziua, stadiul pe etape, executat / rămas, starea la plecare, reluarea, instalatorul; „obs” rămâne ce s-a făcut azi (fișa și istoricul îl arată)
+      l.fazaIntermediara = Object.assign({ data: new Date().toISOString(), nume, semnatura: imagine,
+        etape: etapeLucrare(l).filter((e) => pozeEtapa(l, e.k).length).map((e) => e.k),
+        instalator: { nume: faza.instalator, semnatura: imagineSemnatura(semnInst) } }, faza.valori);
     } else {
       l.pv = { data: new Date().toISOString(), nume, semnatura: imagine, text: textPV(l), tip: t };
       if (masuratori) Object.assign(l.pv, { model, masuratori, instalator });
@@ -7643,6 +7699,84 @@ function ecranPV() {
     if (mod !== 'intermediar') A().stare.laCod = true;
     A().du('lucrare', l);
   };
+}
+// v2.9.7: procesul verbal de fază intermediară, structurat (propus de noi, 13 nov): ziua de lucru, stadiul pe etape,
+// ce s-a executat azi și ce rămâne, starea la plecare, materialele rămase, data reluării. Câmpul „pv-obs” rămâne
+// „Lucrări executate azi”, ca ciorna și testele vechi să meargă neschimbate.
+function htmlFazaIntermediara(l) {
+  const zi = (l.zile || []).length + 1;
+  return `<p>Lucrarea nu s-a terminat azi și continuă într-o zi următoare. <b>Ziua ${zi} de lucru</b>, ${E(dataRo(new Date()))}.</p>
+    <div class="sectiune-titlu">Stadiul pe etape</div>
+    <div class="ajutor">Bifate acolo unde există poze. Corectați dacă e nevoie.</div>
+    ${etapeLucrare(l).map((e) => bifa('fi-et-' + e.k, e.t, pozeEtapa(l, e.k).length > 0)).join('')}
+    ${zona('pv-obs', 'Lucrări executate azi', '')}
+    ${zona('fi-ramas', 'Rămase de executat', '')}
+    <div class="sectiune-titlu">Starea la plecare</div>
+    ${bifa('fi-dc', 'Instalația de curent continuu e lăsată deconectată și izolată', false)}
+    ${bifa('fi-sig', 'Acoperișul și zona de lucru sunt lăsate în siguranță', false)}
+    ${zona('fi-materiale', 'Materiale rămase la client (dacă sunt)', '')}
+    ${camp('fi-reluare', 'Data estimată a reluării', '', '', 'date')}`;
+}
+function citesteFazaIntermediara(l) {
+  const lipsa = [];
+  let focus = null;
+  const cere = (ok, text, id) => { if (!ok) { lipsa.push(text); if (!focus) focus = id; } };
+  const facut = (v('pv-obs') || '').trim(), ramas = (v('fi-ramas') || '').trim();
+  cere(facut, 'ce s-a executat azi', 'pv-obs');
+  cere(ramas, 'ce rămâne de executat', 'fi-ramas');
+  cere(v('fi-dc'), 'confirmarea că instalația de curent continuu e deconectată și izolată', 'fi-dc');
+  cere(v('fi-sig'), 'confirmarea că acoperișul și zona de lucru sunt în siguranță', 'fi-sig');
+  const instalator = ($('#x-pm-inst_nume') ? $('#x-pm-inst_nume').value : '').trim();
+  cere(instalator, 'numele instalatorului', 'pm-inst_nume');
+  return { lipsa, focus, instalator, valori: {
+    zi: (l.zile || []).length + 1, obs: facut, ramas, materiale: (v('fi-materiale') || '').trim(), reluare: v('fi-reluare') || '',
+    confirmari: { dc: !!v('fi-dc'), sig: !!v('fi-sig') },
+    etapeFacute: etapeLucrare(l).filter((e) => v('fi-et-' + e.k)).map((e) => e.k),
+  } };
+}
+// PDF-ul fazei intermediare (v2.9.7), în formatul simplu al proceselor verbale
+function pvIntermediarPDF(l, x) {
+  if (!x || !(window.incarcaPDF ? window.incarcaPDF() : window.jspdf)) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  try {
+    doc.addFileToVFS('Ubuntu-400.ttf', window.FONT_UBUNTU_400); doc.addFont('Ubuntu-400.ttf', 'Ubuntu', 'normal');
+    doc.addFileToVFS('Ubuntu-700.ttf', window.FONT_UBUNTU_700); doc.addFont('Ubuntu-700.ttf', 'Ubuntu', 'bold');
+  } catch (e) { /* fără fontul cu diacritice: rămâne cel implicit */ }
+  const F = (s, m) => { try { doc.setFont('Ubuntu', s); } catch (e) { /* */ } doc.setFontSize(m); };
+  let y = 18;
+  const curat = (window.RAPORT_PDF && window.RAPORT_PDF.curat) || String;
+  const scrie = (txt, m = 10.5, stil = 'normal', spatiu = 5.2, x0 = 14) => {
+    F(stil, m);
+    doc.splitTextToSize(curat(txt || ''), 196 - x0).forEach((rand) => { if (y > 275) { doc.addPage(); y = 18; } doc.text(rand, x0, y); y += spatiu; });
+  };
+  if (window.LOGO_INOSOLAR) { try { doc.addImage(window.LOGO_INOSOLAR, 'PNG', 14, 10, 34, 10); y = 28; } catch (e) { /* */ } }
+  scrie(TITLU_FAZA, 13.5, 'bold', 7.5);
+  scrie(`Beneficiar: ${x.nume || l.client || '—'}`); scrie(`Locul de instalare: ${[l.adresa, l.judet].filter(Boolean).join(', ') || '—'}`);
+  scrie(`Data: ${oraRo(x.data)}${x.zi ? ' · ziua ' + x.zi + ' de lucru' : ''}`);
+  scrie(`Executant: inoSOLAR${l.partener_id ? ', prin ' + K.numePartener(l.partener_id) : ''}${l.echipa ? ', ' + numeEchipaText(l.echipa) : ''}`);
+  y += 3;
+  const et = etapeLucrare(l), facute = x.etapeFacute || x.etape || [];
+  if (et.length) { scrie('Stadiul pe etape:', 10.5, 'bold'); et.forEach((e) => scrie(`${facute.includes(e.k) ? '[X]' : '[  ]'} ${e.t}`, 9.5, 'normal', 4.8, 18)); y += 2; }
+  scrie('Lucrări executate azi:', 10.5, 'bold'); scrie(x.obs || '—', 10, 'normal', 5, 18); y += 2;
+  scrie('Rămase de executat:', 10.5, 'bold'); scrie(x.ramas || '—', 10, 'normal', 5, 18); y += 2;
+  if (x.confirmari || x.materiale || x.reluare) {
+    scrie('Starea la plecare:', 10.5, 'bold');
+    if (x.confirmari) { scrie(`${x.confirmari.dc ? '[X]' : '[  ]'} Instalația de curent continuu e lăsată deconectată și izolată`, 9.5, 'normal', 4.8, 18); scrie(`${x.confirmari.sig ? '[X]' : '[  ]'} Acoperișul și zona de lucru sunt lăsate în siguranță`, 9.5, 'normal', 4.8, 18); }
+    if (x.materiale) scrie(`Materiale rămase la client: ${x.materiale}`, 9.5, 'normal', 4.8, 18);
+    if (x.reluare) scrie(`Data estimată a reluării: ${oraRo(x.reluare)}`, 9.5, 'normal', 4.8, 18);
+    y += 2;
+  }
+  scrie(DECLARATIE_FAZA, 9.5, 'normal', 4.9);
+  if (y > 230) { doc.addPage(); y = 18; }
+  y += 6;
+  F('bold', 10); doc.text('Instalator', 14, y); doc.text('Beneficiar', 115, y); y += 5;
+  F('normal', 9.5); doc.text(`Nume: ${(x.instalator || {}).nume || ''}`, 14, y); doc.text(`Nume: ${x.nume || ''}`, 115, y); y += 2;
+  try { if ((x.instalator || {}).semnatura) doc.addImage(x.instalator.semnatura, 'PNG', 14, y, 66, 24); } catch (e) { /* */ }
+  try { if (x.semnatura) doc.addImage(x.semnatura, 'PNG', 115, y, 66, 24); } catch (e) { /* */ }
+  F('normal', 8.5); doc.setTextColor(110, 110, 112);
+  doc.text(`Generat de inoINSTALL · lucrarea ${l.id}`, 14, 288);
+  doc.save(`PV intermediar ${String(l.client || l.id).replace(/[^\wÀ-ɏ -]+/g, '').trim()} ${dataRo(x.data).replace(/\./g, '-')}.pdf`);
 }
 function pregatesteSemnatura(c, aInstalatorului) {
   const ctx = c.getContext('2d');
@@ -7724,6 +7858,10 @@ function pvPDFModel(l, doc, F) {
   scrie(`– Panouri F-V (nr. buc. și putere panou): ${v(m.panouri.buc)} buc × ${v(m.panouri.w)} W`, 9.5, 'normal', 4.8, X0 + 4, LAT - 4);
   scrie(`– Stocare (buc. + tip): ${m.stocare || '—'}`, 9.5, 'normal', 4.8, X0 + 4, LAT - 4);
   scrie(`– Componența sistemului: ${['BMP', 'Structură', 'Tablou C.C. și C.A.'].map((c) => ((m.componente || []).includes(c) ? '[X] ' : '[  ] ') + c).join('   ')}`, 9.5, 'normal', 4.8, X0 + 4, LAT - 4);
+  if (model === 'upsales' && m.echipament) {
+    const e = m.echipament;
+    scrie(`– Echipament suplimentar montat: ${e.ce || '—'}${e.cant != null ? ' × ' + nr(e.cant) : ''}${e.model ? ', ' + e.model : ''}${e.sn ? ', S/N ' + e.sn : ''}`, 9.5, 'bold', 4.8, X0 + 4, LAT - 4);
+  }
   y += 2;
   scrie('TESTE PIF', 11, 'bold', 6);
   scrie('Priza de pământ', 9.5, 'bold', 4.5); tabel(['VAL 1 [Ω]', 'VAL 2 [Ω]'], [[v(m.priza[0]), v(m.priza[1])]]);
@@ -7739,7 +7877,7 @@ function pvPDFModel(l, doc, F) {
   CONSTATARI[model].forEach(([k, et]) => scrie(`${et}: ${m.constatari[k] || '—'}`, 9.5, 'normal', 5.2, X0 + 4, LAT - 4));
   y += 1;
   scrie(`${model === 'montaj' ? 'Comisia de recepție, în urma constatărilor făcute, propune' : 'În urma constatărilor făcute, se propune'} ADMITEREA RECEPȚIEI LA TERMINAREA LUCRĂRILOR: ${m.admitere || '—'}`, 9.8, 'bold', 5.2);
-  if (model === 'montaj') { scrie('Comisia de recepție recomandă următoarele:', 9.5, 'normal', 5); RECOMANDARI_MONTAJ.forEach((x) => scrie('• ' + x, 9.5, 'normal', 5, X0 + 4, LAT - 4)); }
+  if (['montaj', 'upsales'].includes(model)) { scrie('Comisia de recepție recomandă următoarele:', 9.5, 'normal', 5); RECOMANDARI_MONTAJ.forEach((x) => scrie('• ' + x, 9.5, 'normal', 5, X0 + 4, LAT - 4)); }
   y += 2;
   scrie('OBSERVAȚII ȘI CONSTATĂRI:', 10, 'bold', 5.5);
   scrie(m.obs || '—', 9.5, 'normal', 5);
@@ -7749,7 +7887,8 @@ function pvPDFModel(l, doc, F) {
     tabel(['Cablu solar roșu [ml]', 'Cablu solar negru [ml]', 'Cablu alimentare [ml]', 'Cablu comunicare [ml]', 'Cablu împământare [ml]', 'Țăruși împământare [buc]', 'Copex folosit [ml]'],
       [[v(c.rosu), v(c.negru), v(c.alim), v(c.com), v(c.imp), v(c.tarusi), v(c.copex)]], 9);
   }
-  if (model === 'montaj') { y += 2; scrie(DECLARATIE_MONTAJ, 9.5, 'normal', 4.9); }
+  const declaratie = model === 'montaj' ? DECLARATIE_MONTAJ : model === 'upsales' ? DECLARATIE_UPSALES : null;
+  if (declaratie) { y += 2; scrie(declaratie, 9.5, 'normal', 4.9); }
   const anexa = (l.anexa && l.anexa.linii) || [];
   if (anexa.length) {
     y += 2; scrie('Materiale suplimentare, facturate separat (acceptate de beneficiar la semnare):', 9.5, 'bold', 5);
@@ -7822,6 +7961,7 @@ function htmlMasuratori(pv) {
     <div class="mas">
     ${rand('Invertor', `${E(m.invertor.tip || '—')} · S/N ${E(m.invertor.sn || '—')}`)}
     ${rand('Panouri', `${val((m.panouri || {}).buc)} buc × ${val((m.panouri || {}).w)} W${m.stocare ? ' · stocare: ' + E(m.stocare) : ''}`)}
+    ${m.echipament ? rand('Echipament nou', `${E(m.echipament.ce || '—')}${m.echipament.cant != null ? ' × ' + E(nr(m.echipament.cant)) : ''}${m.echipament.model ? ' · ' + E(m.echipament.model) : ''}${m.echipament.sn ? ' · S/N ' + E(m.echipament.sn) : ''}`) : ''}
     ${model === 'montaj' ? rand('Branșament', `BMP ${val(m.bmp_a)} A · cablu BMP–TG ${val(m.bmp_mm2)} mm² · ${E(m.afm || '—')}`) : ''}
     ${teste}
     ${rand('Constatări', cons)}
@@ -9325,7 +9465,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.6';
+const VERSIUNE_APP = '2.9.7';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
