@@ -2,7 +2,7 @@
 // Din v2.8.7 pagina se deschide imediat din memoria telefonului/calculatorului și se verifică în spate la internet.
 // O versiune nouă se instalează în spate; aplicația arată atunci „Versiune nouă – Reîncarcă”.
 // Cererile către server (Supabase) nu trec pe aici: lucrările le ține aplicația, separat.
-const CACHE = 'ino-install-v2.8.7';
+const CACHE = 'ino-install-v2.9.3';
 const FISIERE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
@@ -20,9 +20,10 @@ self.addEventListener('fetch', (e) => {
   });
   e.respondWith(
     // întâi din memorie (pornire imediată); fișierul se reîmprospătează în spate pentru deschiderea următoare
-    caches.match(r, { ignoreSearch: r.mode === 'navigate' }).then((x) => {
+    // doar din memoria versiunii curente (o memorie veche, încă neștearsă, ar da pagina veche)
+    caches.open(CACHE).then((c) => c.match(r, { ignoreSearch: r.mode === 'navigate' }).then((x) => {
       if (x) { e.waitUntil(dinRetea.catch(() => {})); return x; }
-      return dinRetea.catch(() => caches.match(r).then((y) => y || (r.mode === 'navigate' ? caches.match('./index.html') : undefined)));
-    })
+      return dinRetea.catch(() => c.match(r).then((y) => y || (r.mode === 'navigate' ? c.match('./index.html') : undefined)));
+    }))
   );
 });
