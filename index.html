@@ -98,6 +98,8 @@ input.lipsa{border-color:#b3261e;background:#fdf1f0}
   color:var(--slab);border-left:1px solid var(--linie);
 }
 .seg button:first-child{border-left:0}
+/* v2.9.8: butoanele de lungime a barei de șină, deasupra câmpului */
+.seg-sina{max-width:260px;margin:2px 0 8px}
 .seg button[aria-pressed=true]{background:var(--gri);color:#fff;font-weight:700;box-shadow:inset 0 -3px 0 var(--galben)}
 
 /* ---- bife ---- */
@@ -9465,7 +9467,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.7';
+const VERSIUNE_APP = '2.9.8';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
@@ -10722,6 +10724,16 @@ function deschide(l) {
 /* ------------------------------------------------------------------ *
  * Ecranul 2 — formularul
  * ------------------------------------------------------------------ */
+// v2.9.8 (decizie Clau, 13 nov): Ino are bare de 4,4 m și de 3,6 m — se aleg dintr-o atingere; altă lungime se scrie în câmp,
+// care rămâne mereu vizibil (câmpul e cel citit de calcul, butoanele doar îl completează)
+const LUNGIMI_SINA = [4.4, 3.6];
+function campSina(l) {
+  const v = l.lungimeBara_m;
+  const apasat = (x) => typeof v === 'number' && Math.abs(v - x) < 1e-9;
+  return `<div class="camp"><label for="f-lungimeBara_m">Lungimea barei de șină (m)</label>
+    <div class="seg seg-sina" data-sina role="group" aria-label="Lungimi obișnuite de bară">${LUNGIMI_SINA.map((x) => `<button type="button" data-val="${x}" aria-pressed="${apasat(x)}">${String(x).replace('.', ',')} m</button>`).join('')}</div>
+    <input id="f-lungimeBara_m" data-camp="lungimeBara_m" type="text" value="${E(v == null ? '' : String(v).replace('.', ','))}" inputmode="decimal" min="1" step="0.1" placeholder="sau altă lungime, de ex. 2,2"></div>`;
+}
 function campText(cheie, eticheta, val, tip, extra) {
   return `<div class="camp"><label for="f-${cheie}">${E(eticheta)}</label>
     <input id="f-${cheie}" data-camp="${cheie}" type="${tip || 'text'}" value="${E(val == null ? '' : val)}" ${extra || ''}></div>`;
@@ -10908,7 +10920,7 @@ function ecranForm() {
       : campText('r_' + q.cheie, q.eticheta + (q.um ? ' (' + q.um + ')' : ''), l.raspunsuri[q.cheie], 'text',
           `inputmode="decimal" min="0" step="${q.pas || '1'}"`)).join('')}
     ${(terasa && l.faraSina) || C.MONTAJ[l.montaj].prindere === 'mini_rail' ? ''
-      : campText('lungimeBara_m', 'Lungimea barei de șină (m)', l.lungimeBara_m == null ? '' : String(l.lungimeBara_m).replace('.', ','), 'text', 'inputmode="decimal" min="1" step="0.1" placeholder="obligatoriu"')}
+      : campSina(l)}
   </div></section>
 
   <section class="card"><h2>Puterea și panourile</h2><div class="corp">
@@ -11316,6 +11328,14 @@ function legaFormular() {
   const l = stare.lucrare;
   document.querySelectorAll('[data-camp]').forEach(legaCamp);
   const bb = $('#baterie-box'); if (bb) bb.dataset.html = bb.innerHTML;
+  // v2.9.8: butoanele de lungime a barei completează câmpul; câmpul scris de mână marchează butonul potrivit (sau niciunul)
+  const inpSina = $('#f-lungimeBara_m');
+  if (inpSina) {
+    const marcheaza = () => { const n = citesteNumar(inpSina.value); document.querySelectorAll('[data-sina] button').forEach((x) => x.setAttribute('aria-pressed', String(typeof n === 'number' && Math.abs(n - +x.dataset.val) < 1e-9))); };
+    const scris = inpSina.oninput;
+    inpSina.oninput = () => { if (scris) scris(); marcheaza(); };
+    document.querySelectorAll('[data-sina] button').forEach((b) => { b.onclick = () => { inpSina.value = String(b.dataset.val).replace('.', ','); inpSina.oninput(); }; });
+  }
 
   document.querySelectorAll('[data-seg]').forEach((seg) => {
     seg.querySelectorAll('button').forEach((b) => {
