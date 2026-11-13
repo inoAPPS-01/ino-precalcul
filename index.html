@@ -8605,7 +8605,8 @@ function coadaFacturare(c, lista) {
   if ($('#x-lot-toate')) $('#x-lot-toate').onchange = (ev) => { ales.ids = ev.target.checked ? new Set(lista.map((l) => l.id)) : new Set(); redes(); };
   document.querySelectorAll('[data-deschide]').forEach((b) => { b.onclick = () => { const l = lista.find((x) => x.id === b.dataset.deschide); if (l) { st.revenireLucrare = 'coada'; A().deschide(l); } }; });
   const marcheaza = (camp, val, text) => {
-    const alese = lista.filter((l) => ales.ids.has(l.id)).map((l) => K.citesteUna(l.id) || l);
+    // v2.9.6: niciodată obiectul din lista partajată — dacă nu e în cache, o copie proprie
+    const alese = lista.filter((l) => ales.ids.has(l.id)).map((l) => K.citesteUna(l.id) || K.copieProprie(l));
     if (!alese.length) return;
     alese.forEach((l) => { l.verificari = Object.assign({}, l.verificari || {}, { facturare: Object.assign({}, vf(l), { [camp]: val }) }); A().salveaza(l); });
     ales.ids = new Set();
@@ -9324,7 +9325,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.5';
+const VERSIUNE_APP = '2.9.6';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
