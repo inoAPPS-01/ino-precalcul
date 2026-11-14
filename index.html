@@ -5663,6 +5663,9 @@ window.CONT = {
   get catalogVersiune() { return citesteJSON(CHEIE_CATALOG, {}).versiune ?? null; },
   get trebuieParola() { return !!(ACTIV && profil && profil._schimbaParola); },
   get dezactivat() { return !!(ACTIV && profil && profil.activ === false); },
+  // v2.9.10 (test pe serverul real, 14 nov): firma unui cont de Partener e dezactivată când serverul nu i-o mai dă
+  // (partenerul_meu() cere f.activ), deși profilul are partener_id; știm sigur abia după o sincronizare
+  get firmaInactiva() { return !!(ACTIV && profil && profil.rol === 'partener' && profil.partener_id && extra.v2 && sync.ultima && !(extra.parteneri || []).some((p) => p.id === profil.partener_id)); },
   mesajEroare,
   get oameni() { return oameni; },
   get sync() { const t = citesteLista(); return Object.assign({ deTrimis: deTrimis(), conflicte: t.filter((l) => l._conflict).length, refuzate: t.filter((l) => l._murdar && !l._conflict && l._eroare).length }, sync); },
@@ -8604,8 +8607,11 @@ function ecranStart() {
         ${c.lista.length > 5 ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">toate cele ${c.lista.length}</button>` : ''}</div></section>`;
   // v2.9.3 (T10 m2): contul de Partener fără firmă legată nu vede nimic; până acum părea doar că n-are lucrări
   const faraFirma = r === 'partener' && K.profil && !K.profil.partener_id;
+  // v2.9.10 (test pe serverul real, 14 nov): firma dezactivată de Admin lăsa Start-ul gol, fără explicație
+  const firmaInactiva = r === 'partener' && !faraFirma && K.firmaInactiva;
   $('#ecran').innerHTML = A().htmlContBara()
     + (faraFirma ? '<div class="mesaj warn" style="margin-top:12px" id="x-fara-firma"><b>Contul nu e legat de nicio firmă parteneră</b>, deci nu vedeți nicio lucrare. Cereți Adminului să aleagă firma la contul dvs.</div>' : '')
+    + (firmaInactiva ? '<div class="mesaj warn" style="margin-top:12px" id="x-firma-inactiva"><b>Firma dvs. parteneră e dezactivată</b>, deci nu vedeți nicio lucrare. Lucrările ei rămân pe server; cereți Adminului s-o reactiveze.</div>' : '')
     + '<h2 class="start-h">De făcut</h2>'
     + (pline.length ? `<div class="tiles cozi">${pline.map(panou).join('')}</div>`
       : `<div class="mesaj ok" style="margin-top:10px">Nimic nu așteaptă după dvs. acum.</div>`)
@@ -9472,7 +9478,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.9';
+const VERSIUNE_APP = '2.9.10';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
