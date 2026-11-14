@@ -72,9 +72,9 @@ header .logo{height:30px;width:auto;flex:none;display:block}
 /* ---- campuri ---- */
 .camp{margin-top:12px}
 .camp:first-child{margin-top:0}
-label{display:block;font-size:13.5px;color:var(--slab);margin-bottom:5px;font-weight:500}
+label{display:block;font-size:14px;color:var(--slab);margin-bottom:5px;font-weight:500}
 input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],input[type=search],input[type=tel],input[type=month],select,textarea{
-  width:100%;font-size:16px;color:var(--text);background:#fff;
+  width:100%;font-size:16px;color:var(--text);background:#fff;min-height:44px;
   border:1px solid var(--linie);border-radius:9px;padding:10px 12px;
   appearance:none;-webkit-appearance:none;
 }
@@ -87,14 +87,14 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--gri);outline-off
 .randuri3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end}
 .randuri2 > .camp,.randuri3 > .camp{margin-top:0}
 @media(max-width:420px){.randuri3{grid-template-columns:1fr 1fr}}
-.ajutor{font-size:12.5px;color:var(--slab);margin-top:5px;line-height:1.45}
+.ajutor{font-size:13px;color:var(--slab);margin-top:5px;line-height:1.45}
 .rosu{font-size:13.5px;color:#b3261e;font-weight:500;margin-top:7px;line-height:1.45}
 input.lipsa{border-color:#b3261e;background:#fdf1f0}
 
 /* ---- butoane segmentate ---- */
 .seg{display:flex;gap:0;border:1px solid var(--linie);border-radius:9px;overflow:hidden;background:#fff}
 .seg button{
-  flex:1;border:0;background:#fff;font-size:14.5px;padding:10px 6px;cursor:pointer;
+  flex:1;border:0;background:#fff;font-size:14.5px;padding:10px 6px;cursor:pointer;min-height:44px;
   color:var(--slab);border-left:1px solid var(--linie);
 }
 .seg button:first-child{border-left:0}
@@ -121,7 +121,7 @@ input.lipsa{border-color:#b3261e;background:#fdf1f0}
 
 /* ---- rezumat live ---- */
 .live{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.chip{background:var(--galben-deschis);color:var(--gri);border:1px solid #f0e08a;border-radius:999px;padding:5px 12px;font-size:13.5px;font-weight:700}
+.chip{background:var(--galben-deschis);color:var(--gri);border:1px solid #f0e08a;border-radius:999px;padding:9px 14px;font-size:14px;font-weight:700;min-height:44px;display:inline-flex;align-items:center;gap:6px}
 /* ținta din contract, totalul panourilor și puterea invertorului */
 .tinta{background:var(--galben-deschis);border:1px solid #f0e08a;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:14.5px;line-height:1.45;color:var(--gri)}
 .tinta .socoteala{display:block;font-size:12.5px;color:var(--slab);margin-top:3px}
@@ -160,7 +160,7 @@ input.lipsa{border-color:#b3261e;background:#fdf1f0}
 }
 .buton{
   flex:1;border:0;background:var(--galben);color:var(--gri);font-size:16px;font-weight:700;
-  padding:14px;border-radius:11px;cursor:pointer;
+  padding:14px;border-radius:11px;cursor:pointer;min-height:44px;
 }
 .buton:active{background:var(--galben-apasat)}
 .buton.gol{background:#fff;color:var(--gri);border:1px solid #c9c9cb;flex:0 0 auto;padding:14px 18px}
@@ -219,7 +219,8 @@ td.n .um{font-weight:400;color:var(--slab);font-size:13px;margin-left:3px}
 .rap th+th,.rap td+td{padding-left:8px}
 /* v2.9.3 (T3 #15, T6 c13): pe 320–400 px, materialul pe tot rândul, estimat / consumat / diferența dedesubt */
 @media (max-width:400px){
-  table.rap:not(.mic) tr{display:grid;grid-template-columns:1fr 88px 1fr;align-items:center;border-bottom:1px solid var(--linie)}
+  table.rap:not(.mic) tr{display:grid;grid-template-columns:minmax(0,1fr) 92px minmax(0,1fr);column-gap:8px;align-items:center;border-bottom:1px solid var(--linie)}
+  table.rap:not(.mic) td.n{min-width:0;overflow:visible;white-space:nowrap}
   table.rap:not(.mic) tr > :first-child{grid-column:1 / -1;padding-bottom:2px}
   table.rap:not(.mic) tr:first-child > :first-child{display:none}
   table.rap:not(.mic) td,table.rap:not(.mic) th{border:0}
@@ -292,7 +293,7 @@ body.panou-deschis .panou-fundal{display:block}
 .card-stare{background:var(--card);border:1px solid var(--linie);border-radius:var(--r);padding:12px 10px;text-align:left;cursor:pointer;
   box-shadow:var(--umbra);font:inherit;color:var(--text);border-top:4px solid var(--linie);min-height:84px}
 .card-stare .nr{display:block;font-size:26px;font-weight:700;line-height:1.1}
-.card-stare .t{display:block;font-size:13.5px;font-weight:700;margin-top:4px}
+.card-stare .t{display:block;font-size:14px;font-weight:700;margin-top:4px}
 .card-stare .s{display:block;font-size:11.5px;color:var(--slab);margin-top:2px;line-height:1.3}
 .card-stare.lucru{border-top-color:#9aa6bf}
 .card-stare.ante{border-top-color:var(--galben)}
@@ -4588,6 +4589,28 @@ function salveaza(l) {
   if (ACTIV) programeazaSync();
 }
 
+// v2.9.13 (UX 14 nov, V2): ce a făcut serverul cu lucrarea salvată acum. Promisiunea se rezolvă cu
+// { ok, la } când serverul a confirmat-o, { refuz: motiv } când a respins-o, { conflict: true } la conflict,
+// { peTelefon: true } când nu e semnal (pleacă singură când revine), { asteapta: true } după `ms` fără răspuns.
+function asteaptaTrimiterea(id, ms) {
+  return new Promise((rez) => {
+    let gata = false, ceas = null;
+    const f = () => uita();
+    const termina = (x) => { if (gata) return; gata = true; clearTimeout(ceas); const i = ascultatori.indexOf(f); if (i >= 0) ascultatori.splice(i, 1); rez(x); };
+    const uita = () => {
+      const l = citesteUna(id);
+      if (!l) return termina({ refuz: 'lucrarea nu mai e pe acest dispozitiv' });
+      if (l._conflict) return termina({ conflict: true });
+      if (l._eroare) return termina({ refuz: l._eroare });
+      if (!l._murdar) return termina({ ok: true, la: Date.now() });
+      if (!sync.online) return termina({ peTelefon: true });
+    };
+    ascultatori.push(f);
+    ceas = setTimeout(() => termina({ asteapta: true }), ms || 20000);
+    uita();
+  });
+}
+
 // Ce pleacă la server: fără câmpurile sincronizării și fără istoric (istoricul îl scrie doar serverul).
 function curat(l) {
   const o = {};
@@ -5672,6 +5695,7 @@ window.CONT = {
   ROLURI,
   rol, poate, porneste, login, iesire, schimbaParola, alegeParola,
   citesteTot, citesteLista, citesteUna, copieProprie, salveaza, sincronizeaza, rezolvaConflict, poatePastra,
+  asteaptaTrimiterea, pentruComparare,
   laSchimbare: (f) => ascultatori.push(f),
   numeEchipa: (id) => { const e = oameni.echipe.find((x) => x.id === id); return e ? e.nume : ''; },
   membriEchipei: (id) => oameni.profiluri.filter((p) => p.echipa_id === id && p.rol === 'membru' && p.activ !== false),
@@ -6236,7 +6260,7 @@ function ecranTipNou() {
   const r = K.rol();
   const planifica = K.activ && (r === 'planificare' || r === 'admin');
   const d = st.nou || (st.nou = { tip: r === 'mentenanta' ? 'interventie' : 'montaj_nou', partener_id: '', prosumatorSolicitat: false, tipFinantare: 'Non Casa Verde',
-    client: '', adresa: '', telefon: '', echipa: (K.profil && K.profil.echipa_id) || '', data: azi(), client_id: '', inRegistru: true });
+    client: '', adresa: '', telefon: '', echipa: (K.profil && K.profil.echipa_id) || '', data: '', client_id: '', inRegistru: true });
   // din fișa clientului („+ Lucrare pentru client”): datele vin din registru
   if (st.clientNou) { const c = (K.clienti || []).find((x) => x.id === st.clientNou); st.clientNou = null; if (c) alegeClient(d, c); }
   const cuRegistru = K.activ && K.serverV3 && (K.clienti || []).length + (poateClienti() ? 1 : 0) > 0;
@@ -6257,7 +6281,7 @@ function ecranTipNou() {
     ${planifica ? `<section class="card"><h2>Planificare</h2><div class="corp"><div class="randuri2">
       ${alege('echipa', 'Echipa', d.echipa, optEchipe())}
       ${camp('data', 'Data planificată', d.data, '', 'date')}</div>
-      <div class="ajutor">Lucrarea apare la liderul echipei la „Planificate”, cu datele completate.</div></div></section>` : ''}`;
+      <div class="ajutor">Fără dată, lucrarea intră la „De planificat” (o planificați mai târziu, din calendar sau din fișă). Cu dată și echipă, apare la liderul echipei la „Planificate”.</div></div></section>` : ''}`;
   if (cuRegistru) {
     const inp = $('#x-client');
     const arata = () => {
@@ -6275,7 +6299,8 @@ function ecranTipNou() {
     partener_id: v('partener') || d.partener_id || '', tipFinantare: v('finantare'), prosumatorSolicitat: !!v('prosumator'),
     echipa: planifica ? v('echipa') : d.echipa, data: planifica ? v('data') : d.data });
   document.querySelectorAll('[data-tip]').forEach((b) => { b.onclick = () => { citeste(); d.tip = b.dataset.tip; ecranTipNou(); }; });
-  bara('<button class="buton gol" id="x-renunt">Renunță</button><button class="buton" id="x-continua">Continuă</button>');
+  // v2.9.14 (UX 14 nov, B2): butonul spune ce face
+  bara('<button class="buton gol" id="x-renunt">Renunță</button><button class="buton" id="x-continua">Creează lucrarea</button>');
   $('#x-renunt').onclick = () => { st.nou = null; A().du('lista'); };
   // v2.8.8: un al doilea clic cât se salvează (registrul de clienți cere internet) nu mai face a doua lucrare
   let inCurs = false;
@@ -6286,14 +6311,16 @@ function ecranTipNou() {
   };
   const continua = async () => {
     citeste();
-    if (!d.client) { alert('Completați numele clientului.'); return; }
-    if (['interventie', 'vizita_tehnica'].includes(d.tip) && !d.adresa) { alert('Completați adresa lucrării: echipa merge acolo, iar procesul verbal o trece la „Locul de instalare”.'); return; }
-    if (K.activ && (K.parteneri || []).length && !d.partener_id) { alert('Alegeți partenerul care execută lucrarea.'); return; }
-    if (planifica && !d.echipa) { alert('Alegeți echipa.'); return; }
-    if (planifica && !d.data) { alert('Alegeți data planificată.'); return; }
-    // v2.9.3: dată trecută și telefon greșit, prinse aici, nu abia în calendar sau la SMS (T2 #14)
-    if (planifica && d.data < azi() && !confirm(`Data planificată (${dataRo(d.data)}) e în trecut. Continuați?`)) return;
-    if (d.telefon && !telefonPlauzibil(d.telefon)) { alert('Telefonul nu pare corect: scrieți 10 cifre (de exemplu 0740 111 222) sau prefixul țării (+40…).'); return; }
+    // v2.9.14 (UX 14 nov, B2, N14): toate lipsurile deodată, în pagină; data e opțională (fără dată → „De planificat”), echipa doar cu dată
+    const lipsa = [];
+    if (!d.client) lipsa.push({ cheie: 'client', nume: 'Numele clientului' });
+    if (['interventie', 'vizita_tehnica'].includes(d.tip) && !d.adresa) lipsa.push({ cheie: 'adresa', nume: 'Adresa lucrării: echipa merge acolo, iar procesul verbal o trece la „Locul de instalare”' });
+    if (K.activ && (K.parteneri || []).length && !d.partener_id) lipsa.push({ cheie: 'partener', nume: 'Partenerul care execută lucrarea' });
+    if (planifica && d.data && !d.echipa) lipsa.push({ cheie: 'echipa', nume: 'Echipa: cu o dată planificată, lucrarea are nevoie și de echipă' });
+    if (d.telefon && !telefonPlauzibil(d.telefon)) lipsa.push({ cheie: 'telefon', nume: 'Telefonul nu pare corect: 10 cifre (de ex. 0740 111 222) sau cu prefixul țării (+40…)' });
+    if (A().aratLipsuri(lipsa, { prefix: 'x-' })) return;
+    // v2.9.3: dată trecută, prinsă aici, nu abia în calendar (T2 #14)
+    if (planifica && d.data && d.data < azi() && !confirm(`Data planificată (${dataRo(d.data)}) e în trecut. Continuați?`)) return;
     // client nou, de la birou: intră și în registru (cere internet; fără, lucrarea merge oricum).
     // Doar după verificările de mai sus, ca să nu rămână clienți fără lucrare; același nume și telefon = același client (E3)
     if (!d.client_id && cuRegistru && poateClienti() && d.inRegistru) {
@@ -6310,11 +6337,13 @@ function ecranTipNou() {
     const l = A().lucrareNoua();
     Object.assign(l, { tip: d.tip, client: d.client, client_id: d.client_id || null, adresa: d.adresa, judet: d.judet || '', telefon: d.telefon, tipFinantare: d.tipFinantare,
       partener_id: d.partener_id || null, prosumatorSolicitat: CU_PROSUMATOR.includes(d.tip) ? !!d.prosumatorSolicitat : false });
-    if (planifica) {
+    if (planifica && d.echipa) {
       l._echipa_id = d.echipa; l.echipa = K.numeEchipa(d.echipa);
-      l.planificare = { data: d.data, echipa_id: d.echipa };
+      if (d.data) l.planificare = { data: d.data, echipa_id: d.echipa };
     }
     st.nou = null;
+    // v2.9.14 (UX 14 nov, B2): confirmarea pe ecranul care urmează (fișa sau formularul de pre-calcul)
+    mesajUrmator(`Lucrarea a fost creată${planifica ? (d.data ? ` · planificată ${dataRo(d.data)} la ${K.numeEchipa(d.echipa)}` : d.echipa ? ` · la ${K.numeEchipa(d.echipa)}, fără dată (la „De planificat”)` : ' · fără dată și echipă (la „De planificat”)') : ''}.`);
     // montajul nou trece prin formularul de pre-calcul (lucrarea se salvează la „Calculează”);
     // Planificarea doar îl planifică, liderul face pre-calculul
     if (d.tip === 'montaj_nou' && !(planifica && r === 'planificare')) { A().du('form', l); return; }
@@ -6585,13 +6614,14 @@ function ecranLucrare() {
         ${t === 'montaj_nou' && ed && !l.fazaIntermediara && !pv ? '<button class="buton gol" id="x-faza">Închide ziua (continuați mâine)</button>' : ''}
         ${l.fazaIntermediara ? '<button class="buton gol" id="x-pvi">PV intermediar</button>' : ''}
         ${t === 'montaj_nou' && ed && l.fazaIntermediara ? '<button class="buton" id="x-reia">Reia lucrul</button>' : ''}
-      </div></div></section>`;
+      </div>
+      ${ed && (!pv || pv.refacere) && lipsa.length ? `<div class="ajutor motiv-dezactivat" id="x-pv-motiv">„Semnează PV cu clientul” se activează după ${lipsa.length === 1 ? 'poza obligatorie care lipsește' : `cele ${lipsa.length} poze obligatorii care lipsesc`} — <button type="button" class="link-text" id="x-pv-la-poze">Vezi pozele</button></div>` : ''}</div></section>`;
 
   const form = htmlFormTeren(l, ed);
   const verif = htmlVerificari(l);
   // alocarea membrilor: la montaj e pe lista de materiale; la celelalte tipuri, aici
   const alocare = t !== 'montaj_nou' ? A().htmlAlocare(l) : '';
-  $('#ecran').innerHTML = A().htmlConflict(l) + htmlMesajEcran() + bannere + antet + htmlDateClient(l) + alocare + montaj + form + poze + sectPV + verif + htmlZile(l) + A().htmlIstoric(l) + A().htmlAdminLucrare(l);
+  $('#ecran').innerHTML = A().htmlConflict(l) + htmlMesajEcran() + htmlStare('salv:' + l.id) + bannere + antet + htmlDateClient(l) + alocare + montaj + form + poze + sectPV + verif + htmlZile(l) + A().htmlIstoric(l) + A().htmlAdminLucrare(l);
 
   // bara de jos: salvare și trimitere / validare, pentru lucrările fără raport de consum
   const butoane = [];
@@ -6709,7 +6739,7 @@ function htmlDateClient(l) {
       ${CU_PROSUMATOR.includes(tipL(l)) ? bifa('dc-prosumator', 'Clientul a cerut dosar de prosumator', l.prosumatorSolicitat) : ''}` : ''}
     ${planifica ? `<div class="randuri2">${alege('dc-echipa', 'Echipa', l._echipa_id || '', optEchipe(), r !== 'admin' && !neinceputa(l) ? 'disabled' : '')}${camp('dc-data', 'Data planificată', (l.planificare || {}).data || '', '', 'date')}</div>
       ${r !== 'admin' && !neinceputa(l) ? '<div class="ajutor">Lucrarea a început: echipa o mai schimbă doar Adminul. Data se poate muta.</div>' : ''}
-      <button class="adauga" id="x-planifica">Salvează planificarea</button>` : ''}
+      <button class="adauga" id="x-planifica">Salvează planificarea</button>${htmlStare('plan:' + l.id)}` : ''}
   </div></details></section>`;
 }
 function citesteDateClient(l) {
@@ -6823,9 +6853,9 @@ async function legaAnuntSMS(l) {
     const cl = l.client_id && (K.clienti || []).find((c) => c.id === l.client_id);
     const tel = l.telefon || (cl && cl.telefon) || '';
     const text = textAnuntSMS(tipL(l), data, ((K.setari || {}).sms || {}).contact || '');
-    if (!confirm(`Se trimite un SMS (cu cost) la ${tel}:\n\n„${text}”\n\nTrimiteți?`)) return;
+    if (!(await confirma({ titlu: 'Trimiteți SMS-ul?', text: `Se trimite un SMS (cu cost) la ${tel}: „${text}”`, ok: 'Trimite SMS-ul' }))) return;
     b.disabled = true; b.textContent = 'Se trimite…';
-    try { await K.anuntaSMS(l.id, tel); alert('SMS-ul a plecat.'); }
+    try { await K.anuntaSMS(l.id, tel); mesajUrmator(`SMS-ul a plecat la ${tel}.`); }
     catch (e) { alert(e.neconfigurat ? 'SMS-ul nu e pornit pe server.' : e.message); }
     A().du('lucrare', l);
   };
@@ -6882,8 +6912,9 @@ function legaCodPV(l) {
     const canale = canaleCod();
     const canal = canalCod(l, canale);
     const catre = ((canal === 'email' ? v('cod-email') : v('cod-tel')) || '').trim();
-    if (canal === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(catre)) { alert('Scrieți e-mailul clientului.'); return; }
-    if (canal !== 'email' && catre.replace(/\D/g, '').length < 9) { alert('Scrieți telefonul clientului (07xx xxx xxx).'); return; }
+    // v2.9.15 (N14): la câmp, nu alert
+    if (canal === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(catre)) { eroareCamp('cod-email', 'Scrieți e-mailul clientului.'); return; }
+    if (canal !== 'email' && catre.replace(/\D/g, '').length < 9) { eroareCamp('cod-tel', 'Scrieți telefonul clientului (07xx xxx xxx).'); return; }
     const b = ev.target; b.disabled = true; b.textContent = 'Se trimite…';
     if (st.codGresit) delete st.codGresit[l.id];
     try {
@@ -6900,11 +6931,11 @@ function legaCodPV(l) {
   if ($('#x-cod-confirma')) $('#x-cod-confirma').onclick = async (ev) => {
     // codul dictat cu spații sau liniuțe („100 012”) e același cod
     const cod = (v('cod-pv') || '').replace(/[\s.-]/g, '');
-    if (!/^\d{6}$/.test(cod)) { alert('Codul are 6 cifre.'); return; }
+    if (!/^\d{6}$/.test(cod)) { eroareCamp('cod-pv', 'Codul are 6 cifre.'); return; }
     const b = ev.target; b.disabled = true;
     try {
       const r = await K.confirmaCodPV(l.id, cod);
-      if (r && r.ok) { if (st.codGresit) delete st.codGresit[l.id]; const s2 = K.citesteUna(l.id); if (s2) A().stare.lucrare = s2; alert('Codul e corect: procesul verbal e confirmat de client.'); }
+      if (r && r.ok) { if (st.codGresit) delete st.codGresit[l.id]; const s2 = K.citesteUna(l.id); if (s2) A().stare.lucrare = s2; mesajUrmator('Codul e corect: procesul verbal e confirmat de client.'); }
       else { st.codGresit = Object.assign({}, st.codGresit, { [l.id]: `Cod greșit.${r && r.ramase != null ? ' Mai aveți ' + Math.max(0, r.ramase) + (r.ramase === 1 ? ' încercare.' : ' încercări.') : ''}` }); }
     } catch (e) { alert(e.message); }
     ecranLucrare();
@@ -6927,14 +6958,15 @@ function legaLucrare(l) {
     legaAnuntSMS(Object.assign({}, l, { telefon: v('dc-telefon').trim() }));
   });
   if ($('#x-pv')) $('#x-pv').onclick = () => { salveazaTot(); A().stare.pvMod = 'final'; du('pv', l); };
-  if ($('#x-pv-refa')) $('#x-pv-refa').onclick = () => {
-    if (!confirm('Refaceți semnătura clientului? Procesul verbal semnat se înlocuiește.')) return;
+  if ($('#x-pv-refa')) $('#x-pv-refa').onclick = async () => {
+    if (!(await confirma({ titlu: 'Refaceți semnătura clientului?', text: 'Procesul verbal semnat se înlocuiește.', ok: 'Refă semnătura' }))) return;
     salveazaTot();
     // la intervenție, câmpurile din Anexa nr. 1 se deblochează întâi pe fișă, pentru corectură
-    if (tipL(l) === 'interventie') { l.pv = Object.assign({}, l.pv, { refacere: true }); A().salveaza(l); ecranLucrare(); alert('Corectați pe fișă ce trebuie, apoi apăsați „Semnează din nou PV cu clientul”.'); return; }
+    if (tipL(l) === 'interventie') { l.pv = Object.assign({}, l.pv, { refacere: true }); A().salveaza(l); mesajUrmator('Corectați pe fișă ce trebuie, apoi apăsați „Semnează din nou PV cu clientul”.'); ecranLucrare(); return; }
     A().stare.pvMod = 'final'; du('pv', l);
   };
   if ($('#x-pv-pdf')) $('#x-pv-pdf').onclick = () => pvPDF(l);
+  if ($('#x-pv-la-poze')) $('#x-pv-la-poze').onclick = () => { salveazaTot(); du('poze', l); };
   if ($('#x-faza')) $('#x-faza').onclick = () => { salveazaTot(); A().stare.pvMod = 'intermediar'; du('pv', l); };
   if ($('#x-pvi')) $('#x-pvi').onclick = () => aratPVIntermediar(l, l.fazaIntermediara);
   document.querySelectorAll('[data-pvzi]').forEach((b) => { b.onclick = () => aratPVIntermediar(l, (l.zile || [])[+b.dataset.pvzi]); });
@@ -6946,8 +6978,10 @@ function legaLucrare(l) {
     const aloc = (l._alocati || []).map((id) => K.numeOm(id)).filter(Boolean);
     // v2.9.3 (T6 m9): membrului nu i se spune că lucrarea apare la el; fără semnal, se spune că e doar pe telefon
     salveazaTot();
-    const pe = K.activ && !K.sync.online ? ' pe telefon; se trimite când e semnal' : '';
-    alert(aloc.length && tipL(l) !== 'montaj_nou' && K.rol() !== 'membru' ? `Salvat${pe}. Lucrarea apare la: ${aloc.join(', ')}.` : `Salvat${pe}.`); ecranLucrare();
+    // v2.9.13 (UX 14 nov, V2): fără alert; rândul de stare de sus urmează răspunsul serverului
+    ecranLucrare();
+    urmaresteTrimiterea(l, 'salv', aloc.length && tipL(l) !== 'montaj_nou' && K.rol() !== 'membru' ? `lucrarea apare la: ${aloc.join(', ')}` : '');
+    window.scrollTo(0, 0);
   };
   if ($('#x-mat-nou')) $('#x-mat-nou').onclick = () => {
     citesteFormTeren(l);
@@ -6960,20 +6994,22 @@ function legaLucrare(l) {
     const x = tipL(l) === 'interventie' ? l.interventie : l.upsales;
     x.materiale.splice(+b.dataset.stergeMat, 1); ecranLucrare();
   }; });
-  if ($('#x-planifica')) $('#x-planifica').onclick = () => {
+  if ($('#x-planifica')) $('#x-planifica').onclick = async () => {
     const ech = v('dc-echipa'), data = v('dc-data');
-    if (!ech || !data) { alert('Alegeți echipa și data.'); return; }
-    if (data < azi() && data !== (l.planificare || {}).data && !confirm(`Data planificată (${dataRo(data)}) e în trecut. Continuați?`)) return;
-    if (ech !== l._echipa_id && K.rol() !== 'admin' && !neinceputa(l)) { alert('Lucrarea a început: echipa o mai schimbă doar Adminul.'); return; }
+    // v2.9.15 (N14): lipsurile la câmp; data trecută în fereastra aplicației
+    if (A().aratLipsuri([!ech && { cheie: 'dc-echipa', nume: 'Alegeți echipa.' }, !data && { cheie: 'dc-data', nume: 'Alegeți data.' }].filter(Boolean), { prefix: 'x-', faraRezumat: true })) return;
+    if (data < azi() && data !== (l.planificare || {}).data && !(await confirma({ titlu: 'Dată în trecut', text: `Data planificată (${dataRo(data)}) e în trecut. Continuați?`, ok: 'Planifică așa', renunta: 'Schimb data' }))) return;
+    if (ech !== l._echipa_id && K.rol() !== 'admin' && !neinceputa(l)) { eroareCamp('dc-echipa', 'Lucrarea a început: echipa o mai schimbă doar Adminul.'); return; }
     if (ech !== l._echipa_id) { l._echipa_id = ech; l.echipa = K.numeEchipa(ech); l._alocati = []; }
     l.planificare = Object.assign({}, l.planificare || {}, { data, echipa_id: ech });
     citesteDateClient(l);
-    A().salveaza(l); alert('Planificarea e salvată.'); ecranLucrare();
+    A().salveaza(l); ecranLucrare(); urmaresteTrimiterea(l, 'plan', 'planificarea');
   };
-  const trimite = (valid) => {
+  const trimite = async (valid) => {
     salveazaTot();
     if (!gataDeTrimis(l, valid, true)) return;
-    if (!confirm(intrebareTrimitere(l, valid))) return;
+    // v2.9.15 (L6, M13): o singură întrebare, în fereastra aplicației, cu butonul care spune acțiunea
+    if (!(await confirma({ titlu: valid ? 'Validați lucrarea?' : 'Trimiteți lucrarea?', text: intrebareTrimitere(l, valid), ok: valid ? 'Validează' : 'Trimite', renunta: 'Rămân aici' }))) return;
     const rap = Object.assign({}, l.raportat || {});
     if (!rap.persoana) rap.persoana = (K.profil && (K.profil.nume || K.profil.email)) || '';
     if (!rap.data) rap.data = azi();
@@ -7008,13 +7044,13 @@ function legaLucrare(l) {
   if (A().stare.laCod) { A().stare.laCod = false; const c = $('.cod-pv'); if (c) setTimeout(() => c.scrollIntoView({ block: 'center' }), 50); }
   if ($('#x-trimite')) $('#x-trimite').onclick = () => trimite(false);
   if ($('#x-valid')) $('#x-valid').onclick = () => trimite(true);
-  if ($('#x-redeschide')) $('#x-redeschide').onclick = () => {
-    if (!confirm('Redeschideți lucrarea? Se poate modifica și trimite din nou.')) return;
+  if ($('#x-redeschide')) $('#x-redeschide').onclick = async () => {
+    if (!(await confirma({ titlu: 'Redeschideți lucrarea?', text: 'Se poate modifica și trimite din nou.', ok: 'Redeschide' }))) return;
     const rap = Object.assign({}, l.raportat || {}); delete rap.validat; delete rap.finalizat; rap.redeschis = marcaj();
     l.raportat = rap; A().salveaza(l); ecranLucrare();
   };
   if ($('#x-din-vizita')) $('#x-din-vizita').onclick = () => montajDinVizita(l);
-  if ($('#x-revenire')) $('#x-revenire').onclick = () => { if (confirm(`Creați o intervenție de revenire la „${l.client || 'client'}”? Se deschide fișa ei, ca s-o planificați.`)) interventieDeRevenire(l); };
+  if ($('#x-revenire')) $('#x-revenire').onclick = async () => { if (await confirma({ titlu: 'Intervenție de revenire?', text: `Creați o intervenție de revenire la „${l.client || 'client'}”? Se deschide fișa ei, ca s-o planificați.`, ok: 'Creează intervenția' })) interventieDeRevenire(l); };
   document.querySelectorAll('[data-revenire]').forEach((b) => { b.onclick = () => { const rv = K.citesteUna(b.dataset.revenire); if (rv) du('lucrare', rv); }; });
   legaVerificari(l);
 }
@@ -7100,7 +7136,7 @@ function htmlVerificari(l) {
         ${alege('vt-stare', 'Decizia', vt.stare || 'in_analiza', stariT)}
         ${alege('vt-motiv', 'Motiv (la respingere sau neaprobare)', vt.motiv || '', [...new Set([''].concat(MOTIVE, MOTIVE_NEAPROBAT, vt.motiv ? [vt.motiv] : []))])}
         ${zona('vt-obs', 'Observații pentru echipă / management', vt.obs)}
-        <button class="adauga" id="x-vt-salv">Salvează decizia tehnică</button>${vt.de ? `<div class="ajutor">Ultima decizie${cine(vt)}</div>` : ''}</div>`
+        <button class="adauga" id="x-vt-salv">Salvează decizia tehnică</button>${htmlStare('tehnic:' + l.id)}${vt.de ? `<div class="ajutor">Ultima decizie${cine(vt)}</div>` : ''}</div>`
       : `<div class="verif"><h3>Verificare tehnică</h3><div>${E(textT(vt.stare))}${vt.motiv ? ' · ' + E(vt.motiv) : ''}${cine(vt)}</div>${vt.obs ? `<div class="ajutor">${E(vt.obs)}</div>` : ''}${P('verificaTehnic') && tehnicBlocat ? '<div class="mesaj ok" id="x-vt-blocat">Lucrarea e închisă definitiv (certificat de prosumator, sau facturată după decizia tehnică). Decizia tehnică o mai schimbă doar Adminul.</div>' : ''}</div>`);
     if ((ve.tehnicIstoric || []).length) blocuri.push(`<div class="ajutor">Respingeri anterioare: ${ve.tehnicIstoric.map((x) => `${E(dataRo(x.data))} — ${E(x.motiv || '')}`).join('; ')}</div>`);
   }
@@ -7121,7 +7157,7 @@ function htmlVerificari(l) {
         ${certBlocat ? `<div class="mesaj ok">Certificat ${E(cert.nr || '')} din ${E(dataRo(cert.dataCert))}: lucrarea e închisă definitiv. Doar Adminul îl mai poate corecta.</div>`
           : `<div class="randuri2">${camp('vp-nr', 'Nr. certificat de prosumator', cert ? cert.nr : '', aprobat || cert ? '' : 'disabled')}${camp('vp-data', 'Data certificatului', cert ? cert.dataCert : azi(), `max="${azi()}"${aprobat || cert ? '' : ' disabled'}`, 'date')}</div>`}
         ${zona('vp-obs', 'Observații prosumator', vp.obs)}
-        <button class="adauga" id="x-vp-salv">Salvează prosumatorul</button>
+        <button class="adauga" id="x-vp-salv">Salvează prosumatorul</button>${htmlStare('prosumator:' + l.id)}
         <div class="ajutor">${aprobat || cert ? 'Cu certificatul trecut, lucrarea se închide definitiv.' : 'Certificatul se trece după aprobarea tehnică a lucrării.'}${cine(vp)}</div></div>`
       : `<div class="verif"><h3>Prosumator</h3><div>${cert ? `Certificat ${E(cert.nr || '')} din ${E(dataRo(cert.dataCert))}` : vp.depus ? 'Dosar depus, certificat neprimit' : vp.verificat ? 'Verificat, dosar nedepus' : 'Neînceput'}${cine(vp)}</div></div>`);
   }
@@ -7135,7 +7171,7 @@ function htmlVerificari(l) {
         ${anexa.length ? `${alege('vf-anexa', 'Materiale suplimentare (anexa semnată)', vf.anexa || '', [{ v: '', t: '—' }, { v: 'de_facturat', t: 'De facturat clientului' }, { v: 'facturat', t: 'Facturate' }, { v: 'achitat', t: 'Achitate' }])}` : ''}
         ${zona('vf-obs', 'Observații facturare', vf.obs)}
         ${tehnicFinal(l) ? '' : '<div class="mesaj warn" id="x-vf-tehnic">Verificarea tehnică nu e încă finalizată. Puteți marca facturarea, dar lucrarea rămâne deschisă până la decizia Tehnicului.</div>'}
-        <button class="adauga" id="x-vf-salv">Salvează facturarea</button>${cine(vf) ? `<div class="ajutor">Ultima modificare${cine(vf)}</div>` : ''}
+        <button class="adauga" id="x-vf-salv">Salvează facturarea</button>${htmlStare('facturare:' + l.id)}${cine(vf) ? `<div class="ajutor">Ultima modificare${cine(vf)}</div>` : ''}
         ${sp.est || sp.real || sp.fara.length ? `<div class="ajutor">Materiale cumpărate de partener: ${sp.areReal ? `${E(lei(sp.real))} (real, din consum)${sp.real !== sp.est ? ` · estimat ${E(lei(sp.est))}` : ''}` : `${E(lei(sp.est))} (estimat)`}${sp.fara.length ? ` · ${sp.fara.length} ${sp.fara.length === 1 ? 'linie' : 'linii'} fără preț` : ''}</div>` : ''}</div>`
       : `<div class="verif"><h3>Facturare</h3><div>${E({ verificat: 'Verificat, de facturat', facturat: 'Facturat', achitat: 'Achitat' }[vf.stare] || '—')}${cine(vf)}</div></div>`);
   }
@@ -7144,7 +7180,7 @@ function htmlVerificari(l) {
     const vr = ve.retinere || {};
     blocuri.push(P('retinere') ? `<div class="verif"><h3>Reținere de la montator</h3>
         <div class="randuri2">${camp('vr-suma', 'Sumă (lei)', vr.suma, 'inputmode="decimal"')}${camp('vr-nota', 'Motiv', vr.nota)}</div>
-        <button class="adauga" id="x-vr-salv">Salvează reținerea</button>${cine(vr)}</div>`
+        <button class="adauga" id="x-vr-salv">Salvează reținerea</button>${htmlStare('retinere:' + l.id)}${cine(vr)}</div>`
       : `<div class="verif"><h3>Reținere de la montator</h3><div>${E(lei(vr.suma))} · ${E(vr.nota || '')}${cine(vr)}</div></div>`);
   }
   // stoc (Gestiune) — v2.9 (decizie Clau, 11 nov): pe categorii, fiecare „În stoc”, „Lipsește” (cu notă) sau „Nu e cazul”;
@@ -7157,50 +7193,59 @@ function htmlVerificari(l) {
         <div class="ajutor" style="margin-top:0">Lucrarea iese din „Stoc de confirmat” când fiecare categorie are un răspuns. La „Lipsește”, scrieți ce și până când: nota o vede Planificarea și echipa.</div>
         ${CATEGORII_STOC.map(([k, et]) => `<div class="stoc-rand">${alege('st-' + k, et, val[k] || '', [{ v: '', t: '— alegeți —' }, { v: 'ok', t: 'În stoc' }, { v: 'lipsa', t: 'Lipsește' }, { v: 'nu', t: 'Nu e cazul' }])}
           <div class="camp stoc-nota"${val[k] === 'lipsa' ? '' : ' hidden'}><label for="x-stn-${k}">Ce lipsește și până când</label><input type="text" id="x-stn-${k}" value="${E(((s.note || {})[k]) || '')}"></div></div>`).join('')}
-        <button class="adauga" id="x-st-salv">Salvează stocul</button>${cine(s)}</div>`
+        <button class="adauga" id="x-st-salv">Salvează stocul</button>${htmlStare('stoc:' + l.id)}${cine(s)}</div>`
       : `<div class="verif"><h3>Stocul</h3><div>${E(textStoc(l))}${cine(s)}</div>${P('stoc') ? '<div class="ajutor">Lucrarea a început: stocul nu se mai schimbă de aici.</div>' : ''}</div>`);
   }
   return blocuri.length ? `<section class="card"><h2>Verificări</h2><div class="corp">${blocuri.join('')}</div></section>` : '';
 }
+document.addEventListener('click', (ev) => {
+  const b = ev.target.closest && ev.target.closest('[data-stoc-urm]');
+  if (!b) return;
+  const x = K.citesteUna(b.dataset.stocUrm);
+  if (x) { stergeStare('stoc:' + (A().stare.lucrare || {}).id); A().du('lucrare', x); }
+});
 function legaVerificari(l) {
   const scrie = (k, val, mesaj) => {
     l.verificari = Object.assign({}, l.verificari || {}, { [k]: val });
-    A().salveaza(l); if (mesaj) alert(mesaj); ecranLucrare();
+    // v2.9.13 (UX 14 nov, V2, N16): fără alert „… e salvată”; rândul de sub buton urmează răspunsul serverului
+    A().salveaza(l); ecranLucrare(); urmaresteTrimiterea(l, k, mesaj || '');
   };
-  if ($('#x-vt-salv')) $('#x-vt-salv').onclick = () => {
-    if (inchisaDefinitiv(l) && K.rol() !== 'admin') { alert('Lucrarea e închisă definitiv. Decizia tehnică o mai schimbă doar Adminul.'); return; }
+  if ($('#x-vt-salv')) $('#x-vt-salv').onclick = async () => {
+    if (inchisaDefinitiv(l) && K.rol() !== 'admin') { eroareCamp('vt-stare', 'Lucrarea e închisă definitiv. Decizia tehnică o mai schimbă doar Adminul.'); return; }
     const s = v('vt-stare'), motiv = v('vt-motiv'), obs = v('vt-obs').trim();
-    if ((s === 'respins' || s === 'neaprobat') && !motiv) { alert('Alegeți motivul.'); return; }
-    if (s === 'respins' && !confirm('Respingeți lucrarea? Se întoarce la echipă cu motivul ales.')) return;
-    scrie('tehnic', { stare: s, motiv: s === 'respins' || s === 'neaprobat' ? motiv : '', obs }, s === 'aprobat' ? 'Lucrarea e aprobată.' : null);
+    // v2.9.15 (N14): la câmp, nu alert; respingerea, în fereastra aplicației
+    if ((s === 'respins' || s === 'neaprobat') && !motiv) { eroareCamp('vt-motiv', 'Alegeți motivul.'); return; }
+    if (s === 'respins' && !(await confirma({ titlu: 'Respingeți lucrarea?', text: `Se întoarce la echipă cu motivul ales („${motiv}”).`, ok: 'Respinge', pericol: true }))) return;
+    scrie('tehnic', { stare: s, motiv: s === 'respins' || s === 'neaprobat' ? motiv : '', obs }, s === 'aprobat' ? 'lucrarea e aprobată' : s === 'respins' ? 'se întoarce la echipă' : null);
   };
-  if ($('#x-vp-salv')) $('#x-vp-salv').onclick = () => {
+  if ($('#x-vp-salv')) $('#x-vp-salv').onclick = async () => {
     const vechi = ((l.verificari || {}).prosumator || {}).certificat || null;
     const blocat = !!vechi && K.rol() !== 'admin';
     const nrC = blocat ? vechi.nr : (v('vp-nr') || '').trim(), dc = blocat ? vechi.dataCert : v('vp-data');
     const aprobat = (((l.verificari || {}).tehnic) || {}).stare === 'aprobat';
-    if (nrC && !dc) { alert('Pentru certificat completați și data.'); return; }
+    // v2.9.15 (N14): fiecare problemă la câmpul ei, nu alert
+    if (nrC && !dc) { eroareCamp('vp-data', 'Pentru certificat completați și data.'); return; }
     // v2.9.3 (T9 m7): o dată aleasă fără număr se pierdea în tăcere
-    if (!nrC && !blocat && dc && dc !== azi() && !vechi && aprobat) { alert('Scrieți și numărul certificatului (sau lăsați data de azi, dacă nu aveți încă certificatul).'); return; }
-    if (nrC && !vechi && !aprobat) { alert('Certificatul se trece după aprobarea tehnică a lucrării.'); return; }
-    if (nrC && dc > azi()) { alert('Data certificatului nu poate fi în viitor.'); return; }
+    if (!nrC && !blocat && dc && dc !== azi() && !vechi && aprobat) { eroareCamp('vp-nr', 'Scrieți și numărul certificatului (sau lăsați data de azi, dacă nu aveți încă certificatul).'); return; }
+    if (nrC && !vechi && !aprobat) { eroareCamp('vp-nr', 'Certificatul se trece după aprobarea tehnică a lucrării.'); return; }
+    if (nrC && dc > azi()) { eroareCamp('vp-data', 'Data certificatului nu poate fi în viitor.'); return; }
     // v2.8.8: certificatul închide definitiv lucrarea: numărul trebuie să arate a număr, data nu poate fi
     // dinaintea montajului (procesul verbal), iar trecerea lui cere confirmare
     if (nrC && !vechi) {
-      if (!/\d/.test(nrC) || nrC.length < 3) { alert('Numărul certificatului pare greșit (are cel puțin 3 caractere, cu cifre).'); return; }
+      if (!/\d/.test(nrC) || nrC.length < 3) { eroareCamp('vp-nr', 'Numărul certificatului pare greșit (are cel puțin 3 caractere, cu cifre).'); return; }
       const dPV = l.pv && l.pv.data ? String(l.pv.data).slice(0, 10) : '';
-      if (dPV && dc < dPV) { alert(`Data certificatului (${dataRo(dc)}) e dinaintea procesului verbal al lucrării (${dataRo(dPV)}). Verificați data.`); return; }
-      if (!confirm(`Treceți certificatul nr. ${nrC} din ${dataRo(dc)}?\n\nLucrarea se închide definitiv. Numărul și data le mai poate corecta doar Adminul.`)) return;
+      if (dPV && dc < dPV) { eroareCamp('vp-data', `Data certificatului (${dataRo(dc)}) e dinaintea procesului verbal al lucrării (${dataRo(dPV)}). Verificați data.`); return; }
+      if (!(await confirma({ titlu: 'Treceți certificatul?', text: `Treceți certificatul nr. ${nrC} din ${dataRo(dc)}? Lucrarea se închide definitiv. Numărul și data le mai poate corecta doar Adminul.`, ok: 'Trece certificatul' }))) return;
     }
-    if (vechi && !nrC && !confirm('Ștergeți certificatul? Lucrarea se redeschide și revine la „așteaptă certificatul”.')) return;
+    if (vechi && !nrC && !(await confirma({ titlu: 'Ștergeți certificatul?', text: 'Lucrarea se redeschide și revine la „așteaptă certificatul”.', ok: 'Șterge certificatul', pericol: true }))) return;
     const vp = { verificat: !!v('vp-verificat'), depus: !!v('vp-depus'), actualizare: !!v('vp-actualizare'), obs: v('vp-obs').trim() };
     if (nrC) vp.certificat = Object.assign({}, vechi || {}, { nr: nrC, dataCert: dc });
-    scrie('prosumator', vp, nrC && !vechi ? 'Certificatul e trecut: lucrarea se închide.' : 'Prosumatorul e salvat.');
+    scrie('prosumator', vp, nrC && !vechi ? 'certificatul e trecut, lucrarea se închide' : '');
   };
-  if ($('#x-vf-salv')) $('#x-vf-salv').onclick = () => scrie('facturare', { stare: v('vf-stare'), anexa: v('vf-anexa') || '', obs: v('vf-obs').trim() }, 'Facturarea e salvată.');
+  if ($('#x-vf-salv')) $('#x-vf-salv').onclick = () => scrie('facturare', { stare: v('vf-stare'), anexa: v('vf-anexa') || '', obs: v('vf-obs').trim() }, '');
   if ($('#x-vr-salv')) $('#x-vr-salv').onclick = () => {
     const s = A().citesteNumar(v('vr-suma'));
-    if (typeof s !== 'number' || s < 0) { alert('Suma trebuie să fie un număr pozitiv.'); return; }
+    if (typeof s !== 'number' || s < 0) { eroareCamp('vr-suma', 'Suma trebuie să fie un număr pozitiv.'); return; }
     scrie('retinere', { suma: s, nota: v('vr-nota').trim() });
   };
   CATEGORII_STOC.forEach(([k]) => { if ($('#x-st-' + k)) $('#x-st-' + k).onchange = () => { const n = $('#x-stn-' + k).parentElement; n.hidden = v('st-' + k) !== 'lipsa'; if (!n.hidden) $('#x-stn-' + k).focus(); }; });
@@ -7211,15 +7256,18 @@ function legaVerificari(l) {
       if (x) st[k] = x === 'ok' ? true : x;
       if (x === 'lipsa') {
         const n = (v('stn-' + k) || '').trim();
-        if (!n) { alert(`Scrieți ce lipsește la „${et}” și până când (de exemplu: „invertorul vine pe 20.11”).`); $('#x-stn-' + k).focus(); return; }
+        if (!n) { eroareCamp('stn-' + k, `Scrieți ce lipsește la „${et}” și până când (de exemplu: „invertorul vine pe 20.11”).`); return; }
         st.note[k] = n;
       }
     }
     st.complet = CATEGORII_STOC.every(([k]) => st[k] !== undefined);
     l.stoc = st;
     A().salveaza(l);
-    alert(st.complet ? (CATEGORII_STOC.some(([k]) => st[k] === 'lipsa') ? 'Stocul e salvat. Lipsurile apar la Planificare și pe fișa echipei.' : 'Stocul e confirmat.') : 'Stocul e salvat parțial: lucrarea rămâne în „Stoc de confirmat” până răspundeți la toate categoriile.');
     ecranLucrare();
+    // v2.9.13 (UX 14 nov, B11): rândul de stare în loc de alert, cu legătura spre următoarea lucrare din „Stoc de confirmat”
+    const urm = COZI.stoc.cine.includes(K.rol()) ? active().filter((x) => x.id !== l.id && COZI.stoc.f(x)).sort(COZI.stoc.ordine || ordineCoada)[0] : null;
+    urmaresteTrimiterea(l, 'stoc', st.complet ? (CATEGORII_STOC.some(([k]) => st[k] === 'lipsa') ? 'stocul e salvat; lipsurile apar la Planificare și pe fișa echipei' : 'stocul e confirmat') : 'salvat parțial: lucrarea rămâne în „Stoc de confirmat” până răspundeți la toate categoriile',
+      urm ? `<button type="button" class="link-buton" data-stoc-urm="${E(urm.id)}">Următoarea din Stoc de confirmat: ${E(urm.client || 'Lucrare')}</button>` : '');
   };
 }
 
@@ -7270,7 +7318,7 @@ function ecranPoze() {
   });
   document.querySelectorAll('[data-sterge-poza]').forEach((b) => {
     b.onclick = async () => {
-      if (!confirm('Ștergeți poza?')) return;
+      if (!(await confirma({ titlu: 'Ștergeți poza?', text: 'Poza se scoate de pe lucrare.', ok: 'Șterge poza', pericol: true }))) return;
       const id = b.dataset.stergePoza, et = b.dataset.etapa;
       const p = pozeEtapa(l, et).find((x) => x.id === id);
       if (p && p.local) await stergePozaLocala(id).catch(() => {});
@@ -7415,7 +7463,8 @@ function htmlPVModel(l, model) {
   return `<section class="card" id="pv-model"><h2>Date tehnice și teste PIF</h2><div class="corp">
     <div class="ajutor" style="margin-top:0">După modelul inoSOLAR. ${model === 'interventie' ? 'Testele PIF se completează doar dacă la intervenție s-au făcut măsurători.' : 'Măsurătorile sunt obligatorii: procesul verbal nu se poate semna fără ele.'}</div>
     ${model === 'montaj' ? `<div class="sectiune-titlu">Branșament</div><div class="grila-mas">${nrCamp('bmp_a', 'Siguranța BMP', 'A')}${nrCamp('bmp_mm2', 'Secțiune cablu BMP–TG', 'mm²')}</div>
-      ${alege('pm-afm', 'Program', pvM.afm || '', [{ v: '', t: '— alegeți —' }, { v: 'AFM', t: 'AFM' }, { v: 'NON AFM', t: 'NON AFM' }])}` : ''}
+      ${alege('pm-afm', 'Program', pvM.afm || '', [{ v: '', t: '— alegeți —' }, { v: 'AFM', t: 'AFM' }, { v: 'NON AFM', t: 'NON AFM' }])}
+      <div class="ajutor" style="margin-top:2px">AFM = instalație prin programul Casa Verde (AFM); NON AFM = pe banii clientului sau prin alt program.</div>` : ''}
     <div class="sectiune-titlu">${model === 'upsales' ? 'Sistemul existent (cum rămâne după montaj)' : 'Echipamentele centralei fotovoltaice'}</div>
     ${pvM._dinSistem && !(l.pv && l.pv.masuratori) ? `<div class="mesaj ok" id="x-pm-din-sistem">Completate din procesul verbal anterior al clientului${typeof pvM._dinSistem === 'string' && pvM._dinSistem ? ' (' + E(dataRo(new Date(pvM._dinSistem))) + ')' : ''}. Verificați pe loc, mai ales seria invertorului dacă a fost schimbat.</div>` : ''}
     <div class="camp"><label for="x-pm-inv_tip">Invertor (tip)</label><input type="text" id="x-pm-inv_tip" value="${E(pvM.inv_tip || '')}"></div>
@@ -7522,6 +7571,31 @@ function marcheazaLipsaPV(chei) {
   const el = chei.map((k) => $('#x-pm-' + k)).filter(Boolean);
   el.forEach((x) => { x.classList.add('lipsa'); x.addEventListener('input', () => x.classList.remove('lipsa'), { once: true }); x.addEventListener('change', () => x.classList.remove('lipsa'), { once: true }); });
   if (el[0]) { el[0].scrollIntoView({ block: 'center' }); try { el[0].focus({ preventScroll: true }); } catch (e) { /* */ } }
+}
+let ascultatorContorPV = null;
+// v2.9.14 (UX 14 nov, L12, M4): rezumatul lipsurilor sus pe PV și lista completă într-o foaie, fiecare rând duce la câmp
+function rezumatLipsaPV(vm) {
+  const vechi = $('#x-pv-lipsuri'); if (vechi) vechi.remove();
+  const n = vm.lipsa.length;
+  const r = document.createElement('div'); r.className = 'mesaj warn'; r.id = 'x-pv-lipsuri'; r.setAttribute('role', 'alert');
+  r.innerHTML = `Procesul verbal nu se poate salva încă: ${n === 1 ? 'lipsește <b>un câmp obligatoriu</b>' : `lipsesc <b>${n} câmpuri obligatorii</b>`} (marcate cu roșu). <button type="button" class="link-text" id="x-pv-lista">Vezi lista</button>`;
+  const ecran = $('#ecran'); ecran.insertBefore(r, ecran.firstChild);
+  $('#x-pv-lista').onclick = () => foaieLipsaPV(vm);
+}
+function foaieLipsaPV(vm) {
+  document.querySelectorAll('.foaie').forEach((x) => x.remove());
+  const m = document.createElement('div');
+  m.className = 'modal-problema foaie';
+  m.innerHTML = `<div class="modal-in" role="dialog" aria-modal="true" aria-labelledby="pl-t"><h2 id="pl-t">${vm.lipsa.length === 1 ? 'Un câmp de completat' : `${vm.lipsa.length} câmpuri de completat`}</h2>
+    <div class="ajutor" style="margin-top:0">Apăsați un rând ca să ajungeți la câmp.</div>
+    <div class="lista-lipsa">${vm.lipsa.map((t, i) => `<button type="button" class="rand-lipsa" data-pv-k="${E(vm.chei[i] || '')}">${E(t)}</button>`).join('')}</div>
+    <div class="actiuni"><button type="button" class="buton gol" id="x-pl-inchide">Închide</button></div></div>`;
+  document.body.appendChild(m);
+  document.body.classList.add('cu-modal');
+  const inchide = () => { m.remove(); if (!document.querySelector('.modal-problema')) document.body.classList.remove('cu-modal'); };
+  m.addEventListener('click', (ev) => { if (ev.target === m) inchide(); });
+  $('#x-pl-inchide').onclick = inchide;
+  m.querySelectorAll('[data-pv-k]').forEach((b) => { b.onclick = () => { const k = b.dataset.pvK; inchide(); setTimeout(() => { const el = $('#x-pm-' + k); if (el) { el.classList.add('lipsa'); el.scrollIntoView({ block: 'center' }); try { el.focus({ preventScroll: true }); } catch (e) { /* */ } } }, 30); }; });
 }
 // v2.8.8: „Refă semnătura” pornește de la ce era în procesul verbal salvat, nu de la zero
 function pvMdinSalvat(l) {
@@ -7636,7 +7710,8 @@ function ecranPV() {
     if (dinCiorna) Object.assign(pvM, c.model, { _id: l.id });
   }
   pvRenuntat = false;
-  $('#ecran').innerHTML = (lipsa.length ? `<div class="mesaj warn">Lipsesc pozele obligatorii: ${E(lipsa.map((x) => x.t).join('; '))}. Procesul verbal nu se poate semna încă.</div>` : '')
+  // v2.9.14 (UX 14 nov, P10): numărul pozelor lipsă și legătura, nu enumerarea lor
+  $('#ecran').innerHTML = (lipsa.length ? `<div class="mesaj warn" id="x-pv-poze-lipsa" title="${E(lipsa.map((x) => x.t).join('; '))}">${lipsa.length === 1 ? 'Lipsește o poză obligatorie' : `Lipsesc ${lipsa.length} poze obligatorii`} — <button type="button" class="link-text" id="x-pv-la-poze">Vezi pozele</button>. Procesul verbal nu se poate semna încă.</div>` : '')
     + (deScris.length ? `<div class="mesaj warn">Completați întâi pe fișa lucrării: ${E(deScris.join(', '))}. Clientul semnează ce scrie acolo.</div>` : '')
     + (mod === 'final' ? '<div class="ajutor" style="margin-top:10px">Arătați clientului textul de mai jos: e ceea ce confirmă prin semnătură.</div>' : '')
     + `<section class="card"><h2>${E(mod === 'final' ? TIPURI[t].pv : 'Proces verbal de fază intermediară')}</h2><div class="corp pv-text">
@@ -7646,7 +7721,7 @@ function ecranPV() {
       ${anexa.length ? `<div class="sectiune-titlu">Anexă — materiale suplimentare</div>
         <div class="ajutor">Cantitățile vin din estimarea lucrării (pre-calcul), față de lungimile incluse în contract.</div>
         <table class="rap mic"><tr><th>Material</th><th>Cant.</th></tr>${anexa.map((x) => `<tr><td>${E(x.den)}<span class="det">${E(x.nota || '')}</span></td><td class="n">${E(nr(x.cant))} ${E(x.um)}</td></tr>`).join('')}</table>
-        ${bifa('pv-anexa', 'Clientul acceptă materialele suplimentare din anexă, facturate separat', false)}` : ''}
+        <div class="ajutor">Acordul clientului pentru anexă se bifează jos, lângă semnătura lui.</div>` : ''}
     </div></section>
     ${model ? htmlPVModel(l, model) : ''}
     ${model || mod === 'intermediar' ? `<section class="card"><h2>Instalator</h2><div class="corp" id="pv-instalator">
@@ -7656,11 +7731,31 @@ function ecranPV() {
     </div></section>` : ''}
     <section class="card"><h2>Semnătura clientului</h2><div class="corp">
       ${model === 'montaj' ? `<div class="pv-declaratie">${E(DECLARATIE_MONTAJ)}</div>` : model === 'upsales' ? `<div class="pv-declaratie">${E(DECLARATIE_UPSALES)}</div>` : mod === 'intermediar' ? `<div class="pv-declaratie">${E(DECLARATIE_FAZA)}</div>` : ''}
+      ${anexa.length ? `${bifa('pv-anexa', 'Clientul acceptă materialele suplimentare din anexă (de mai sus), facturate separat', false)}
+        <div class="ajutor" style="margin-top:0">${K.rol() === 'membru' ? 'Dacă nu ați discutat anexa cu clientul, lăsați nebifat: liderul echipei o poate lua la „Refă semnătura”.' : 'Anexa se facturează clientului doar cu acordul lui, semnat odată cu procesul verbal.'}</div>` : ''}
       ${camp('pv-nume', 'Numele clientului (cel care semnează)', l.client || '')}
       <div class="semnatura"><canvas id="x-semn" width="600" height="220"></canvas><span class="semn-loc">Semnați aici cu degetul</span></div>
       <button type="button" class="adauga" id="x-semn-sterge">Șterge semnătura</button>
     </div></section>`;
-  bara(`<button class="buton gol" id="x-pv-renunt">Renunță</button><button class="buton" id="x-pv-salv"${lipsa.length || deScris.length ? ' disabled' : ''}>Salvează PV-ul semnat</button>`);
+  // v2.9.14 (UX 14 nov, L12, P10): sub butoane, contorul câmpurilor obligatorii care mai lipsesc, sau motivul pentru care butonul e dezactivat
+  bara(`<div class="bara-nota" id="x-pv-contor"></div><button class="buton gol" id="x-pv-renunt">Renunță</button><button class="buton" id="x-pv-salv"${lipsa.length || deScris.length ? ' disabled' : ''}>Salvează PV-ul semnat</button>`);
+  if ($('#x-pv-la-poze')) $('#x-pv-la-poze').onclick = () => A().du('poze', l);
+  const contorPV = () => {
+    const el = $('#x-pv-contor'); if (!el || A().stare.ecran !== 'pv' || A().stare.lucrare !== l || (model && !pvM)) return;
+    if (lipsa.length) { el.innerHTML = `Se activează după ${lipsa.length === 1 ? 'poza obligatorie care lipsește' : `cele ${lipsa.length} poze obligatorii care lipsesc`} — <button type="button" class="link-text" data-pv-poze>Vezi pozele</button>`; el.querySelector('[data-pv-poze]').onclick = () => A().du('poze', l); return; }
+    if (deScris.length) { el.textContent = `Se activează după ce completați pe fișă: ${deScris.join(', ')}.`; return; }
+    if (!model) { el.textContent = ''; return; }
+    const vm = verificaPVModel(model, tipL(l), l);
+    const n = vm.lipsa.length;
+    el.innerHTML = n ? `Mai ${n === 1 ? 'lipsește <b>un câmp obligatoriu</b>' : `lipsesc <b>${n} câmpuri obligatorii</b>`} — <button type="button" class="link-text" data-pv-lista>Vezi lista</button>` : '✓ Toate datele obligatorii sunt completate; mai rămân semnăturile.';
+    const b = el.querySelector('[data-pv-lista]'); if (b) b.onclick = () => foaieLipsaPV(vm);
+  };
+  contorPV();
+  // un singur ascultător pe `#ecran` (cel vechi se scoate la fiecare desenare a PV-ului), ca să nu rămână agățat după ieșire
+  let ceasContor = null;
+  if (ascultatorContorPV) ['input', 'change'].forEach((ev) => $('#ecran').removeEventListener(ev, ascultatorContorPV));
+  ascultatorContorPV = (e) => { if (e.target.closest && e.target.closest('#pv-model')) { clearTimeout(ceasContor); ceasContor = setTimeout(contorPV, 200); } };
+  ['input', 'change'].forEach((ev) => $('#ecran').addEventListener(ev, ascultatorContorPV));
   pregatesteSemnatura($('#x-semn'));
   if ($('#x-semn-inst')) { pregatesteSemnatura($('#x-semn-inst'), true); $('#x-semn-inst-sterge').onclick = () => pregatesteSemnatura($('#x-semn-inst'), true); }
   if (model) legaPVModel(model);
@@ -7684,33 +7779,37 @@ function ecranPV() {
     if (scris && !confirm('Ștergeți tot ce ați completat în procesul verbal (măsurători, nume, semnături)?\n\nDacă vreți doar să ieșiți și să reveniți, folosiți „Înapoi”: ce ați scris rămâne pe telefon.')) return;
     pvRenuntat = true; stergeCiornaPV(); pvM = null; A().du('lucrare', l);
   };
-  $('#x-pv-salv').onclick = () => {
+  $('#x-pv-salv').onclick = async () => {
     let masuratori = null, instalator = null;
     // întâi datele tehnice și instalatorul (marcate pe ecran), abia apoi semnătura clientului
     // v2.9.7: faza intermediară are formularul ei structurat; se verifică înainte de semnătura clientului
     let faza = null;
     if (mod === 'intermediar') {
       faza = citesteFazaIntermediara(l);
-      if (faza.lipsa.length) { alert('Procesul verbal de fază intermediară nu se poate salva. Lipsesc:\n• ' + faza.lipsa.join('\n• ')); if (faza.focus) { const el = $('#x-' + faza.focus); if (el) { el.scrollIntoView({ block: 'center' }); try { el.focus(); } catch (e) { /* */ } } } return; }
-      if (!semnInst || semnInst.gol) { $('#x-semn-inst').scrollIntoView({ block: 'center' }); alert('Instalatorul trebuie să semneze în chenarul lui.'); return; }
+      // v2.9.15 (N14): lipsurile fazei intermediare în pagină, cu rezumat și salt la primul câmp
+      if (faza.lipsa.length) { A().aratLipsuri([{ cheie: faza.focus || 'fi-azi', nume: 'Lipsesc: ' + faza.lipsa.join(', ') }], { prefix: 'x-' }); return; }
+      if (!semnInst || semnInst.gol) { A().aratLipsuri([{ el: $('#x-semn-inst').closest('.semnatura'), nume: 'Instalatorul trebuie să semneze în chenarul lui.' }], { faraRezumat: true }); return; }
     }
     if (model) {
       const vm = verificaPVModel(model, tipL(l), l);
-      if (vm.lipsa.length) { marcheazaLipsaPV(vm.chei); alert(`Procesul verbal nu se poate salva fără datele obligatorii (marcate cu roșu). Lipsesc:\n• ${vm.lipsa.slice(0, 12).join('\n• ')}${vm.lipsa.length > 12 ? `\n… și încă ${vm.lipsa.length - 12}` : ''}`); return; }
+      // v2.9.14 (UX 14 nov, L12, M4): fără alert; câmpurile roșii, salt la primul, rezumat sus și lista completă într-o foaie
+      if (vm.lipsa.length) { marcheazaLipsaPV(vm.chei); rezumatLipsaPV(vm); contorPV(); return; }
       const numeInst = String(pvM.inst_nume || '').trim();
-      if (!numeInst) { marcheazaLipsaPV(['inst_nume']); alert('Scrieți numele instalatorului.'); return; }
-      if (!semnInst || semnInst.gol) { $('#x-semn-inst').scrollIntoView({ block: 'center' }); alert('Instalatorul trebuie să semneze în chenarul lui.'); return; }
+      if (!numeInst) { marcheazaLipsaPV(['inst_nume']); rezumatLipsaPV({ lipsa: ['numele instalatorului'], chei: ['inst_nume'] }); return; }
+      if (!semnInst || semnInst.gol) { A().aratLipsuri([{ el: $('#x-semn-inst').closest('.semnatura'), nume: 'Instalatorul trebuie să semneze în chenarul lui.' }], { faraRezumat: true }); return; }
       masuratori = vm.valori;
       instalator = { nume: numeInst, semnatura: imagineSemnatura(semnInst) };
       masuratori._atentie = vm.atentie;
     }
     const nume = v('pv-nume').trim();
-    if (!nume) { $('#x-pv-nume').classList.add('lipsa'); $('#x-pv-nume').scrollIntoView({ block: 'center' }); alert('Scrieți numele celui care semnează.'); return; }
-    if (!semnatura || semnatura.gol) { $('#x-semn').scrollIntoView({ block: 'center' }); alert('Clientul trebuie să semneze în chenar.'); return; }
-    if (anexa.length && !v('pv-anexa')) { alert('Bifați acordul clientului pentru anexa de materiale suplimentare (sau discutați cu el înainte de semnare).'); return; }
+    // v2.9.15 (N14): numele și semnătura clientului se cer la locul lor, nu în alert
+    if (!nume) { eroareCamp('pv-nume', 'Scrieți numele celui care semnează.'); return; }
+    if (!semnatura || semnatura.gol) { A().aratLipsuri([{ el: $('#x-semn').closest('.semnatura'), nume: 'Clientul trebuie să semneze în chenar.' }], { faraRezumat: true }); return; }
+    // v2.9.14 (decizie Clau, 14 nov): acordul pentru anexă e obligatoriu la lider / mentenanță / admin; membrul îl poate lăsa liderului
+    if (anexa.length && !v('pv-anexa') && K.rol() !== 'membru') { A().aratLipsuri([{ el: $('#x-pv-anexa').closest('.bifa'), nume: 'Bifați acordul clientului pentru anexa de materiale suplimentare (sau discutați cu el înainte de semnare).' }], { faraRezumat: true }); return; }
     if (masuratori) {
       const at = masuratori._atentie; delete masuratori._atentie;
-      if (at.length && !confirm(`Atenție, valori neobișnuite:\n• ${at.join('\n• ')}\n\nSalvați procesul verbal așa?`)) return;
+      if (at.length && !(await confirma({ titlu: 'Valori neobișnuite', text: `Atenție, valori neobișnuite: ${at.join('; ')}. Salvați procesul verbal așa?`, ok: 'Salvează așa', renunta: 'Corectez' }))) return;
     }
     const imagine = imagineSemnatura();
     if (mod === 'intermediar') {
@@ -8395,7 +8494,7 @@ function ecranCalendar() {
     });
   }
 }
-function planificaIn(l, echipa, data) {
+async function planificaIn(l, echipa, data) {
   const c = A().stare.cal;
   const st = A().stareLucrare(l);
   const muta = echipa !== l._echipa_id;
@@ -8406,7 +8505,7 @@ function planificaIn(l, echipa, data) {
   }
   const text = `${l.client || 'Lucrarea'} → ${K.numeEchipa(echipa)}, ${dataRo(data)}`;
   const trecut = data < isoLocal(new Date()) ? '\n\nAtenție: data aleasă e în trecut.' : '';
-  if (!confirm('Planificați: ' + text + '?' + trecut + (muta && (l._alocati || []).length ? '\nMembrii alocați la echipa veche se scot de la lucrare.' : ''))) return;
+  if (!(await confirma({ titlu: 'Planificați lucrarea?', text: 'Planificați: ' + text + '?' + trecut.replace(/\n+/g, ' ') + (muta && (l._alocati || []).length ? ' Membrii alocați la echipa veche se scot de la lucrare.' : ''), ok: 'Planifică' }))) return;
   if (muta) { l._echipa_id = echipa; l.echipa = K.numeEchipa(echipa); l._alocati = []; }
   l.planificare = Object.assign({}, l.planificare || {}, { data, echipa_id: echipa });
   A().salveaza(l);
@@ -8577,15 +8676,7 @@ function itemiMeniu() {
   const deFacut = new Set(Object.values(COZI).filter((c) => c.cine.includes(r) && !eInfo(c, r)).flatMap((c) => toate.filter(c.f).map((l) => l.id))).size;
   g('Lucru', 'start', 'Start · de făcut', deFacut, true);
   g('Lucru', 'lista', 'Toate lucrările', toate.length);
-  // traseul lucrării, pe departamente: fiecare vede câte lucrări sunt acum la fiecare
-  const eu = depRol();
-  DEPARTAMENTE.forEach((d, i) => {
-    const L = toate.filter(d.f);
-    const n = numarDep(d, L);
-    // v2.9.3 (T10 c3): cine doar urmărește (Partenerul) vede stări, nu sarcini („1 stoc de confirmat”)
-    const sDep = r === 'partener' ? (L.length ? `${L.length} ${L.length === 1 ? 'lucrare' : 'lucrări'}` : 'nicio lucrare') : textDep(d, L);
-    g('Traseul lucrării', 'dep:' + d.k, d.t, n, d === eu && n > 0, { nr: d.final ? '' : String(i + 1), s: sDep, tu: d === eu, dep: true });
-  });
+  // v2.9.12 (UX 14 nov, N15): Instrumentele, Administrarea și Ajutorul vin înaintea traseului (pe telefon traseul stă pliat la sfârșitul foii „Mai mult”)
   if (['admin', 'planificare', 'lider', 'mentenanta', 'partener', 'tehnic'].includes(r)) g('Instrumente', 'calendar', 'Calendar');
   if (vedeClienti()) g('Instrumente', 'clienti', 'Clienți', (K.clienti || []).length);
   if (['admin', 'tehnic', 'mentenanta', 'facturare'].includes(r)) g('Instrumente', 'borderou', 'Borderou intervenții');
@@ -8601,8 +8692,19 @@ function itemiMeniu() {
     const noi = (K.probleme || []).filter((p) => (r === 'admin' ? p.stare === 'nou' : p.raspuns && ['rezolvat', 'respins', 'duplicat'].includes(p.stare))).length;
     g(r === 'admin' ? 'Administrare' : 'Ajutor', 'probleme', r === 'admin' ? 'Probleme raportate' : 'Problemele mele', noi, true);
   }
+  // traseul lucrării, pe departamente: fiecare vede câte lucrări sunt acum la fiecare
+  // v2.9.12 (UX 14 nov, N6, M6, P12): Membrul și Partenerul nu văd traseul firmei (cifre care nu-i privesc); ei au lucrările lor în „Lucrări”
+  if (vedeTraseul()) {
+    const eu = depRol();
+    DEPARTAMENTE.forEach((d, i) => {
+      const L = toate.filter(d.f);
+      const n = numarDep(d, L);
+      g('Traseul lucrării', 'dep:' + d.k, d.t, n, d === eu && n > 0, { nr: d.final ? '' : String(i + 1), s: textDep(d, L), tu: d === eu, dep: true });
+    });
+  }
   return m;
 }
+const vedeTraseul = () => !['membru', 'partener'].includes(K.rol());
 // o lucrare pe un rând scurt: tip, putere, localitate, dată
 function infoScurt(l) {
   const rz = l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat) || {};
@@ -8624,13 +8726,24 @@ function ecranStart() {
     .map(([k, c]) => ({ k, id: 'coada:' + k, t: c.t, s: c.s, c, lista: toate.filter(c.f).sort(c.ordine || ordineCoada) }));
   const pline = cozi.filter((c) => c.lista.length && !eInfo(c.c, r)), goale = cozi.filter((c) => !c.lista.length && !eInfo(c.c, r));
   const deUrmarit = cozi.filter((c) => c.lista.length && eInfo(c.c, r));
+  // v2.9.12 (UX 14 nov, N5, L7): pe telefon Start = „De făcut” + „Lucrare nouă” + o singură dală, departamentul rolului;
+  // restul meniului (lista, traseul, instrumentele) e în bara de jos și în „Mai mult”, nu se mai repetă aici
   const nav = [];
-  if (A().poate('creeaza')) nav.push({ id: 'nou', t: '+ Lucrare nouă', s: 'montaj, intervenție, vizită...' });
-  itemiMeniu().filter((x) => x.id !== 'start' && !x.id.startsWith('coada:')).forEach((x) => nav.push({ id: x.id, t: x.t, n: x.n }));
-  const panou = (c) => `<section class="coada-pn">
-      <button type="button" class="tile are coada-cap" data-tile="${E(c.id)}"><span class="tile-nr">${c.lista.length}</span><span class="tile-t">${E(c.t)}</span><span class="tile-s">${E(c.s)}</span></button>
-      <div class="coada-randuri">${c.lista.slice(0, 5).map((l) => `<button type="button" class="coada-rand" data-coada="${E(c.k)}" data-coada-l="${E(l.id)}"><b>${E(l.client || 'Lucrare fără client')}</b><span>${E(infoScurt(l))}</span>${c.k === 'respinse' && decizieT(l) === 'respins' ? `<span class="motiv-resp">Motiv: ${E(((l.verificari || {}).tehnic || {}).motiv || '—')}</span>` : ''}</button>`).join('')}
-        ${c.lista.length > 5 ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">toate cele ${c.lista.length}</button>` : ''}</div></section>`;
+  if (A().poate('creeaza')) nav.push({ id: 'nou', t: '+ Lucrare nouă' });
+  const eu = vedeTraseul() ? depRol() : null;
+  if (eu) { const Ld = toate.filter(eu.f); nav.push({ id: 'dep:' + eu.k, t: eu.t, n: numarDep(eu, Ld), s: textDep(eu, Ld), meu: true }); }
+  // v2.9.12 (UX 14 nov, N5): Adminul are 9+ cozi, deci pe telefon panourile lui stau pliate (număr + titlu), desfăcute la atingere; prima cu lucrări e desfăcută
+  const pliabil = r === 'admin' && !document.body.classList.contains('ui-lat');
+  const desfacute = st.startDesfacute || (pline[0] ? [pline[0].k] : []);
+  const panou = (c) => {
+    const pliat = pliabil && !desfacute.includes(c.k);
+    const cap = (sag) => `<span class="tile-nr">${c.lista.length}</span><span class="tile-t">${E(c.t)}</span>${sag ? '<span class="coada-sag" aria-hidden="true">›</span>' : ''}<span class="tile-s">${E(c.s)}</span>`;
+    return `<section class="coada-pn${pliat ? ' pliat' : ''}">
+      ${pliabil ? `<button type="button" class="tile are coada-cap" data-pn="${E(c.k)}" aria-expanded="${!pliat}">${cap(true)}</button>`
+      : `<button type="button" class="tile are coada-cap" data-tile="${E(c.id)}">${cap()}</button>`}
+      ${pliat ? '' : `<div class="coada-randuri">${c.lista.slice(0, 5).map((l) => `<button type="button" class="coada-rand" data-coada="${E(c.k)}" data-coada-l="${E(l.id)}"><b>${E(l.client || 'Lucrare fără client')}</b><span>${E(infoScurt(l))}</span>${c.k === 'respinse' && decizieT(l) === 'respins' ? `<span class="motiv-resp">Motiv: ${E(((l.verificari || {}).tehnic || {}).motiv || '—')}</span>` : ''}</button>`).join('')}
+        ${c.lista.length > 5 ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">toate cele ${c.lista.length}</button>` : pliabil ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">Deschide lista</button>` : ''}</div>`}</section>`;
+  };
   // v2.9.3 (T10 m2): contul de Partener fără firmă legată nu vede nimic; până acum părea doar că n-are lucrări
   const faraFirma = r === 'partener' && K.profil && !K.profil.partener_id;
   // v2.9.10 (test pe serverul real, 14 nov): firma dezactivată de Admin lăsa Start-ul gol, fără explicație
@@ -8639,14 +8752,20 @@ function ecranStart() {
     + (faraFirma ? '<div class="mesaj warn" style="margin-top:12px" id="x-fara-firma"><b>Contul nu e legat de nicio firmă parteneră</b>, deci nu vedeți nicio lucrare. Cereți Adminului să aleagă firma la contul dvs.</div>' : '')
     + (firmaInactiva ? '<div class="mesaj warn" style="margin-top:12px" id="x-firma-inactiva"><b>Firma dvs. parteneră e dezactivată</b>, deci nu vedeți nicio lucrare. Lucrările ei rămân pe server; cereți Adminului s-o reactiveze.</div>' : '')
     + '<h2 class="start-h">De făcut</h2>'
-    + (pline.length ? `<div class="tiles cozi">${pline.map(panou).join('')}</div>`
-      : `<div class="mesaj ok" style="margin-top:10px">Nimic nu așteaptă după dvs. acum.</div>`)
-    + (goale.length ? `<div class="start-gol">Nimic de făcut la: ${goale.map((c) => `<button type="button" class="link-buton" data-tile="${E(c.id)}">${E(c.t.toLowerCase())}</button>`).join(' · ')}</div>` : '')
+    // `.tiles` e mereu pe Start (testele și scripturile de pe serverul real îl așteaptă la intrare)
+    + `<div class="tiles cozi">${pline.length ? pline.map(panou).join('') : '<div class="mesaj ok">Nimic nu așteaptă după dvs. acum.</div>'}</div>`
+    + (goale.length ? `<div class="start-gol"><span>Nimic de făcut la:</span>${goale.map((c) => `<button type="button" class="link-buton" data-tile="${E(c.id)}">${E(c.t.toLowerCase())}</button>`).join('')}</div>` : '')
     + (deUrmarit.length ? `<h2 class="start-h">De urmărit</h2><div class="tiles cozi">${deUrmarit.map(panou).join('')}</div>` : '')
-    + `<h2 class="start-h nav-h">Lucru</h2><div class="tiles nav-tiles">${nav.map(tile).join('')}</div>`;
+    + (nav.length ? `<div class="tiles nav-tiles">${nav.map((o) => (o.meu ? `<button type="button" class="tile dep-meu${o.n ? ' are' : ''}" data-tile="${E(o.id)}"><span class="tile-k">Departamentul meu</span><span class="tile-t">${E(o.t)}</span><span class="tile-s">${E(o.s)}</span><span class="tile-nr">${o.n}</span></button>` : tile(o))).join('')}</div>` : '');
   bara('');
   if ($('#b-cont')) $('#b-cont').onclick = () => A().du('cont');
   document.querySelectorAll('[data-tile]').forEach((b) => { b.onclick = () => mergiLa(b.dataset.tile); });
+  document.querySelectorAll('[data-pn]').forEach((b) => { b.onclick = () => {
+    const s = new Set(desfacute); const k = b.dataset.pn;
+    if (s.has(k)) s.delete(k); else s.add(k);
+    st.startDesfacute = [...s];
+    const y = window.scrollY; ecranStart(); window.scrollTo(0, y);
+  }; });
   document.querySelectorAll('[data-coada-l]').forEach((b) => { b.onclick = () => {
     const l = toate.find((x) => x.id === b.dataset.coadaL);
     if (!l) return;
@@ -8855,7 +8974,7 @@ document.addEventListener('keydown', (ev) => {
   if (!b) return;
   ev.preventDefault();
   // v2.8.8: aprobarea la plată din tastatură cere confirmare (o tastă apăsată din greșeală aproba pe loc)
-  if (k === 'a' && !confirm(`Aprobați lucrarea „${(A().stare.lucrare || {}).client || ''}”?`)) return;
+  if (k === 'a') { confirma({ titlu: 'Aprobați lucrarea?', text: `Aprobați lucrarea „${(A().stare.lucrare || {}).client || ''}”?`, ok: 'Aprobă' }).then((da) => { if (da) b.click(); }); return; }
   b.click();
 });
 function ecranVerifica() {
@@ -8907,6 +9026,9 @@ function ecranVerifica() {
   const stari = [{ v: 'aprobat', t: t === 'interventie' ? 'Aprobat la plată' : 'Aprobat' }, { v: 'respins', t: 'Respins' }].concat(t === 'interventie' ? [{ v: 'neaprobat', t: 'Neaprobat la plată' }] : []);
   // v2.9.11 (UX 14 nov, N3): butoanele spun ce fac (verbe), nu starea în care ajunge lucrarea
   const VERB = { aprobat: t === 'interventie' ? 'Aprobă la plată' : 'Aprobă', respins: 'Respinge (înapoi la echipă)', neaprobat: 'Nu aproba la plată' };
+  const DUPA = { aprobat: t === 'interventie' ? 'aprobată la plată' : 'aprobată', respins: 'respinsă, înapoi la echipă', neaprobat: 'neaprobată la plată' };
+  const ud = st.ultimaDecizie;
+  const urma = ud && ud.id !== l.id && Date.now() - ud.la < 10000 ? `<div class="mesaj ok dec-urma" id="x-dec-urma" role="status"><span>✓ <b>${E(ud.client)}</b> — ${E(ud.text)}</span>${ud.d === 'respins' ? '' : '<button type="button" class="link-buton" id="x-dec-anuleaza">Anulează</button>'}${htmlStare('dec:' + ud.id)}</div>` : '';
   const decizie = `<section class="card verif-decizie" id="decizie"><h2>Decizia tehnică</h2><div class="corp">
       ${istoric.length ? `<div class="mesaj warn" style="margin-top:0" id="x-v-istoric"><b>Respinsă anterior${istoric.length > 1 ? ` de ${istoric.length} ori` : ''}:</b>${istoric.map((x) => `<div>${E(dataRo(x.data))}${x.de ? ', ' + E(x.de) : ''} — ${E(x.motiv || 'fără motiv')}${x.obs ? `: „${E(x.obs)}”` : ''}</div>`).join('')}${ultimaResp && Object.values(l.poze || {}).flat().some((x) => x && eNoua(x)) ? '<div>Pozele adăugate după respingere sunt marcate „nouă”.</div>' : ''}</div>` : ''}
       ${DECISE.includes(vt.stare) ? `<div class="mesaj ${vt.stare === 'aprobat' ? 'ok' : 'warn'}" style="margin-top:0">Decizia actuală: <b>${E((stari.find((x) => x.v === vt.stare) || {}).t || vt.stare)}</b>${vt.motiv ? ' · ' + E(vt.motiv) : ''}${vt.de ? ` · ${E(vt.de)}, ${E(oraRo(vt.data))}` : ''}</div>` : ''}
@@ -8925,7 +9047,7 @@ function ecranVerifica() {
   const butoaneDecizie = ed ? stari.map((x) => `<button class="buton${x.v === 'aprobat' ? '' : ' gol'}${x.v !== 'aprobat' ? ' pericol' : ''}" data-decizie="${x.v}">${E(VERB[x.v])}</button>`).reverse().join('')
     + (poz >= 0 && coada.length > 1 ? '<button class="buton gol" id="x-v-sari">Sari peste</button>' : '') : '';
   // v2.9.3 (T8 S15): pe calculator, PV-ul stă în coloana lată, lângă raportul echipei (nu sub decizie, în coloana îngustă)
-  $('#ecran').innerHTML = `<div class="v3">${htmlCoada}<div class="v-main">${htmlNefunctional(l) + antet + poze + htmlComparatie(l) + htmlRaportEchipa(l) + (lat ? sectPV : '')}</div>`
+  $('#ecran').innerHTML = urma + htmlMesajEcran() + `<div class="v3">${htmlCoada}<div class="v-main">${htmlNefunctional(l) + antet + poze + htmlComparatie(l) + htmlRaportEchipa(l) + (lat ? sectPV : '')}</div>`
     + `<div class="v-dreapta">${lat ? '' : htmlAI(l) + sectPV}${decizie.replace('</div></section>', (lat && butoaneDecizie ? `<div class="dec-butoane">${butoaneDecizie}</div>` : '') + '</div></section>')}${lat ? htmlAI(l) : ''}</div></div>`;
   legaAI(l);
   bara(lat ? '' : butoaneDecizie);
@@ -8938,17 +9060,36 @@ function ecranVerifica() {
   const urmatoarea = () => {
     const rest = coadaVerificare().filter((x) => x.id !== l.id);
     st.verifToate = false;
-    if (rest.length) { const u = rest[Math.min(Math.max(poz, 0), rest.length - 1)]; st.lucrare = u; A().du('verifica', u); } else { alert('Coada de verificare e goală. Toate lucrările au decizie.'); A().du('start'); }
+    if (rest.length) { const u = rest[Math.min(Math.max(poz, 0), rest.length - 1)]; st.lucrare = u; A().du('verifica', u); }
+    // v2.9.13 (UX 14 nov, N17): coada goală → Start cu mesaj verde despre lucrarea decisă, nu alert
+    else { const ud = st.ultimaDecizie; mesajUrmator(`${ud ? `${ud.client}: ${ud.text}. ` : ''}Coada de verificare e goală: toate lucrările au decizie.`); A().du('start'); }
   };
   if ($('#x-v-sari')) $('#x-v-sari').onclick = () => {
     const c = coadaVerificare(); const i = c.findIndex((x) => x.id === l.id);
     const u = c[(i + 1) % c.length]; st.lucrare = u; A().du('verifica', u);
   };
   const decide = (d, motiv, obs) => {
+    const inainte = (l.verificari || {}).tehnic;
     l.verificari = Object.assign({}, l.verificari || {}, { tehnic: { stare: d, motiv: d === 'aprobat' ? '' : motiv, obs } });
     A().salveaza(l);
+    // v2.9.13 (UX 14 nov, N17, V2): urma deciziei rămâne 10 s pe lucrarea următoare, cu „Anulează”, și urmează răspunsul serverului
+    st.ultimaDecizie = { id: l.id, d, client: l.client || 'Lucrare', text: DUPA[d], inainte: inainte ? JSON.parse(JSON.stringify(inainte)) : null, la: Date.now() };
+    urmaresteTrimiterea(l, 'dec', '');
     urmatoarea();
   };
+  // „Anulează” nu e la respingere: serverul a desfăcut deja raportul (lucrarea e înapoi la echipă), deci nu s-ar putea reface din telefon
+  if ($('#x-dec-anuleaza')) $('#x-dec-anuleaza').onclick = () => {
+    const ud = st.ultimaDecizie; const x = ud && K.citesteUna(ud.id);
+    if (!x) return;
+    const ve = Object.assign({}, x.verificari || {});
+    // starea „fără decizie” se scrie explicit („in_analiza”, ca în selectorul din fișă): un bloc lipsă rămâne pe server cel vechi
+    ve.tehnic = ud.inainte && DECISE.includes(ud.inainte.stare) ? ud.inainte : { stare: 'in_analiza', motiv: '', obs: '' };
+    x.verificari = ve;
+    A().salveaza(x); stergeStare('dec:' + ud.id); st.ultimaDecizie = null; st.verifToate = true;
+    mesajUrmator(`${ud.client}: decizia a fost anulată; lucrarea e din nou la verificare.`);
+    st.lucrare = x; A().du('verifica', x);
+  };
+  if ($('#x-dec-urma')) setTimeout(() => { const e = $('#x-dec-urma'); if (e && !e.querySelector('.stare-trimitere.rau')) e.remove(); }, 10000);
   if ($('#x-revenire')) $('#x-revenire').onclick = () => { if (confirm(`Creați o intervenție de revenire la „${l.client || 'client'}”? Se deschide fișa ei, ca s-o planificați.`)) interventieDeRevenire(l); };
   document.querySelectorAll('[data-revenire]').forEach((b) => { b.onclick = () => { const rv = K.citesteUna(b.dataset.revenire); if (rv) A().du('lucrare', rv); }; });
   document.querySelectorAll('[data-decizie]').forEach((b) => { b.onclick = () => {
@@ -9099,10 +9240,11 @@ function ecranEtape() {
   };
   $('#x-et-salv').onclick = async () => {
     citeste();
-    if (e.lista.some((x) => !x.t)) { alert('Fiecare etapă are nevoie de un nume.'); return; }
-    if (!e.lista.length) { alert('Lăsați cel puțin o etapă.'); return; }
+    // v2.9.15 (N14): etapele fără nume se arată la câmp
+    if (A().aratLipsuri(e.lista.map((x, i) => (!x.t ? { cheie: 'et_t_' + i, nume: 'Fiecare etapă are nevoie de un nume.' } : null)).filter(Boolean), { prefix: 'x-', faraRezumat: true })) return;
+    if (!e.lista.length) { mesajUrmator('Lăsați cel puțin o etapă.'); ecranEtape(); return; }
     const toate = Object.assign({}, (K.setari || {}).etape_poze || {}, { [e.tip]: e.lista.map((x) => ({ k: x.k, t: x.t, o: x.o ? 1 : 0, c: x.c || '' })) });
-    try { await K.salveazaSetare('etape_poze', toate); alert('Etapele sunt salvate. Se aplică pe toate telefoanele la sincronizare.'); e.lista = null; ecranEtape(); } catch (err) { alert(err.message); }
+    try { await K.salveazaSetare('etape_poze', toate); mesajUrmator('Etapele sunt salvate. Se aplică pe toate telefoanele la sincronizare.'); e.lista = null; ecranEtape(); } catch (err) { alert(err.message); }
   };
 }
 
@@ -9432,7 +9574,7 @@ function ecranClient() {
   const sterge = c.id && K.rol() === 'admin' && !K.citesteLista().some((l) => l.client_id === c.id) ? '<button class="buton gol" id="x-c-sterge">Șterge clientul</button>' : '';
   bara(ed ? sterge + (c.id && A().poate('creeaza') ? '<button class="buton gol" id="x-c-lucrare">+ Lucrare pentru client</button>' : '') + '<button class="buton" id="x-c-salv">Salvează clientul</button>' : sterge);
   if ($('#x-c-sterge')) $('#x-c-sterge').onclick = async () => {
-    if (!confirm(`Ștergeți clientul „${c.nume || ''}” din registru? Nu are nicio lucrare. Ștergerea nu se poate anula.`)) return;
+    if (!(await confirma({ titlu: 'Ștergeți clientul?', text: `Ștergeți clientul „${c.nume || ''}” din registru? Nu are nicio lucrare. Ștergerea nu se poate anula.`, ok: 'Șterge clientul', pericol: true }))) return;
     try { await K.stergeClient(c.id); st.clientPdf = null; st.clientPdfBat = null; st.clientCitit = null; A().du('clienti'); } catch (e) { alert(e.message); }
   };
   const citeste = () => {
@@ -9452,15 +9594,16 @@ function ecranClient() {
   if ($('#x-c-lucrare')) $('#x-c-lucrare').onclick = () => { st.nou = null; st.clientNou = c.id; A().du('tipNou'); };
   if ($('#x-c-salv')) $('#x-c-salv').onclick = async () => {
     citeste();
-    if (!c.nume) { alert('Completați numele clientului.'); return; }
-    if (continutGresit.length) { alert(`La „Incluse în contract”, scrieți doar numărul (de exemplu 60): ${continutGresit.join(', ')}.`); return; }
-    if (c.telefon && !telefonPlauzibil(c.telefon)) { alert('Telefonul nu pare corect: scrieți 10 cifre (de exemplu 0740 111 222) sau prefixul țării (+40…).'); return; }
+    // v2.9.15 (UX 14 nov, N14): toate problemele deodată, la câmpurile lor
+    if (A().aratLipsuri([!c.nume && { cheie: 'c_nume', nume: 'Numele clientului' },
+      c.telefon && !telefonPlauzibil(c.telefon) && { cheie: 'c_telefon', nume: 'Telefonul nu pare corect: 10 cifre (de ex. 0740 111 222) sau cu prefixul țării (+40…)' }].filter(Boolean), { prefix: 'x-' })) return;
+    if (continutGresit.length) { const el = document.querySelector('[id^="x-cc_"]'); A().aratLipsuri([{ el: el || $('#x-c_nume'), nume: `La „Incluse în contract”, scrieți doar numărul (de exemplu 60): ${continutGresit.join(', ')}.` }]); return; }
     // v2.9.3: același client de două ori (T2 #11): același nume și telefon, sau același contract
     if (!c.id) {
       const cifre = (x) => String(x || '').replace(/\D/g, '');
       const dublu = (K.clienti || []).find((x) => (A().fara(x.nume || '') === A().fara(c.nume) && (cifre(x.telefon) === cifre(c.telefon) || !c.telefon))
         || (c.nr_contract && String(x.nr_contract || '').trim() === c.nr_contract));
-      if (dublu && !confirm(`În registru există deja „${dublu.nume}”${dublu.nr_contract ? ', contract ' + dublu.nr_contract : ''}${dublu.telefon ? ', ' + dublu.telefon : ''}. Adăugați totuși un client nou?`)) return;
+      if (dublu && !(await confirma({ titlu: 'Clientul există deja?', text: `În registru există deja „${dublu.nume}”${dublu.nr_contract ? ', contract ' + dublu.nr_contract : ''}${dublu.telefon ? ', ' + dublu.telefon : ''}. Adăugați totuși un client nou?`, ok: 'Adaug un client nou', renunta: 'Renunț' }))) return;
     }
     const b = $('#x-c-salv'); b.disabled = true; b.textContent = 'Se salvează…';
     try {
@@ -9506,7 +9649,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.11';
+const VERSIUNE_APP = '2.9.15';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
@@ -9562,14 +9705,16 @@ async function legaServicii() {
   if (!$('#servicii')) return;
   $('#x-serv-salv').onclick = async () => {
     const plafon = A().citesteNumar(v('ai-plafon')), cost = A().citesteNumar(v('ai-cost'));
-    if (typeof plafon !== 'number' || plafon < 0 || !Number.isInteger(plafon)) { alert('Plafonul lunar trebuie să fie un număr întreg (0 = fără plafon).'); return; }
-    if (typeof cost !== 'number' || cost < 0) { alert('Costul estimat trebuie să fie un număr (lei).'); return; }
     const tel = v('sms-contact').trim();
-    if (tel && !/^[+\d][\d\s.-]{7,16}$/.test(tel)) { alert('Telefonul de contact nu pare valid (ex. 0735 320 363).'); return; }
+    // v2.9.15 (N14): la câmp, nu alert
+    if (A().aratLipsuri([(typeof plafon !== 'number' || plafon < 0 || !Number.isInteger(plafon)) && { cheie: 'ai-plafon', nume: 'Un număr întreg (0 = fără plafon).' },
+      (typeof cost !== 'number' || cost < 0) && { cheie: 'ai-cost', nume: 'Un număr (lei).' },
+      tel && !/^[+\d][\d\s.-]{7,16}$/.test(tel) && { cheie: 'sms-contact', nume: 'Telefonul de contact nu pare valid (ex. 0735 320 363).' }].filter(Boolean), { prefix: 'x-', faraRezumat: true })) return;
     try {
       await K.salveazaSetare('ai', { activ: $('#x-ai-activ').checked, plafon, cost });
       await K.salveazaSetare('sms', { contact: tel });
-      alert('Setările au fost salvate.');
+      // v2.9.15 (N16): confirmarea sub buton, nu alert
+      { const b = $('#x-serv-salv'); const m = document.createElement('div'); m.className = 'stare-trimitere ok'; m.id = 'x-serv-salvat'; m.textContent = 'Setările au fost salvate.'; const v0 = $('#x-serv-salvat'); if (v0) v0.remove(); b.insertAdjacentElement('afterend', m); setTimeout(() => m.remove(), 8000); }
       // v2.9.3 (T1 #8): contorul cu plafonul și costul noi, fără reintrare în ecran
       contoare();
       document.querySelectorAll('#servicii input').forEach((x) => { x.defaultValue = x.value; x.defaultChecked = x.checked; });
@@ -9700,17 +9845,19 @@ function deschideProblema() {
   modal.querySelector('#x-mp-desc').focus();
   modal.querySelector('#x-mp-trimite').onclick = async (ev) => {
     const descriere = modal.querySelector('#x-mp-desc').value.trim();
-    if (!grav) { alert('Alegeți cât de gravă e problema.'); return; }
-    if (descriere.length < 5) { alert('Scrieți pe scurt ce s-a întâmplat.'); return; }
+    // v2.9.15 (N14): în fereastră, la câmp, nu alert
     const f = modal.querySelector('#x-mp-cap').files[0];
-    if (f && f.size > 5 * 1048576) { alert('Captura e prea mare (peste 5 MB).'); return; }
+    const lipsaPb = [!grav && { el: modal.querySelector('#mp-grav'), nume: 'Alegeți cât de gravă e problema.' }, descriere.length < 5 && { el: modal.querySelector('#x-mp-desc'), nume: 'Scrieți pe scurt ce s-a întâmplat.' },
+      f && f.size > 5 * 1048576 && { el: modal.querySelector('#x-mp-cap'), nume: 'Captura e prea mare (peste 5 MB).' }].filter(Boolean);
+    if (lipsaPb.length) { modal.querySelectorAll('.eroare-camp').forEach((x) => x.remove()); lipsaPb.forEach((x) => { x.el.classList.add('lipsa'); const e = document.createElement('div'); e.className = 'eroare-camp'; e.textContent = x.nume; x.el.insertAdjacentElement('afterend', e); }); lipsaPb[0].el.scrollIntoView({ block: 'center' }); return; }
     const b = ev.target; b.disabled = true; b.textContent = 'Se trimite…';
     try {
       const captura = f ? (await micsoreaza(f)).blob : null;
       const r = await K.raporteazaProblema({ descriere, asteptat: modal.querySelector('#x-mp-ast').value.trim(), gravitate: grav,
         ecran, lucrare_id: l && l.id && !String(l.id).startsWith('tmp') ? l.id : null, dispozitiv: dispozitiv(), versiune: VERSIUNE_APP }, captura);
       inchide();
-      alert(`Mulțumim! Problema${r && r.id ? ' nr. ' + r.id : ''} a ajuns la Admin. Răspunsul îl vedeți în „Problemele mele”, din meniu.`);
+      // v2.9.15 (N16): mulțumirea ca mesaj verde pe ecran, nu alert
+      mesajUrmator(`Mulțumim! Problema${r && r.id ? ' nr. ' + r.id : ''} a ajuns la Admin. Răspunsul îl vedeți în „Problemele mele”, din meniu.`); if (A().stare.ecran) A().deseneaza();
     } catch (e) {
       b.disabled = false; b.textContent = 'Trimite';
       alert('Problema nu s-a trimis: ' + e.message + (navigator.onLine === false ? '\nNu aveți semnal. Încercați din nou când aveți.' : ''));
@@ -9733,7 +9880,8 @@ function ecranProbleme() {
   const filtre = [{ v: 'deschise', t: 'Deschise', f: deschise }, { v: 'toate', t: 'Toate', f: () => true }].concat(STARI_PROBLEMA.filter((s) => !['nou', 'in_lucru'].includes(s.v)).map((s) => ({ v: s.v, t: s.t, f: (p) => p.stare === s.v })));
   const fl = filtre.find((x) => x.v === st.filtruPb) || filtre[0];
   const ordine = { blocant: 0, major: 1, minor: 2, sugestie: 3 };
-  const lista = toate.filter(fl.f).sort((a, b) => (deschise(b) - deschise(a)) || (ordine[a.gravitate] - ordine[b.gravitate]) || String(b.creat).localeCompare(String(a.creat)));
+  // v2.9.13 (UX 14 nov, B11): problema tocmai închisă rămâne pe ecran, cu „Răspuns salvat”, până la schimbarea filtrului
+  const lista = toate.filter((p) => fl.f(p) || p.id === st.pbRamane).sort((a, b) => (deschise(b) - deschise(a)) || (ordine[a.gravitate] - ordine[b.gravitate]) || String(b.creat).localeCompare(String(a.creat)));
   const g = (v) => GRAVITATE.find((x) => x.v === v) || { t: v };
   const s = (v) => STARI_PROBLEMA.find((x) => x.v === v) || { t: v };
   $('#ecran').innerHTML = `<div class="chips" style="margin:12px 0">${filtre.map((x) => `<button type="button" class="chip${x.v === fl.v ? ' ales' : ''}" data-fpb="${x.v}">${E(x.t)}<b>${toate.filter(x.f).length}</b></button>`).join('')}</div>`
@@ -9745,13 +9893,13 @@ function ecranProbleme() {
         <div class="ajutor">${E(p.dispozitiv || '')}${p.versiune ? ' · v' + E(p.versiune) : ''}</div>
         ${p.captura ? `<button type="button" class="link-buton" data-pb-captura="${E(p.captura)}">Vezi captura de ecran</button>` : ''}
         ${admin ? `<div class="pb-admin">${alege('pb-st-' + p.id, 'Stare', p.stare, STARI_PROBLEMA)}${zona('pb-r-' + p.id, 'Răspuns pentru cel care a raportat', p.raspuns || '', 'rows="2" maxlength="2000"')}
-          <button class="buton gol" data-pb-salveaza="${E(p.id)}">Salvează</button></div>`
+          <button class="buton gol" data-pb-salveaza="${E(p.id)}">Salvează</button>${htmlStare('pb:' + p.id)}</div>`
         : p.raspuns ? `<div class="mesaj info">Răspuns: ${E(p.raspuns)}</div>` : ''}
       </div></section>`).join('')
     : `<div class="mesaj ok">${toate.length ? 'Nicio problemă în această categorie.' : 'Nicio problemă raportată încă. Butonul „Problemă?” din antet trimite una.'}</div>`);
   bara((admin && toate.length ? '<button class="buton gol" id="x-pb-csv">Descarcă CSV</button>' : '') + '<button class="buton" id="x-pb-noua">Raportează o problemă</button>');
   $('#x-pb-noua').onclick = () => deschideProblema();
-  document.querySelectorAll('[data-fpb]').forEach((b) => { b.onclick = () => { st.filtruPb = b.dataset.fpb; ecranProbleme(); }; });
+  document.querySelectorAll('[data-fpb]').forEach((b) => { b.onclick = () => { st.filtruPb = b.dataset.fpb; st.pbRamane = null; ecranProbleme(); }; });
   document.querySelectorAll('[data-pb-captura]').forEach((b) => { b.onclick = async () => {
     try { const u = await K.linkCaptura(b.dataset.pbCaptura); const w = window.open(u, '_blank'); if (!w) location.href = u; } catch (e) { alert(e.message); }
   }; });
@@ -9765,7 +9913,8 @@ function ecranProbleme() {
     b.disabled = true;
     const ramase = [...document.querySelectorAll('#ecran textarea, #ecran select')].filter((x) => x.id && !x.id.endsWith('-' + id) && (x.tagName === 'SELECT' ? ![...x.options].some((o) => o.selected && o.defaultSelected) : x.value !== x.defaultValue)).map((x) => [x.id, x.value]);
     try {
-      await K.salveazaProblema(Number(id), { stare: v('pb-st-' + id), raspuns: (v('pb-r-' + id) || '').trim() }); ecranProbleme();
+      await K.salveazaProblema(Number(id), { stare: v('pb-st-' + id), raspuns: (v('pb-r-' + id) || '').trim() });
+      st.pbRamane = Number(id); puneStare('pb:' + id, `Răspuns salvat ${oraScurta()}`, 'ok'); ecranProbleme();
       ramase.forEach(([i, val]) => { const x = document.getElementById(i); if (x) x.value = val; });
     }
     catch (e) { b.disabled = false; alert(e.message); }
@@ -9789,6 +9938,34 @@ const laAdmin = () => A().du(areStart() && A().stare.dinStart ? 'start' : A().po
 const laRevenire = () => { const st = A().stare; const r = st.revenireLucrare; st.revenireLucrare = null; A().du(r || (areStart() ? 'start' : 'lista')); };
 // v2.9.11 (UX 14 nov, L5, M5): un mesaj verde pe ecranul următor (Start, listă sau fișă), 8 secunde, ca la facturarea în lot
 function mesajUrmator(t) { A().stare.mesajEcran = { t, la: Date.now() }; }
+// v2.9.15 (UX 14 nov, N14): eroarea unui câmp în pagină (aratLipsuri din app.js, cu id-urile „x-…” ale fișei), fără rezumat sus
+const eroareCamp = (cheie, nume, cuRezumat) => A().aratLipsuri([{ cheie, nume }], { prefix: 'x-', faraRezumat: !cuRezumat });
+const confirma = (o) => A().confirma(o);
+// v2.9.13 (UX 14 nov, V2, N16): în locul alertelor „Salvat.”, un rând de stare lângă butonul apăsat, care urmează răspunsul
+// serverului: „Se trimite…” → „Salvat 16:05” / „Salvat pe telefon · se trimite când e semnal” / „Refuzat: motiv” / „Conflict: …”.
+// Rândul e desenat de ecran din TRIMITERI (cheie = ce s-a salvat + lucrarea), ca să reziste la redesenare.
+const TRIMITERI = {};
+const oraScurta = (t) => new Date(t || Date.now()).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+function htmlStare(k) { const x = TRIMITERI[k]; return `<div class="stare-trimitere${x ? ' ' + x.c : ''}" id="x-tr-${E(k)}" role="status">${x ? x.h || E(x.t) : ''}</div>`; }
+function puneStare(k, t, c, h) {
+  TRIMITERI[k] = { t, c, h, la: Date.now() };
+  const el = document.getElementById('x-tr-' + k);
+  if (el) { el.innerHTML = h || E(t); el.className = 'stare-trimitere ' + c; }
+}
+function stergeStare(k) { delete TRIMITERI[k]; const el = document.getElementById('x-tr-' + k); if (el) { el.textContent = ''; el.className = 'stare-trimitere'; } }
+// ce = numele a ceea ce s-a salvat (ex. „Facturarea”), dupa = text în plus la reușită, extra = HTML în plus (o legătură)
+async function urmaresteTrimiterea(l, tip, dupa, extra) {
+  const k = tip + ':' + l.id;
+  const reusita = () => { const la = Date.now(); puneStare(k, `Salvat ${oraScurta(la)}${dupa ? ' · ' + dupa : ''}`, 'ok', extra ? E(`Salvat ${oraScurta(la)}${dupa ? ' · ' + dupa : ''}`) + ' ' + extra : ''); setTimeout(() => { if (TRIMITERI[k] && TRIMITERI[k].la === la) stergeStare(k); }, 8000); };
+  if (!K.activ) { reusita(); return; }
+  puneStare(k, 'Se trimite…', 'curs');
+  const r = await K.asteaptaTrimiterea(l.id);
+  if (r.ok) reusita();
+  else if (r.peTelefon) puneStare(k, 'Salvat pe telefon · se trimite când e semnal', 'atentie');
+  else if (r.conflict) puneStare(k, 'Conflict: lucrarea a fost schimbată între timp. Sus, pe fișă, alegeți ce versiune rămâne.', 'rau');
+  else if (r.refuz) puneStare(k, 'Refuzat de server: ' + r.refuz, 'rau');
+  else puneStare(k, 'Serverul nu a răspuns încă; se mai încearcă.', 'atentie');
+}
 function htmlMesajEcran() {
   const m = A().stare.mesajEcran;
   return m && Date.now() - m.la < 8000 ? `<div class="mesaj ok" id="x-mesaj-ecran" role="status" style="margin-top:12px">${E(m.t)}</div>` : '';
@@ -9819,7 +9996,7 @@ window.EXT = {
   htmlServicii, legaServicii, semnalePoze, exifDinJpeg, textAnuntSMS, htmlAnuntSMS, pvPDF, verificaPVModel, sumaPartener, ePartener, urcaPozele,
   itemiMeniu, mergiLa, infoScurt, DEPARTAMENTE, modificariNesalvate, fisaAtinsa: () => fisaAtinsa, tipL, dataPlan, pozeEtapa, salveazaFisaAcum, pastreazaPV, oferaPV,
   localitate, telefonPlauzibil, MOTIVE_NEAPROBAT, CONSTATARI,
-  avertismentCod, intrebareTrimitere, mesajUrmator, htmlMesajEcran, laRevenire,
+  avertismentCod, intrebareTrimitere, mesajUrmator, htmlMesajEcran, laRevenire, htmlStare, puneStare, urmaresteTrimiterea,
 };
 
 // stilurile ecranelor noi
@@ -9847,8 +10024,65 @@ css.textContent = `
 .tile.mare{min-height:118px;border-width:2px}
 .tile.mare.are{border-color:var(--galben-apasat);background:var(--galben-deschis)}
 .tile.mare.are .tile-nr{font-size:38px}
-.start-gol{margin-top:16px;font-size:13px;color:var(--slab);line-height:1.8}
-.start-gol .link-buton{font-size:13px;background:none;border:0;padding:0;min-height:0;color:var(--verde-text);text-decoration:underline;cursor:pointer;font-weight:500}
+/* v2.9.12 (UX 14 nov, M6, P6, P7): rândul listelor goale la 14 px, cu legături de 44 px */
+.start-gol{display:flex;flex-wrap:wrap;align-items:center;gap:0 10px;margin-top:10px;font-size:14px;color:var(--slab);line-height:1.3}
+.start-gol .link-buton{display:inline-block;font-size:14px;background:none;border:0;padding:11px 2px;margin:0;min-height:44px;color:var(--verde-text);text-decoration:underline;cursor:pointer;font-weight:500}
+.tiles.cozi > .mesaj{grid-column:1 / -1;margin-top:0}
+/* v2.9.12 (UX 14 nov, N5): dala „Departamentul meu” și panourile pliate ale Adminului */
+.nav-tiles .tile.dep-meu{grid-column:1 / -1;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"k nr" "t nr" "s nr";align-items:center;min-height:72px;padding:10px 14px;border-color:var(--galben-apasat);background:var(--galben-deschis)}
+.dep-meu .tile-k{grid-area:k;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--slab)}
+.nav-tiles .tile.dep-meu .tile-t{grid-area:t;font-size:15.5px}
+.nav-tiles .tile.dep-meu .tile-s{grid-area:s;display:block;font-size:12.5px;white-space:normal;margin:0}
+.nav-tiles .tile.dep-meu .tile-nr{grid-area:nr;order:0;font-size:26px;font-weight:800;color:var(--gri);margin:0 0 0 12px}
+.coada-pn.pliat .coada-cap{background:var(--card)}
+/* v2.9.14 (UX 14 nov): erorile în pagină, obligatoriile, contorul din bară, lista lipsurilor, „Mai mult…” pe raport */
+.oblig{color:var(--rosu);font-weight:700}
+.legenda-oblig{margin:10px 0 0}
+.eroare-camp{color:var(--rosu);font-size:13px;line-height:1.4;margin-top:4px}
+select.lipsa,textarea.lipsa{border-color:#b3261e;background:#fdf1f0}
+.bifa.lipsa{outline:2px solid #b3261e;outline-offset:2px;border-radius:6px}
+.semnatura.lipsa{outline:2px solid #b3261e;outline-offset:2px}
+/* v2.9.15 (UX 14 nov, B5): parola unui cont nou, cu „Copiază” */
+.panou-parola{border:2px solid var(--verde-text,#1e7b46)}
+.pp-rand{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
+.pp-rand > span{flex:0 0 70px;color:var(--slab);font-size:14px}
+.pp-rand > b{font-size:16px;overflow-wrap:anywhere}
+.pp-rand > input{flex:1 1 160px;font-family:ui-monospace,Menlo,monospace;font-size:18px;letter-spacing:.5px}
+.pp-rand > .buton{flex:0 0 auto;padding:10px 16px}
+.link-text{background:none;border:0;padding:4px 0;margin:0;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;min-height:0}
+#x-lipsuri .link-text,#x-pv-lipsuri .link-text,.bara-nota .link-text,.motiv-dezactivat .link-text{color:inherit}
+.motiv-dezactivat{margin-top:6px}
+.bara .in .bara-nota{flex:1 1 100%;order:-1;font-size:13px;color:var(--slab);text-align:center;line-height:1.35;padding:0 0 2px}
+.bara .in .bara-nota:empty{display:none}
+.lista-lipsa{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto;margin-top:8px}
+.rand-lipsa{text-align:left;background:#fff;border:1px solid var(--linie);border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;color:var(--text);cursor:pointer;min-height:44px}
+.rand-lipsa:hover{border-color:var(--gri)}
+details.rap-sec > summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;padding-right:36px;position:relative}
+details.rap-sec > summary::after{content:"›";position:absolute;right:14px;top:10px;font-size:22px;line-height:1;color:var(--slab);transform:rotate(90deg);transition:transform .15s}
+details.rap-sec:not([open]) > summary::after{transform:none}
+details.rap-sec > summary > h2{margin:0}
+details.rap-sec .pliabil-s{padding-top:0}
+.bara .in .bara-mai{flex:1 1 100%;display:flex;gap:8px;flex-wrap:wrap;order:-1;padding-bottom:8px;border-bottom:1px solid var(--linie);margin-bottom:4px}
+.bara .in .bara-mai > .buton{flex:1 1 40%}
+.bara .in .bara-mai[hidden]{display:none}
+body.ui-lat .bara .in .bara-mai,body.ui-lat .bara .in .bara-mai[hidden]{display:contents}
+body.ui-lat .bara .in #b-rap-mai{display:none}
+/* v2.9.13 (UX 14 nov, V2, N17): rândul de stare de lângă buton și urma deciziei pe ecranul de verificare */
+.stare-trimitere{font-size:13.5px;line-height:1.4;margin-top:6px;color:var(--slab)}
+.stare-trimitere:empty{display:none}
+.stare-trimitere.ok{color:var(--verde-text);font-weight:600}
+.stare-trimitere.atentie{color:var(--avert-text)}
+.stare-trimitere.rau{color:var(--rosu);font-weight:600}
+.stare-trimitere .link-buton{display:inline-block;margin:6px 0 0;padding:8px 12px;min-height:40px}
+.mesaj.dec-urma{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:10px}
+.dec-urma .link-buton{margin:0;padding:7px 12px;min-height:38px;background:#fff}
+.dec-urma .stare-trimitere{flex-basis:100%;margin:0}
+.conf-tab{width:100%;border-collapse:collapse;margin:8px 0 4px;font-size:13.5px;background:#fff;border-radius:8px}
+.conf-tab th,.conf-tab td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--linie);vertical-align:top;overflow-wrap:anywhere}
+.conf-tab th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--slab)}
+.conf-tab td:first-child{color:var(--slab);width:34%}
+.coada-cap .coada-sag{margin-left:auto;font-size:22px;line-height:1;color:var(--slab);transition:transform .15s;align-self:center}
+.coada-cap[aria-expanded="true"] .coada-sag{transform:rotate(90deg)}
 .verif-cap{margin-bottom:8px}
 .verif-rand{display:grid;grid-template-columns:minmax(110px,38%) minmax(0,1fr);gap:8px;padding:6px 0;border-bottom:1px solid var(--linie);font-size:14px}
 .verif-rand span{color:var(--slab)}.verif-rand b{font-weight:600;overflow-wrap:anywhere}
@@ -9866,7 +10100,7 @@ css.textContent = `
 .pliabil-s{flex-basis:100%;font-size:12.5px;color:var(--slab);padding:2px 14px 10px 26px}
 .pliabil[open] .pliabil-s u{display:none}
 .pas-urmator{flex:2 1 auto}
-.b-problema{flex:none;border:1px solid var(--linie);background:var(--card);color:var(--text);border-radius:999px;padding:5px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;min-height:32px}
+.b-problema{flex:none;border:1px solid var(--linie);background:var(--card);color:var(--text);border-radius:999px;padding:8px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;min-height:40px}
 .b-problema:focus-visible{outline:2px solid var(--galben);outline-offset:2px}
 .modal-problema{position:fixed;inset:0;z-index:50;background:rgba(20,20,22,.55);display:flex;align-items:flex-end;justify-content:center;padding:0 max(8px,env(safe-area-inset-right,0px)) 0 max(8px,env(safe-area-inset-left,0px))}
 .modal-problema .modal-in{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
@@ -9879,7 +10113,7 @@ body.cu-modal{overflow:hidden}
 .pb-text{margin:8px 0 4px;white-space:pre-wrap;overflow-wrap:anywhere}
 .pb-admin{margin-top:10px;border-top:1px solid var(--linie);padding-top:8px}
 .card.pb-blocant{border-left:4px solid #c0392b}
-.pill{display:inline-block;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:999px;background:#f1f1f2;color:var(--slab);vertical-align:middle}
+.pill{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:999px;background:#f1f1f2;color:var(--slab);vertical-align:middle}
 .pill.ok{background:var(--verde);color:var(--gri)}.pill.warn{background:var(--avert);color:var(--avert-text)}.pill.rau{background:#fdecea;color:var(--rosu)}
 .ai-rezumat{margin:0 0 8px;line-height:1.45}
 .ai-etape{display:grid;gap:6px;margin-bottom:8px}
@@ -9957,9 +10191,9 @@ table.bord td .det{display:block;color:var(--slab);font-size:11.5px}
 table.cal{border-collapse:collapse;min-width:860px;width:100%;table-layout:fixed}
 table.cal th,table.cal td{text-transform:none;letter-spacing:0;border-bottom:1px solid var(--linie);border-left:1px solid var(--linie);vertical-align:top;padding:5px;font-size:12.5px}
 table.cal thead th{background:var(--fundal,#f6f6f4);text-align:center;font-weight:700}
-table.cal thead th span{display:block;font-weight:400;color:var(--slab);font-size:11.5px}
+table.cal thead th span{display:block;font-weight:400;color:var(--slab);font-size:12px}
 table.cal tbody th{width:150px;text-align:left;font-weight:400;position:sticky;left:0;background:var(--card);z-index:1}
-table.cal tbody th b{display:block;font-size:13.5px}table.cal tbody th span{display:block;color:var(--slab);font-size:11.5px;line-height:1.3}
+table.cal tbody th b{display:block;font-size:13.5px}table.cal tbody th span{display:block;color:var(--slab);font-size:12px;line-height:1.3}
 table.cal td{min-height:56px;height:56px;overflow-wrap:anywhere}
 /* v2.9.3 (T2 S18): la 1024 px, săptămâna întreagă încape fără derulare laterală */
 @media (max-width:1180px){table.cal{min-width:680px}table.cal tbody th{width:104px}table.cal th,table.cal td{padding:4px;font-size:12px}}
@@ -10535,7 +10769,7 @@ function ecranLista() {
   const toate = K.citesteLista();
   const r = K.rol();
   const gol = {
-    local: 'Nicio lucrare salvată pe acest telefon.<br>Apăsați „Lucrare nouă” ca să începeți.',
+    local: 'Nicio lucrare salvată pe acest telefon.',
     admin: 'Nicio lucrare încă.<br>Liderii de echipă le creează pe teren.',
     lider: 'Nicio lucrare a echipei încă.<br>Apăsați „Lucrare nouă” ca să începeți.',
     membru: 'Nicio lucrare alocată vouă.<br>Liderul echipei vă alocă lucrările.',
@@ -10549,7 +10783,13 @@ function ecranLista() {
   const viz = carduriVizibile();
   const card = cardCurent();
   const din = toate.filter(inPerioada);
-  const corp = `<div class="carduri-stare" style="--n:${viz.length}">${viz.map((c) => `
+  // v2.9.14 (UX 14 nov, P2): fără cont și fără nicio lucrare, un singur mesaj de început cu butonul sub el (fără contoare și filtru)
+  const inceputLocal = !K.activ && !toate.length;
+  const corp = inceputLocal ? `<div class="gol-text inceput-local"><img src="${window.LOGO_INOSOLAR}" alt="inoSOLAR">
+      <p><b>Pre-calcul fără cont.</b> Lucrările pe care le faceți aici rămân doar pe acest telefon (nu se trimit nicăieri).</p>
+      <p>Începeți cu o lucrare nouă: completați datele acoperișului și ale sistemului, iar aplicația face lista de materiale.</p>
+      <button type="button" class="buton" id="b-nou-gol">+ Lucrare nouă</button></div>`
+    : `<div class="carduri-stare" style="--n:${viz.length}">${viz.map((c) => `
       <button class="card-stare ${c.c}" data-card="${c.k}" aria-pressed="${c.k === card.k}">
         <span class="nr">${din.filter((l) => inCard(c, l)).length}</span><span class="t">${E(c.t)}</span><span class="s">${E(c.s)}</span>
       </button>`).join('')}</div>
@@ -10571,11 +10811,12 @@ function ecranLista() {
   $('#bara-in').innerHTML = (poate('admin') ? '<button class="buton gol" id="b-admin">Administrare</button>' : '')
     + (poate('nomenclator') && !poate('admin') ? '<button class="buton" id="b-nomenclator">Nomenclator și recepție</button>' : '')
     + (window.EXT ? window.EXT.butoaneLista() : '')
-    + (poate('creeaza') ? '<button class="buton" id="b-nou">Lucrare nouă</button>' : '');
+    + (poate('creeaza') && !inceputLocal ? '<button class="buton" id="b-nou">Lucrare nouă</button>' : '');
   $('#bara').hidden = !$('#bara-in').innerHTML;
 
   // cu cont: alegerea tipului de lucrare (inoINSTALL); fără cont rămâne pre-calculul, direct în formular
   if ($('#b-nou')) $('#b-nou').onclick = () => (window.EXT && K.activ && K.serverV2 ? du('tipNou') : du('form', lucrareNoua()));
+  if ($('#b-nou-gol')) $('#b-nou-gol').onclick = () => du('form', lucrareNoua());
   legaInstalare();
   if ($('#b-admin')) $('#b-admin').onclick = () => du('admin');
   if ($('#b-nomenclator')) $('#b-nomenclator').onclick = () => du('nomenclator');
@@ -10592,10 +10833,10 @@ function ecranLista() {
     btn.onclick = () => { stare.card = btn.dataset.card; try { localStorage.setItem('ino_card', stare.card); } catch (e) { /* */ } ecranLista(); };
   });
   // data golită (butonul de ștergere al calendarului) revine la ultimele 30 de zile, cum arată câmpul
-  $('#f-deLa').onchange = (ev) => { stare.deLa = /^\d{4}-\d{2}-\d{2}$/.test(ev.target.value) ? ev.target.value : null; ecranLista(); };
+  if ($('#f-deLa')) $('#f-deLa').onchange = (ev) => { stare.deLa = /^\d{4}-\d{2}-\d{2}$/.test(ev.target.value) ? ev.target.value : null; ecranLista(); };
   // v2.9.1: lista se redesenează după o scurtă pauză de tastare, nu la fiecare literă
   let tCauta = null;
-  $('#f-cauta').oninput = (ev) => { stare.cauta = ev.target.value; clearTimeout(tCauta); if (toate.length < 150) deseneazaListaFiltrata(toate); else tCauta = setTimeout(() => deseneazaListaFiltrata(toate), 180); };
+  if ($('#f-cauta')) $('#f-cauta').oninput = (ev) => { stare.cauta = ev.target.value; clearTimeout(tCauta); if (toate.length < 150) deseneazaListaFiltrata(toate); else tCauta = setTimeout(() => deseneazaListaFiltrata(toate), 180); };
   if (toate.length) deseneazaListaFiltrata(toate);
   document.querySelectorAll('[data-deschide]').forEach((b) => {
     b.onclick = () => {
@@ -10778,12 +11019,84 @@ const LUNGIMI_SINA = [4.4, 3.6];
 function campSina(l) {
   const v = l.lungimeBara_m;
   const apasat = (x) => typeof v === 'number' && Math.abs(v - x) < 1e-9;
-  return `<div class="camp"><label for="f-lungimeBara_m">Lungimea barei de șină (m)</label>
+  return `<div class="camp"><label for="f-lungimeBara_m">Lungimea barei de șină (m)${steaOblig('lungimeBara_m')}</label>
     <div class="seg seg-sina" data-sina role="group" aria-label="Lungimi obișnuite de bară">${LUNGIMI_SINA.map((x) => `<button type="button" data-val="${x}" aria-pressed="${apasat(x)}">${String(x).replace('.', ',')} m</button>`).join('')}</div>
     <input id="f-lungimeBara_m" data-camp="lungimeBara_m" type="text" value="${E(v == null ? '' : String(v).replace('.', ','))}" inputmode="decimal" min="1" step="0.1" placeholder="sau altă lungime, de ex. 2,2"></div>`;
 }
+// v2.9.14 (UX 14 nov, P3): câmpurile obligatorii ale pre-calculului, marcate cu * în etichetă (nu doar în placeholder)
+const OBLIGATORII = new Set(['distantaCapriori_cm', 'lungimeBara_m', 'nrStringuri', 'distantaStringInvertor_m', 'distantaInvertorBransament_m', 'inaltimeCasa_m', 'distantaStructuraPriza_m', 'distantaInvertorBackup_m']);
+const steaOblig = (cheie) => (OBLIGATORII.has(cheie) ? ' <b class="oblig" title="obligatoriu">*</b>' : '');
+// v2.9.14 (UX 14 nov, P3, N14, M4): erorile unui formular în pagină, nu în alert: chenar roșu și textul sub câmp,
+// un rezumat sus cu legături și salt la primul câmp. `lipsa` = [{ cheie | el, nume, els? }]; întoarce true dacă a fost ceva de arătat.
+function aratLipsuri(lipsa, opt) {
+  opt = opt || {};
+  const x0 = (t) => (/[.!?]$/.test(String(t)) ? String(t) : String(t) + '.');
+  document.querySelectorAll('#ecran .eroare-camp, #x-lipsuri').forEach((x) => x.remove());
+  document.querySelectorAll('#ecran .lipsa').forEach((x) => { if (!x.closest('.tabs-l')) x.classList.remove('lipsa'); });
+  if (!lipsa || !lipsa.length) return false;
+  const gasite = [];
+  lipsa.forEach((x) => {
+    const el = x.el || document.getElementById((opt.prefix || 'f-') + x.cheie);
+    if (!el) return;
+    [el].concat(x.els || []).forEach((y) => y.classList.add('lipsa'));
+    const camp = el.closest('.camp, .bifa, .camp-pv') || el.parentElement;
+    // când mesajul e doar numele câmpului (lipsă simplă), sub câmp scrie „Obligatoriu”; altfel, motivul
+    const lab = camp.querySelector('label'); const curat = (t) => String(t || '').replace(/\*/g, '').replace(/\s*\([^)]*\)\s*$/, '').trim().toLowerCase();
+    const simplu = !/:/.test(String(x.nume)) && lab && curat(lab.textContent) === curat(String(x.nume));
+    const e = document.createElement('div'); e.className = 'eroare-camp'; e.textContent = simplu ? 'Obligatoriu — completați.' : x.nume;
+    camp.appendChild(e);
+    const curata = () => { [el].concat(x.els || []).forEach((y) => y.classList.remove('lipsa')); e.remove(); };
+    el.addEventListener('input', curata, { once: true }); el.addEventListener('change', curata, { once: true });
+    gasite.push({ el, nume: x.nume });
+  });
+  if (!opt.faraRezumat) {
+    const rez = document.createElement('div'); rez.className = 'mesaj warn'; rez.id = 'x-lipsuri'; rez.setAttribute('role', 'alert');
+    // o singură lipsă: tot textul (motivul contează); mai multe: doar numele câmpurilor, ca legături
+    rez.innerHTML = lipsa.length === 1 ? `<button type="button" class="link-text" data-lipsa="0">${E(x0(lipsa[0].nume))}</button>`
+      : `<b>${lipsa.length} câmpuri de completat sau corectat:</b> ${lipsa.map((x, i) => `<button type="button" class="link-text" data-lipsa="${i}">${E(String(x.nume).split(':')[0].split(' (')[0])}</button>`).join(' · ')}`;
+    const ecran = $('#ecran'); ecran.insertBefore(rez, ecran.firstChild);
+    rez.querySelectorAll('[data-lipsa]').forEach((b) => { b.onclick = () => { const x = lipsa[+b.dataset.lipsa]; const el = x.el || document.getElementById((opt.prefix || 'f-') + x.cheie); if (el) { el.scrollIntoView({ block: 'center' }); try { el.focus({ preventScroll: true }); } catch (e) { /* */ } } }; });
+  }
+  if (gasite[0]) { gasite[0].el.scrollIntoView({ block: 'center' }); try { gasite[0].el.focus({ preventScroll: true }); } catch (e) { /* */ } }
+  return true;
+}
+// v2.9.15 (UX 14 nov, N14, L6, M13): o singură confirmare pe acțiune, în fereastra aplicației, cu butoane care spun acțiunea
+// („Trimite raportul” / „Rămân aici”), nu „OK / Anulați” ale browserului. Fără cadrul cu cont (pre-calculul fără cont) rămâne
+// fereastra browserului. Testele automate răspund singure prin window.__intrebareTest(text), ca la ferestrele native.
+function confirma(o) {
+  const text = o.text || '';
+  const tot = (o.titlu ? o.titlu + ' ' : '') + text;
+  if (typeof window.__intrebareTest === 'function' && !window.__intrebariReale) return Promise.resolve(window.__intrebareTest(tot)).then((r) => r !== false);
+  if (window.UI && window.UI.intreaba && document.body.classList.contains('ui')) {
+    return window.UI.intreaba({ titlu: o.titlu || 'Confirmați', text,
+      butoane: [{ t: o.renunta || 'Renunță', v: '', c: 'gol' }, { t: o.ok || 'Da', v: 'da', c: o.pericol ? 'pericol' : '' }] }).then((v) => v === 'da');
+  }
+  return Promise.resolve(confirm(tot));
+}
+// v2.9.15 (UX 14 nov, B5): parola unui cont nou (sau resetată) într-un panou pe ecran, cu „Copiază”, nu într-o fereastră
+// care se închide la primul clic. Rămâne până la „Am notat-o”.
+function panouParola({ titlu, email, parola, nota }) {
+  const vechi = $('#x-panou-parola'); if (vechi) vechi.remove();
+  const p = document.createElement('section');
+  p.className = 'card panou-parola'; p.id = 'x-panou-parola'; p.setAttribute('role', 'status');
+  p.innerHTML = `<h2>${E(titlu)}</h2><div class="corp">
+    ${email ? `<div class="pp-rand"><span>E-mail</span><b id="x-pp-email">${E(email)}</b></div>` : ''}
+    <div class="pp-rand"><span>Parola</span><input type="text" id="x-pp-parola" readonly value="${E(parola)}" aria-label="Parola"><button type="button" class="buton" id="x-pp-copiaza">Copiază</button></div>
+    <div class="ajutor" id="x-pp-nota">${E(nota || 'Transmiteți-le omului. La prima intrare e obligat să-și aleagă parola lui.')}</div>
+    <div class="actiuni"><button type="button" class="buton gol" id="x-pp-gata">Am notat-o</button></div></div>`;
+  const ecran = $('#ecran'); ecran.insertBefore(p, ecran.firstChild);
+  // panoul e primul în pagină: sus de tot, ca antetul fix să nu-l acopere
+  window.scrollTo(0, 0);
+  $('#x-pp-copiaza').onclick = async () => {
+    const t = (email ? email + '\n' : '') + parola;
+    let ok = false;
+    try { await navigator.clipboard.writeText(t); ok = true; } catch (e) { const i = $('#x-pp-parola'); i.select(); try { ok = document.execCommand('copy'); } catch (e2) { /* */ } }
+    $('#x-pp-copiaza').textContent = ok ? 'Copiat ✓' : 'Selectați și copiați';
+  };
+  $('#x-pp-gata').onclick = () => p.remove();
+}
 function campText(cheie, eticheta, val, tip, extra) {
-  return `<div class="camp"><label for="f-${cheie}">${E(eticheta)}</label>
+  return `<div class="camp"><label for="f-${cheie}">${E(eticheta)}${steaOblig(cheie)}</label>
     <input id="f-${cheie}" data-camp="${cheie}" type="${tip || 'text'}" value="${E(val == null ? '' : val)}" ${extra || ''}></div>`;
 }
 function campSelect(cheie, eticheta, val, optiuni, ajutor) {
@@ -10906,6 +11219,17 @@ function completeazaPreCalcul(l) {
 function ecranForm() {
   const l = stare.lucrare;
   completeazaPreCalcul(l);
+  // v2.9.14 (UX 14 nov, L3): ce știe deja aplicația se completează singur, o singură dată, doar în câmpurile goale:
+  // puterea și finanțarea din registrul clientului, cine estimează din cont; branșamentul după puterea din contract
+  // (decizie Clau, 14 nov): monofazat până la 6 kWp, trifazat peste — doar înainte de primul calcul
+  if (!l.precompletat) {
+    const c = K.activ && l.client_id ? (K.clienti || []).find((x) => x.id === l.client_id) : null;
+    if (c && (l.putereContract_kWp == null || l.putereContract_kWp === '') && +c.putere_kwp > 0) l.putereContract_kWp = +c.putere_kwp;
+    if (c && !l.tipFinantare && c.tip_finantare) l.tipFinantare = c.tip_finantare;
+    if (!l.persoana && K.activ && K.profil && K.profil.nume) l.persoana = K.profil.nume;
+    if (+l.putereContract_kWp > 0 && !l.amprentaCalc && !l.rezumatSalvat && !l.invertorManual) l.retea = +l.putereContract_kWp <= 6 ? 'mono' : 'tri';
+    l.precompletat = true;
+  }
   const acoperis = ACOPERISURI[l.montaj];
   // lucrare de dinainte de bifa „Accept și invertor hibrid”: alegerea se fixează după invertorul ei,
   // ca schimbarea mărcii sau a bifei „Sistem hibrid” să n-o mai schimbe singură
@@ -10931,6 +11255,8 @@ function ecranForm() {
 
   const inghetatRz = antecalculValid(l.antecalcul) ? (l.antecalcul.rezumat || {}) : null;
   const html = `
+  ${window.EXT ? window.EXT.htmlMesajEcran() : ''}
+  <div class="ajutor legenda-oblig">Câmpurile cu <b class="oblig">*</b> sunt obligatorii.</div>
   ${inghetatRz ? `<div class="mesaj warn" style="margin-top:14px">Pre-calculul e înghețat din ${new Date(l.antecalcul.data).toLocaleDateString('ro-RO')}` +
     `${inghetatRz.kWp ? ` (${nrK(inghetatRz.kWp)} kWp)` : ''}, de la începerea raportării. ` +
     (K.activ && !poate('deblocheaza', l) ? 'Ce schimbați aici nu modifică lista de materiale; doar Adminul poate debloca și reface pre-calculul.</div>' : 'Ce schimbați aici nu modifică lista de materiale decât după „Calculează”, care reface pre-calculul.</div>') : ''}
@@ -10959,7 +11285,7 @@ function ecranForm() {
             : 'Panourile stau pe șine, prinse cu cleme de mijloc și de capăt.'}</div>`
       : ''}
     ${acoperis.pasCamp
-      ? `<div class="camp"><label for="f-distantaCapriori_cm">${E(acoperis.pasCamp.eticheta)} (cm)</label>
+      ? `<div class="camp"><label for="f-distantaCapriori_cm">${E(acoperis.pasCamp.eticheta)} (cm)${acoperis.pasCamp.optional ? '' : steaOblig('distantaCapriori_cm')}</label>
          <input id="f-distantaCapriori_cm" data-camp="distantaCapriori_cm" type="text" inputmode="decimal" autocomplete="off" min="0" step="1" value="${E(l.distantaCapriori_cm == null ? '' : String(l.distantaCapriori_cm).replace('.', ','))}" placeholder="${acoperis.pasCamp.optional ? 'opțional' : 'obligatoriu'}">
          <div class="ajutor">${E(acoperis.pasCamp.ajutor)} Valoarea se dă în centimetri.</div></div>`
       : ''}
@@ -11454,26 +11780,21 @@ function legaFormular() {
 
   $('#b-salveaza').onclick = () => { if (salveazaFormular(l)) du('lista'); };
   if ($('#b-calc')) $('#b-calc').onclick = () => {
-    const lipsa = campuriLipsa(l);
-    // doar marcajele câmpurilor din formular (contorul de poze din tab-uri își păstrează culoarea)
-    document.querySelectorAll('.lipsa').forEach((x) => { if (!x.closest('.tabs-l')) x.classList.remove('lipsa'); });
-    if (lipsa.length) {
-      lipsa.forEach((x) => {
-        if (x.cheie === 'campuri') {
-          document.querySelectorAll('[data-cmp][data-k="randuri"], [data-cmp][data-k="panouriPeRand"]').forEach((el) => {
-            const v = citesteNumar(el.value);
-            const max = el.dataset.k === 'randuri' ? 30 : 60;
-            if (typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > max) el.classList.add('lipsa');
-          });
-          return;
-        }
-        const el = document.getElementById('f-' + x.cheie); if (el) el.classList.add('lipsa');
-      });
-      alert('Completați sau corectați:\n• ' + lipsa.map((x) => x.nume).join('\n• '));
-      return;
+    // v2.9.14 (UX 14 nov, L4): string-urile goale iau recomandarea, fără să oprească calculul; se spune pe rezultat
+    if (l.nrStringuri == null || l.nrStringuri === '') {
+      const { rec } = propuneInvertor(l);
+      if (rec && rec.fezabil) { l.nrStringuri = rec.nrStringuri; l.nrStringuriAuto = true; const f = $('#f-nrStringuri'); if (f) f.value = rec.nrStringuri; stare.recomandareFolosita = rec.nrStringuri; }
     }
+    // v2.9.14 (UX 14 nov, P3, N14): erorile în pagină (chenar + text sub câmp + rezumat sus + salt la primul), nu alert
+    const panouriRele = () => [...document.querySelectorAll('[data-cmp][data-k="randuri"], [data-cmp][data-k="panouriPeRand"]')].filter((el) => {
+      const v = citesteNumar(el.value); const max = el.dataset.k === 'randuri' ? 30 : 60;
+      return typeof v !== 'number' || !Number.isInteger(v) || v < 1 || v > max;
+    });
+    const lipsa = campuriLipsa(l).map((x) => { if (x.cheie !== 'campuri') return x; const rele = panouriRele(); return Object.assign({}, x, { el: rele[0] || document.querySelector('[data-cmp][data-k="randuri"]'), els: rele.slice(1) }); });
+    if (aratLipsuri(lipsa)) return;
     if (C.MONTAJ[l.montaj].prindere === 'tripod' && l.dispunere === 'est_vest' && l.campuri.some((c) => +c.randuri < 2)) {
-      alert('La montajul est-vest fiecare zonă are cel puțin 2 șiruri: unul spre est și unul spre vest.'); return;
+      const rele = [...document.querySelectorAll('[data-cmp][data-k="randuri"]')].filter((el) => +citesteNumar(el.value) < 2);
+      aratLipsuri([{ el: rele[0] || document.querySelector('[data-cmp][data-k="randuri"]'), els: rele.slice(1), nume: 'La montajul est-vest fiecare zonă are cel puțin 2 șiruri: unul spre est și unul spre vest' }]); return;
     }
     if (!confirmaDistante(l)) return;
     if (l.antecalcul) {
@@ -11781,7 +12102,10 @@ function ecranRezultat() {
   $('#btn-inapoi').hidden = false;
   // v2.9.3 (T4 S19): lista de materiale și ca CSV (cod, denumire, UM, cantitate), pentru Achiziții
   const csvLista = '<div class="actiuni"><button type="button" class="link-buton" id="b-csv-mat">Descarcă lista ca CSV (cod, denumire, cantitate)</button></div>';
-  $('#ecran').innerHTML = htmlConflict(l) + banner + catalogSchimbat + htmlAlocare(l) + html + csvLista + htmlIstoric(l) + htmlAdminLucrare(l);
+  // v2.9.14 (UX 14 nov, L4): când „Calculează” a luat singur numărul de string-uri din recomandare, se spune aici
+  const notaRec = stare.recomandareFolosita ? `<div class="mesaj info" id="x-nota-rec" style="margin-top:14px">S-a folosit recomandarea: <b>${stare.recomandareFolosita} ${stare.recomandareFolosita === 1 ? 'string' : 'string-uri'}</b>. Numărul se poate schimba din „Modifică”.</div>` : '';
+  stare.recomandareFolosita = null;
+  $('#ecran').innerHTML = htmlConflict(l) + banner + notaRec + catalogSchimbat + htmlAlocare(l) + html + csvLista + htmlIstoric(l) + htmlAdminLucrare(l);
   $('#b-csv-mat').onclick = () => {
     const ac = antecalculLucrare(l);
     const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
@@ -11798,19 +12122,21 @@ function ecranRezultat() {
   const rap = poate('raporteaza', l);
   // cine alocă (liderul, Adminul) salvează lucrarea după calcul; atunci apare la membrii alocați
   const salv = K.activ && poate('aloca', l);
+  // v2.9.14 (UX 14 nov, P4): fără cont (pre-calcul pentru vânzare), butonul principal e „PDF”; „Raportează” e secundar
   $('#bara-in').innerHTML = (poate('editeaza', l) ? '<button class="buton gol" id="b-inapoi2">Modifică</button>' : '')
-    + '<button class="buton gol" id="b-pdf" title="Fișa de materiale în PDF">PDF</button>'
+    + `<button class="buton${K.activ ? ' gol' : ''}" id="b-pdf" title="Fișa de materiale în PDF">PDF</button>`
     + (window.EXT && K.activ && K.serverV2 && l._v != null ? '<button class="buton gol" id="b-teren">Fișa lucrării</button>' : '')
-    + (rap ? '<button class="buton" id="b-raport">Raportează</button>'
+    + (rap ? `<button class="buton${K.activ ? '' : ' gol'}" id="b-raport">Raportează</button>`
       : l.raportat ? `<button class="buton${salv ? ' gol' : ''}" id="b-raport">${salv ? 'Raport' : 'Vezi raportul'}</button>` : '')
     + (salv ? '<button class="buton" id="b-salv-lucrare">Salvează</button>'
       // lucrarea e deja salvată la „Calculează”: butonul o salvează din nou și duce la lista de lucrări
       : poate('editeaza', l) ? `<button class="buton gol" id="b-gata" title="${window.EXT && K.activ && K.serverV2 ? 'Salvează și revine la fișa lucrării' : 'Salvează și revine la lista de lucrări'}">Salvează</button>` : '');
-  if ($('#b-salv-lucrare')) $('#b-salv-lucrare').onclick = () => {
+  if ($('#b-salv-lucrare')) $('#b-salv-lucrare').onclick = async () => {
     const n = (l._alocati || []).length;
-    if (!n && !confirm('Nu ați alocat niciun membru. Lucrarea se salvează, dar nu apare la nimeni de executat. Salvați așa?')) return;
+    if (!n && !(await confirma({ titlu: 'Salvați fără membri alocați?', text: 'Nu ați alocat niciun membru. Lucrarea se salvează, dar nu apare la nimeni de executat. Salvați așa?', ok: 'Salvează așa', renunta: 'Aloc întâi' }))) return;
     salveaza(l); stare.alocareNesalvata = false;
-    alert(n ? `Lucrarea e salvată și apare la: ${(l._alocati || []).map((id) => K.numeOm(id)).join(', ')}.` : 'Lucrarea e salvată.');
+    // v2.9.15 (UX 14 nov, N16): confirmarea pe ecranul care urmează, nu alert
+    if (window.EXT) window.EXT.mesajUrmator(n ? `Lucrarea e salvată și apare la: ${(l._alocati || []).map((id) => K.numeOm(id)).join(', ')}.` : 'Lucrarea e salvată.');
     // cu fișa lucrării (inoINSTALL), salvarea rămâne în lucrare: pasul următor e pe fișă, nu în listă
     if (window.EXT && K.activ && K.serverV2) du('lucrare', l); else du('lista');
   };
@@ -11839,10 +12165,10 @@ function ecranRezultat() {
     }
     stare.rezultatDinLista = false; du('form');
   };
-  if ($('#b-raport')) $('#b-raport').onclick = () => {
+  if ($('#b-raport')) $('#b-raport').onclick = async () => {
     // la prima raportare, antecalculul se ingheata pe lucrare
     if (rap && !l.antecalcul) {
-      if (!confirm('Începeți raportarea consumului? Pre-calculul se îngheață acum și nu se mai schimbă la modificări ulterioare.')) return;
+      if (!(await confirma({ titlu: 'Începeți raportarea consumului?', text: 'Pre-calculul se îngheață acum și nu se mai schimbă la modificări ulterioare.', ok: 'Începe raportarea' }))) return;
       const rz = stare.rezultat || calculeazaLucrarea(l);
       l.antecalcul = antecalculDin(l, rz);
       notaIstoric(l, 'a început raportarea (pre-calcul înghețat)');
@@ -11924,12 +12250,12 @@ function legaAdminLucrare(l) {
     salveaza(l); du('form');
   };
   if ($('#b-arhiv')) $('#b-arhiv').onclick = async () => {
-    if (!confirm('Arhivați lucrarea? Dispare din listele tuturor; o puteți restaura din Administrare → Lucrări arhivate.')) return;
+    if (!(await confirma({ titlu: 'Arhivați lucrarea?', text: 'Dispare din listele tuturor; o puteți restaura din Administrare → Lucrări arhivate.', ok: 'Arhivează' }))) return;
     try { if (l._murdar) await K.sincronizeaza(); await K.arhiveaza(l, true); du('lista'); }
     catch (e) { alert('Nu s-a putut arhiva: ' + e.message); }
   };
   if ($('#b-sterg')) $('#b-sterg').onclick = async () => {
-    if (!confirm(`Ștergeți definitiv lucrarea „${l.client || 'fără client'}”? Nu se mai poate recupera.`)) return;
+    if (!(await confirma({ titlu: 'Ștergeți definitiv lucrarea?', text: `Ștergeți definitiv lucrarea „${l.client || 'fără client'}”? Nu se mai poate recupera.`, ok: 'Șterge definitiv', pericol: true }))) return;
     try { stergeCiorna(); await K.sterge(l); stare.lucrare = null; du('lista'); }
     catch (e) { alert('Nu s-a putut șterge: ' + e.message); }
   };
@@ -11958,10 +12284,63 @@ function htmlConflict(l) {
       ? 'Modificarea dvs. nu s-a salvat: lucrarea nu mai există pe server sau nu mai e la dvs. (de exemplu, echipa a redeschis raportul sau lucrarea a fost mutată).'
       : `Lucrarea a fost modificată între timp de ${E(K.numeOm(c._modificat_de) || 'altcineva')}${c._modificat ? ', ' + timpRelativ(c._modificat) : ''}.`}${motiv}
     ${pastrez ? 'Alegeți ce versiune rămâne.' + ce : (c.sters ? '' : 'Raportul a fost deja validat sau lucrarea nu mai e alocată dvs., deci rămâne versiunea de pe server.')}
+    ${c.sters ? '' : htmlDiferente(l, c)}
     <div class="actiuni" style="margin-top:10px">
       ${pastrez ? '<button class="buton gol" id="b-conf-a">Păstrez versiunea mea</button>' : ''}
       <button class="buton gol" id="b-conf-s">${c.sters ? 'Renunț la ea' : 'Iau versiunea de pe server'}</button>
     </div></div>`;
+}
+// v2.9.13 (UX 14 nov, V3): ce diferă între versiunea de pe server și cea de pe telefon, ca tabel cu două coloane,
+// doar rândurile diferite: verificările pe bloc și câmp, planificarea, stocul, alocații, câmpurile simple; blocurile mari
+// (poze, raport, PV, pre-calcul) ca un singur rând „modificat”.
+const NUME_CAMP = { client: 'Client', adresa: 'Adresă', telefon: 'Telefon', email: 'E-mail', judet: 'Județ', tip: 'Tip', echipa: 'Echipă', observatii: 'Observații', obs: 'Observații',
+  prosumatorSolicitat: 'Dosar de prosumator cerut', tipFinantare: 'Finanțare', nrContract: 'Nr. contract', retea: 'Rețea', poze: 'Pozele', raportat: 'Raportul de consum', pv: 'Procesul verbal',
+  antecalcul: 'Pre-calculul', rezumatSalvat: 'Rezumatul', interventie: 'Formularul intervenției', upsales: 'Formularul Upsales', anexa: 'Anexa', zile: 'Zilele de lucru', fazaIntermediara: 'Ziua închisă',
+  stoc: 'Stocul', planificare: 'Planificarea', _alocati: 'Alocați', _echipa_id: 'Echipa', verificari: 'Verificări', cod: 'Codul clientului', materiale: 'Materiale' };
+const NUME_BLOC = { tehnic: 'Verificare tehnică', prosumator: 'Prosumator', facturare: 'Facturare', retinere: 'Reținere', tehnicIstoric: 'Respingeri anterioare' };
+const NUME_SUB = { stare: 'stare', motiv: 'motiv', obs: 'observații', anexa: 'anexă', certificat: 'certificat', verificat: 'verificată', depus: 'dosar depus', actualizare: 'necesită actualizare',
+  suma: 'sumă', nota: 'motiv', data: 'data', echipa_id: 'echipa', complet: 'complet', note: 'note', de: 'de', dataCert: 'data certificatului', nr: 'număr' };
+const VAL_STARE = { aprobat: 'aprobată', respins: 'respinsă', neaprobat: 'neaprobată la plată', in_analiza: 'la verificare', verificat: 'verificat, de facturat', facturat: 'facturat', achitat: 'achitat', de_facturat: 'de facturat clientului' };
+function valoareScurta(v, k) {
+  if (v === undefined || v === null || v === '') return '—';
+  if (v === true) return 'da';
+  if (v === false) return 'nu';
+  if (k === 'echipa_id' || k === '_echipa_id') return K.numeEchipa(v) || String(v);
+  if (k === '_alocati' && Array.isArray(v)) return v.map((id) => K.numeOm(id) || id).join(', ') || '—';
+  if (Array.isArray(v)) return `${v.length} ${v.length === 1 ? 'element' : 'elemente'}`;
+  if (typeof v === 'object') return Object.keys(v).length ? Object.entries(v).filter(([, x]) => x !== '' && x != null && x !== false).map(([kk, x]) => `${NUME_SUB[kk] || kk}: ${valoareScurta(x, kk)}`).join(' · ') || '—' : '—';
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.length > 10 ? timpRelativ(v) : v.split('-').reverse().join('.');
+  if (typeof v === 'string' && VAL_STARE[v]) return VAL_STARE[v];
+  return String(v).length > 80 ? String(v).slice(0, 77) + '…' : String(v);
+}
+function htmlDiferente(l, c) {
+  const st = (x) => JSON.stringify(x === undefined ? null : x);
+  const a = K.pentruComparare ? K.pentruComparare(c) : c, b = K.pentruComparare ? K.pentruComparare(l) : l;
+  const randuri = [];
+  const rand = (nume, s, m) => randuri.push(`<tr><td>${E(nume)}</td><td>${E(s)}</td><td>${E(m)}</td></tr>`);
+  const chei = new Set(Object.keys(a).concat(Object.keys(b)).filter((k) => (k[0] !== '_' || k === '_alocati' || k === '_echipa_id') && !['modificat', 'istoric', 'versiune', 'id', 'client_id', 'partener_id'].includes(k)));
+  ['_alocati', '_echipa_id'].forEach((k) => { if (st(c[k] || null) !== st(l[k] || null)) chei.add(k); });
+  chei.forEach((k) => {
+    const vs = k[0] === '_' ? c[k] : a[k], vm = k[0] === '_' ? l[k] : b[k];
+    if (st(vs) === st(vm)) return;
+    const nume = NUME_CAMP[k] || k;
+    if (k === 'verificari') {
+      new Set(Object.keys(vs || {}).concat(Object.keys(vm || {}))).forEach((bl) => {
+        const bs = (vs || {})[bl], bm = (vm || {})[bl];
+        if (st(bs) === st(bm)) return;
+        if (bl === 'tehnicIstoric' || typeof bs !== 'object' || typeof bm !== 'object' || !bs || !bm) { rand(NUME_BLOC[bl] || bl, valoareScurta(bs, bl), valoareScurta(bm, bl)); return; }
+        new Set(Object.keys(bs).concat(Object.keys(bm))).forEach((f) => { if (st(bs[f]) !== st(bm[f]) && !['de', 'data', 'id'].includes(f)) rand(`${NUME_BLOC[bl] || bl} · ${NUME_SUB[f] || f}`, valoareScurta(bs[f], f), valoareScurta(bm[f], f)); });
+      });
+    } else if (['planificare', 'stoc'].includes(k) && vs && vm && typeof vs === 'object' && typeof vm === 'object' && !Array.isArray(vs)) {
+      new Set(Object.keys(vs).concat(Object.keys(vm))).forEach((f) => { if (st(vs[f]) !== st(vm[f])) rand(`${nume} · ${NUME_SUB[f] || f}`, valoareScurta(vs[f], f), valoareScurta(vm[f], f)); });
+    } else if (vs && vm && typeof vs === 'object' && typeof vm === 'object' && !['_alocati'].includes(k)) {
+      rand(nume, 'modificat pe server', 'modificat la mine');
+    } else rand(nume, valoareScurta(vs, k), valoareScurta(vm, k));
+  });
+  if (!randuri.length) return '';
+  const cine = K.numeOm(c._modificat_de) || 'altcineva';
+  const cand = c._modificat ? new Date(c._modificat).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }) : '';
+  return `<table class="conf-tab" id="x-conf-dif"><thead><tr><th>Ce diferă</th><th>Pe server (${E(cine)}${cand ? ', ' + E(cand) : ''})</th><th>La mine</th></tr></thead><tbody>${randuri.join('')}</tbody></table>`;
 }
 // Lucrările care cer atenție: în conflict sau refuzate de server (A6)
 function lucrariProbleme() { return K.citesteLista().filter((l) => l._conflict || (l._murdar && l._eroare)); }
@@ -12000,13 +12379,16 @@ function anuntaProbleme() {
   let t = document.getElementById('anunt-sync');
   if (!t) {
     t = document.createElement('div'); t.id = 'anunt-sync'; t.setAttribute('role', 'alert');
-    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;max-width:min(520px,calc(100vw - 32px));background:#fdecea;border:1px solid #efb7b2;color:var(--rosu,#b3261e);border-radius:12px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:flex;gap:10px;align-items:center;font-size:14px';
+    t.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:60;max-width:min(520px,calc(100vw - 32px));background:#fdecea;border:1px solid #efb7b2;color:var(--rosu,#b3261e);border-radius:12px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.15);display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;justify-content:flex-end;font-size:14px;line-height:1.4';
     document.body.appendChild(t);
   }
-  t.innerHTML = `<div style="flex:1"><b>${E(l.client || 'Lucrare')}</b> · ${E(motivProblema(l))}${noi.length > 1 ? ` (încă ${noi.length - 1})` : ''}</div>
+  // v2.9.13: textul pe un rând întreg, butoanele dedesubt (mesajele lungi se înghesuiau pe o coloană îngustă)
+  t.innerHTML = `<div style="flex:1 1 100%"><b>${E(l.client || 'Lucrare')}</b> · ${E(motivProblema(l))}${noi.length > 1 ? ` (încă ${noi.length - 1})` : ''}</div>
     <button type="button" class="buton gol" data-problema="${E(l.id)}">Deschide</button><button type="button" class="buton gol" aria-label="Închide" data-inchide>×</button>`;
   legaProbleme(t);
   t.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => t.remove()));
+  // v2.9.13 (UX 14 nov, V2, B11): anunțul plutitor rămâne 15 s (altfel ar acoperi butoanele de jos); refuzul rămâne vizibil
+  // prin banda din pagină desenată de interfata.js (`bandaProbleme`) pe orice ecran, până se rezolvă
   clearTimeout(anuntaProbleme.ceas);
   anuntaProbleme.ceas = setTimeout(() => t.remove(), 15000);
 }
@@ -12054,8 +12436,14 @@ function ecranRaport() {
       : rap.redeschis ? `<div class="mesaj warn" style="margin-top:14px">Raport redeschis de ${E(rap.redeschis.de)} pe ${zi(rap.redeschis.data)}: de corectat și trimis din nou.</div>`
         : !editabil ? '<div class="mesaj info" style="margin-top:14px">Raportarea nu e încă finalizată. Valorile de mai jos pot să se mai schimbe.</div>' : '';
 
+  // v2.9.14 (UX 14 nov, M3): secțiunile stau pliate (deschisă doar prima), cu „n linii · n diferențe” în cap;
+  // sus, „Totul ca la estimare” și „Adaugă o diferență” (căutare în toate liniile)
+  const difere = (v, cant) => v != null && v !== '' && (typeof v !== 'number' || Math.abs(v - cant) > 1e-9);
+  const capSectiune = (sec) => { const n = sec.linii.length, d = sec.linii.filter((x) => difere(rap.valori[sec.nume + '|' + x.den], x.cant)).length; return `${n} ${n === 1 ? 'linie' : 'linii'}${d ? ` · <b>${d} ${d === 1 ? 'diferență' : 'diferențe'}</b>` : ' · ca la estimare'}`; };
+  const toateLiniile = rez.sectiuni.flatMap((sec) => sec.linii.map((x) => ({ cheie: sec.nume + '|' + x.den, den: x.den, sec: sec.nume })));
   const html = `
-  <div class="mesaj info regula-consum" style="margin-top:14px"><b>Se completează doar liniile la care consumul diferă de estimare.</b> Ce rămâne gol se consideră egal cu estimarea.${editabil ? '<button type="button" class="buton gol" id="b-ca-estimat" style="margin-top:8px;width:100%">Totul ca la estimare</button>' : ''}</div>
+  <div class="mesaj info regula-consum" style="margin-top:14px"><b>Se completează doar liniile la care consumul diferă de estimare.</b> Ce rămâne gol se consideră egal cu estimarea.${editabil ? `<button type="button" class="buton gol" id="b-ca-estimat" style="margin-top:8px;width:100%">Totul ca la estimare</button>
+    <div class="camp" style="margin-top:10px"><label for="f-dif-cauta">Adaugă o diferență (căutați materialul)</label><input type="search" id="f-dif-cauta" placeholder="de ex. cablu, clemă, șurub" autocomplete="off"><div id="x-dif-sugestii" class="sugestii"></div></div>` : ''}</div>
   <section class="card"><h2>Cine raportează</h2><div class="corp">
     <div class="randuri2">
       ${campText('rap_persoana', 'Nume', rap.persoana, 'text', dz)}
@@ -12063,8 +12451,8 @@ function ecranRaport() {
     </div>
   </div></section>
 
-  ${rez.sectiuni.map((s) => `
-    <section class="card"><h2>${E(s.nume)}</h2><div class="corp"><table class="rap">
+  ${rez.sectiuni.map((s, i) => `
+    <details class="card pliabil rap-sec" data-sec="${E(s.nume)}"${i === 0 || !editabil ? ' open' : ''}><summary><h2>${E(s.nume)}</h2><span class="pliabil-s" data-sec-cap="${E(s.nume)}">${capSectiune(s)}</span></summary><div class="corp"><table class="rap">
       <tr><th>Material</th><th>Estimat</th><th>Consumat</th><th>Dif.</th></tr>
       ${s.linii.map((x) => {
         const cheie = s.nume + '|' + x.den;
@@ -12076,7 +12464,7 @@ function ecranRaport() {
           <td class="n"><span class="dif ${difClasa(v, x.cant)}" data-dif="${E(cheie)}">${!editabil && (v == null || v === '') ? '0' : difText(v, x.cant)}</span></td>
         </tr>`;
       }).join('')}
-    </table></div></section>`).join('')}
+    </table></div></details>`).join('')}
 
   <section class="card"><h2>Alte materiale folosite</h2><div class="corp">
     <div class="ajutor" style="margin:0 0 8px">Ce s-a folosit pe șantier și nu apare în lista de mai sus.</div>
@@ -12097,12 +12485,36 @@ function ecranRaport() {
   $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Raportare') + '<span class="sub">consum real la final de lucrare</span>';
   $('#btn-inapoi').hidden = false;
   $('#ecran').innerHTML = htmlConflict(l) + stareRap + html + (K.rol() === 'sales' ? htmlIstoric(l) : '');
-  $('#bara-in').innerHTML = '<button class="buton gol" id="b-pdf">PDF</button>'
-    + (window.EXT && K.activ && K.serverV2 && l._v != null ? '<button class="buton gol" id="b-teren">Poze și PV</button>' : '')
-    + (editabil ? '<button class="buton' + (poate('finalizeaza', l) || poate('valideaza', l) ? ' gol' : '') + '" id="b-salvrap">Salvează' + (K.activ ? '' : ' raportarea') + '</button>' : '')
-    + (poate('finalizeaza', l) ? '<button class="buton" id="b-finalizez">Trimite raportul</button>' : '')
-    + (poate('valideaza', l) ? '<button class="buton" id="b-valid">Validează</button>' : '')
-    + (poate('redeschide', l) ? '<button class="buton gol" id="b-redeschid">Redeschide</button>' : '');
+  // v2.9.14 (UX 14 nov, M3): pe telefon, bara are două butoane: pasul principal și „Mai mult…” (PDF, Poze și PV, Salvează, Redeschide);
+  // pe calculator rămân toate la vedere (CSS). Butoanele din „Mai mult…” sunt în pagină, doar ascunse, ca legăturile de mai jos să rămână
+  const principal = poate('finalizeaza', l) ? '<button class="buton" id="b-finalizez">Trimite raportul</button>' : poate('valideaza', l) ? '<button class="buton" id="b-valid">Validează</button>'
+    : editabil ? '<button class="buton" id="b-salvrap">Salvează' + (K.activ ? '' : ' raportarea') + '</button>' : '';
+  const secundare = ['<button class="buton gol" id="b-pdf">PDF</button>',
+    window.EXT && K.activ && K.serverV2 && l._v != null ? '<button class="buton gol" id="b-teren">Poze și PV</button>' : '',
+    editabil && (poate('finalizeaza', l) || poate('valideaza', l)) ? '<button class="buton gol" id="b-salvrap">Salvează</button>' : '',
+    poate('redeschide', l) ? '<button class="buton gol" id="b-redeschid">Redeschide</button>' : ''].filter(Boolean);
+  const compact = !!principal && secundare.length > 1;
+  $('#bara-in').innerHTML = compact
+    ? `<button type="button" class="buton gol" id="b-rap-mai" aria-expanded="false" aria-controls="x-rap-mai">Mai mult…</button>${principal}<div class="bara-mai" id="x-rap-mai" hidden>${secundare.join('')}</div>`
+    : secundare.join('') + principal;
+  if ($('#b-rap-mai')) $('#b-rap-mai').onclick = () => { const m = $('#x-rap-mai'); m.hidden = !m.hidden; $('#b-rap-mai').setAttribute('aria-expanded', String(!m.hidden)); };
+  // v2.9.14 (M3): „Adaugă o diferență” — alegerea deschide secțiunea și pune cursorul pe cantitate
+  const cauta = $('#f-dif-cauta');
+  if (cauta) {
+    const arata = () => {
+      const q = fara(cauta.value.trim());
+      const lista = q.length < 2 ? [] : toateLiniile.filter((x) => fara(x.den).includes(q)).slice(0, 8);
+      $('#x-dif-sugestii').innerHTML = lista.map((x) => `<button type="button" class="sugestie" data-dif-la="${E(x.cheie)}"><b>${E(x.den)}</b><span>${E(x.sec)}</span></button>`).join('');
+      document.querySelectorAll('[data-dif-la]').forEach((b) => { b.onclick = () => {
+        const inp = document.querySelector(`[data-rap="${CSS.escape(b.dataset.difLa)}"]`); if (!inp) return;
+        const d = inp.closest('details'); if (d) d.open = true;
+        cauta.value = ''; $('#x-dif-sugestii').innerHTML = '';
+        inp.scrollIntoView({ block: 'center' }); try { inp.focus({ preventScroll: true }); } catch (e) { /* */ }
+      }; });
+    };
+    cauta.oninput = arata;
+  }
+  const actualizeazaCap = (el) => { const d = el.closest('details.rap-sec'); if (!d) return; const sec = rez.sectiuni.find((x) => x.nume === d.dataset.sec); const cap = d.querySelector('[data-sec-cap]'); if (sec && cap) cap.innerHTML = capSectiune(sec); };
   // PDF-ul salvează lucrarea: consumul se verifică întâi, ca la Salvează
   $('#b-pdf').onclick = () => { if (editabil && !consumValid()) return; exportaPDF(l); };
   if ($('#b-teren')) $('#b-teren').onclick = () => { if (editabil && !consumValid()) return; if (editabil) salveaza(l); du('lucrare', l); };
@@ -12115,6 +12527,7 @@ function ecranRaport() {
       rap.valori[k] = v == null ? null : (typeof v === 'number' ? v : NaN);
       const span = document.querySelector(`[data-dif="${CSS.escape(k)}"]`);
       if (span) { span.textContent = difText(rap.valori[k], est); span.className = 'dif ' + difClasa(rap.valori[k], est); }
+      actualizeazaCap(el);
     };
   });
   document.querySelectorAll('[data-camp^="rap_"]').forEach((el) => {
@@ -12158,14 +12571,19 @@ function ecranRaport() {
       }
     });
     if (rau) {
-      const prim = document.querySelector('[data-rap].lipsa, [data-extra].lipsa'); if (prim) prim.focus();
-      alert(`${rau === 1 ? 'Valoarea de consum nu e validă' : rau + ' valori de consum nu sunt valide'}: ${greseli.slice(0, 6).join('; ')}${greseli.length > 6 ? '…' : ''}.\nConsumul se trece ca număr pozitiv (la bucăți, întreg) sau se lasă gol.`); return false;
+      // v2.9.14: linia greșită poate fi într-o secțiune pliată: se desface înainte de focus
+      const prim = document.querySelector('[data-rap].lipsa, [data-extra].lipsa'); if (prim) { const d = prim.closest('details'); if (d) d.open = true; prim.focus(); }
+      // v2.9.15 (N14): în pagină, la fiecare linie greșită, nu alert
+      const rele = [...document.querySelectorAll('[data-rap].lipsa, [data-extra][data-k="cant"].lipsa')];
+      const denEl = (el) => (el.dataset.rap ? el.dataset.rap.split('|').slice(1).join('|') : ((rap.extra[+el.dataset.extra] || {}).den || 'material în plus'));
+      aratLipsuri(rele.map((el) => ({ el, nume: `${denEl(el)}: „${String(el.value).trim()}” nu e valid — consumul se trece ca număr pozitiv${/^buc/i.test(el.dataset.um || '') ? ' (la bucăți, întreg)' : ''} sau se lasă gol` })), { faraRezumat: true });
+      return false;
     }
     // un material în plus are nevoie de denumire, altfel nu apare în PDF
     const faraNume = [];
     rap.extra.forEach((x, i) => { if (!String(x.den || '').trim() && (x.cant != null || String(x.um || '').trim() !== 'buc')) faraNume.push(i); });
     document.querySelectorAll('[data-extra][data-k="den"]').forEach((el) => el.classList.toggle('lipsa', faraNume.includes(+el.dataset.extra)));
-    if (faraNume.length) { alert('Scrieți denumirea materialului în plus' + (faraNume.length > 1 ? ' la fiecare rând' : '') + ', sau ștergeți rândul.'); return false; }
+    if (faraNume.length) { aratLipsuri(faraNume.map((i) => ({ el: document.querySelector(`[data-extra="${i}"][data-k="den"]`), nume: 'Scrieți denumirea materialului în plus, sau ștergeți rândul.' })).filter((x) => x.el), { faraRezumat: true }); return false; }
     // rândurile adăugate și lăsate goale nu se păstrează
     rap.extra = rap.extra.filter((x) => String(x.den || '').trim() || x.cant != null);
     // peste dublul estimării se cere confirmarea (de obicei o virgulă uitată: 365 în loc de 36,5)
@@ -12201,13 +12619,14 @@ function ecranRaport() {
     salveaza(l); du('lista');
   };
   const cine = () => (K.profil && (K.profil.nume || K.profil.email)) || rap.persoana || '';
-  if ($('#b-finalizez')) $('#b-finalizez').onclick = () => {
+  if ($('#b-finalizez')) $('#b-finalizez').onclick = async () => {
     if (!consumValid()) return;
     dataDinCamp();
-    if (!rap.persoana || !rap.data) { alert('Completați numele și data terminării înainte de trimitere.'); return; }
+    // v2.9.15 (N14): numele și data lipsă se arată la câmp
+    if (aratLipsuri([!rap.persoana && { cheie: 'rap_persoana', nume: 'Numele celui care raportează' }, !rap.data && { cheie: 'rap_data', nume: 'Data terminării' }].filter(Boolean))) return;
     // inoINSTALL: raportul pleacă doar cu pozele obligatorii și procesul verbal semnat
     if (window.EXT && !window.EXT.gataDeTrimis(l)) return;
-    if (!confirm('Trimiteți raportul? Liderul echipei îl verifică și îl validează.')) return;
+    if (!(await confirma({ titlu: 'Trimiteți raportul?', text: 'Liderul echipei îl verifică și îl validează.', ok: 'Trimite raportul', renunta: 'Rămân aici' }))) return;
     // dacă antecalculul a fost deblocat între timp, raportul pleacă cu antecalculul de acum, înghețat
     if (!l.antecalcul) {
       const rz = antecalculLucrare(l);
@@ -12220,14 +12639,14 @@ function ecranRaport() {
     // v2.9.11 (UX 14 nov, M5): înapoi pe Start, cu confirmare, nu în lista tuturor lucrărilor
     window.EXT.mesajUrmator(`${l.client || 'Lucrarea'}: raportul a plecat la liderul echipei.`); window.EXT.laRevenire();
   };
-  if ($('#b-valid')) $('#b-valid').onclick = () => {
+  if ($('#b-valid')) $('#b-valid').onclick = async () => {
     if (editabil && !consumValid()) return;
     dataDinCamp();
-    if (!rap.persoana || !rap.data) { alert('Completați numele și data terminării înainte de validare.'); return; }
+    if (aratLipsuri([!rap.persoana && { cheie: 'rap_persoana', nume: 'Numele celui care raportează' }, !rap.data && { cheie: 'rap_data', nume: 'Data terminării' }].filter(Boolean))) return;
     // v2.9.11 (UX 14 nov, L6): o singură întrebare, cu avertismentul codului neconfirmat în ea
     if (window.EXT && !window.EXT.gataDeTrimis(l, true, true)) return;
     const av = window.EXT ? window.EXT.avertismentCod(l) : '';
-    if (!confirm((av ? av + ' Validați oricum?' : 'Validați raportul?') + ' După validare consumul nu se mai modifică decât dacă îl redeschideți.')) return;
+    if (!(await confirma({ titlu: av ? 'Validați oricum?' : 'Validați raportul?', text: (av ? av + ' Validați oricum?' : 'Validați raportul?') + ' După validare consumul nu se mai modifică decât dacă îl redeschideți.', ok: 'Validează', renunta: 'Rămân aici' }))) return;
     if (!l.antecalcul) {
       const rz = antecalculLucrare(l);
       l.antecalcul = antecalculDin(l, rz);
@@ -12239,8 +12658,8 @@ function ecranRaport() {
     // v2.9.11 (UX 14 nov, L5): înapoi pe Start, cu confirmarea că lucrarea a plecat la Tehnic
     if (window.EXT && K.activ) { window.EXT.mesajUrmator(`${l.client || 'Lucrarea'}: validată, trimisă la verificarea tehnică.`); window.EXT.laRevenire(); } else du('lista');
   };
-  if ($('#b-redeschid')) $('#b-redeschid').onclick = () => {
-    if (!confirm('Redeschideți raportul? Membrul îl poate corecta, apoi îl trimite și îl validați din nou.')) return;
+  if ($('#b-redeschid')) $('#b-redeschid').onclick = async () => {
+    if (!(await confirma({ titlu: 'Redeschideți raportul?', text: 'Membrul îl poate corecta, apoi îl trimite și îl validați din nou.', ok: 'Redeschide' }))) return;
     delete rap.validat; delete rap.finalizat;
     rap.redeschis = { de: cine(), data: new Date().toISOString() };
     salveaza(l); ecranRaport();
@@ -12341,7 +12760,7 @@ function ecranLogin() {
     <div class="gol-text" style="padding-bottom:10px"><img src="${window.LOGO_INOSOLAR}" alt="inoSOLAR">Intrați cu contul primit de la Admin.</div>
     ${K.mesajLogin && K.mesajLogin() ? `<div class="mesaj warn" id="login-mesaj" role="alert">${E(K.mesajLogin())}</div>` : ''}
     <section class="card"><div class="corp">
-      <form id="f-login" autocomplete="on">
+      <form id="f-login" autocomplete="on" novalidate>
         ${campText('login_email', 'Email', K.emailUltim ? K.emailUltim() : '', 'email', 'autocomplete="username" required')}
         ${campText('login_parola', 'Parola', '', 'password', 'autocomplete="current-password" required')}
         <div class="rosu" id="login-eroare" hidden></div>
@@ -12398,7 +12817,7 @@ function ecranParola() {
   $('#ecran').innerHTML = `
     <div class="gol-text" style="padding-bottom:10px"><img src="${window.LOGO_INOSOLAR}" alt="inoSOLAR">Bine ați venit${p.nume ? ', ' + E(p.nume) : ''}!</div>
     <section class="card"><h2>Alegeți parola dvs.</h2><div class="corp">
-      <form id="f-parola-noua" autocomplete="on">
+      <form id="f-parola-noua" autocomplete="on" novalidate>
         <input type="email" autocomplete="username" value="${E(p.email || '')}" hidden aria-hidden="true" tabindex="-1">
         <div class="ajutor" style="margin-top:0">Parola cu care ați intrat v-a fost dată de Admin (la crearea contului sau la o resetare). Alegeți acum o parolă doar a dvs.: cel puțin 8 caractere, diferită de cea primită. Cu ea intrați de acum înainte.</div>
         ${campText('pn1', 'Parola nouă', '', 'password', 'autocomplete="new-password" minlength="8" required')}
@@ -12454,7 +12873,7 @@ function ecranCont() {
   const s = textSync();
   $('#titlu').innerHTML = 'Contul meu<span class="sub">' + E(K.ROLURI[p.rol] || '') + '</span>';
   $('#btn-inapoi').hidden = false;
-  $('#ecran').innerHTML = `
+  $('#ecran').innerHTML = (window.EXT ? window.EXT.htmlMesajEcran() : '') + `
     <section class="card"><h2>Contul</h2><div class="corp">
       <div class="randuri2">
         <div><label>Nume</label><div>${E(p.nume || '—')}</div></div>
@@ -12484,7 +12903,7 @@ function ecranCont() {
     const a = $('#f-parola1').value, b = $('#f-parola2').value;
     const pp = problemaParola(a); if (pp) return alert(pp);
     if (a !== b) return alert('Cele două parole nu sunt la fel.');
-    try { await K.schimbaParola(a); alert('Parola a fost schimbată.'); ecranCont(); }
+    try { await K.schimbaParola(a); if (window.EXT) window.EXT.mesajUrmator('Parola a fost schimbată.'); ecranCont(); }
     catch (e) { alert('Nu s-a putut schimba parola: ' + e.message); }
   };
   $('#b-iesire').onclick = async () => {
@@ -12569,7 +12988,7 @@ function ecranAdmin() {
       </div>
     </aside>`;
   document.body.classList.toggle('panou-deschis', !!stare.panouConturi);
-  $('#ecran').innerHTML = `
+  $('#ecran').innerHTML = (window.EXT ? window.EXT.htmlMesajEcran() : '') + `
     ${K.sync.online ? '' : '<div class="mesaj warn" style="margin-top:14px">Fără semnal. Administrarea cere internet.</div>'}
     <div class="actiuni buton-conturi" style="margin-top:14px"><button class="buton gol" id="b-conturi">Conturi (${profiluri.length})${fara ? ` · ${fara} fără rol` : ''} ▸</button></div>
     ${htmlEchipeOameni(profiluri, echipe)}
@@ -12658,11 +13077,11 @@ function ecranAdmin() {
     b.onclick = () => ruleaza(b, async () => {
       const p = K.oameni.profiluri.find((x) => x.id === id) || {};
       const nume = p.nume || p.email || 'acest cont';
-      if (!confirm(`Ștergeți definitiv contul ${nume}${p.email && p.nume ? ' (' + p.email + ')' : ''}? Omul nu mai poate intra în aplicație. ` +
-        'Lucrările și istoricul rămân; contul e scos de la lucrările la care era alocat. Nu se poate anula.')) throw new Error('Anulat.');
+      if (!(await confirma({ titlu: 'Ștergeți definitiv contul?', text: `Ștergeți definitiv contul ${nume}${p.email && p.nume ? ' (' + p.email + ')' : ''}? Omul nu mai poate intra în aplicație. ` +
+        'Lucrările și istoricul rămân; contul e scos de la lucrările la care era alocat. Nu se poate anula.', ok: 'Șterge contul', pericol: true }))) throw new Error('Anulat.');
       await K.stergeUtilizator(id);
       if (stare.contDeschis === id) stare.contDeschis = null;
-      alert(`Contul ${nume} a fost șters.`);
+      if (window.EXT) window.EXT.mesajUrmator(`Contul ${nume} a fost șters.`);
       return null;
     }, (x) => x.endsWith('_' + id));
   });
@@ -12688,8 +13107,8 @@ function ecranAdmin() {
         reface();
         throw new Error('Este singurul Admin activ. Dați întâi rolul de Admin altui cont.');
       }
-      if (id === K.profil.id && rol !== 'admin' && !confirm('Vă scoateți singur rolul de Admin și ieșiți din Administrare. Continuați?')) { reface(); throw new Error('Anulat.'); }
-      if (p.activ !== false && !activ && !confirm(`Dezactivați contul ${p.nume || p.email}? Nu mai poate vedea și raporta nimic până nu îl reactivați.`)) { reface(); throw new Error('Anulat.'); }
+      if (id === K.profil.id && rol !== 'admin' && !(await confirma({ titlu: 'Vă scoateți rolul de Admin?', text: 'Vă scoateți singur rolul de Admin și ieșiți din Administrare. Continuați?', ok: 'Da, ies din Admin', pericol: true }))) { reface(); throw new Error('Anulat.'); }
+      if (p.activ !== false && !activ && !(await confirma({ titlu: 'Dezactivați contul?', text: `Dezactivați contul ${p.nume || p.email}? Nu mai poate vedea și raporta nimic până nu îl reactivați.`, ok: 'Dezactivează', pericol: true }))) { reface(); throw new Error('Anulat.'); }
       // rolurile fără echipă (birourile, Partenerul) nu păstrează echipa aleasă (E5)
       await K.salveazaProfil(id, Object.assign({ nume: $('#f-u_nume_' + CSS.escape(id)).value.trim(), rol, echipa_id: cuEchipa(rol) ? echipa : null, activ },
         elPart ? { partener_id: rol === 'partener' ? partener : null } : {}));
@@ -12705,9 +13124,11 @@ function ecranAdmin() {
       try {
         const r = await K.parolaUtilizator(b.dataset.parolaUser, p);
         // M1: la resetare, contul iese de pe toate telefoanele pe care era deschis
-        alert(r && r.sesiuni === false
-          ? 'Parola a fost schimbată. Atenție: telefoanele pe care contul era deja deschis nu au putut fi scoase din cont (pe server lipsește migrarea v2.8.3). Transmiteți parola omului.'
-          : 'Parola a fost schimbată, iar contul a ieșit de pe toate telefoanele pe care era deschis. Transmiteți parola omului: la intrare își alege una nouă.');
+        // v2.9.15 (B5): în panoul cu „Copiază”, nu alert
+        const om = K.oameni.profiluri.find((x) => x.id === b.dataset.parolaUser) || {};
+        panouParola({ titlu: 'Parola a fost schimbată', email: om.email || '', parola: p, nota: r && r.sesiuni === false
+          ? 'Atenție: telefoanele pe care contul era deja deschis nu au putut fi scoase din cont (pe server lipsește migrarea v2.8.3). Transmiteți parola omului.'
+          : 'Contul a ieșit de pe toate telefoanele pe care era deschis. Transmiteți parola omului: la intrare își alege una nouă.' });
       }
       catch (e) { alert('Nu s-a putut schimba parola: ' + e.message); }
     };
@@ -12726,7 +13147,8 @@ function ecranAdmin() {
     if (cuEchipa(d.rol) && !d.echipa_id) throw new Error('Liderul, membrii de echipă și Mentenanța au nevoie de o echipă.');
     if (d.rol === 'partener' && !d.partener_id) throw new Error('Contul de Partener are nevoie de firma parteneră.');
     await K.creeazaUtilizator(d);
-    alert(`Contul a fost creat.\n\nEmail: ${d.email}\nParolă: ${d.parola}\n\nTransmiteți-le omului.`);
+    // v2.9.15 (UX 14 nov, B5): parola într-un panou cu „Copiază”, după redesenarea ecranului
+    setTimeout(() => panouParola({ titlu: 'Contul a fost creat', email: d.email, parola: d.parola }), 0);
   }, (id) => id.startsWith('f-n_'));
   document.querySelectorAll('[data-redenumeste]').forEach((b) => {
     b.onclick = () => ruleaza(b, () => {
@@ -12738,7 +13160,8 @@ function ecranAdmin() {
   $('#b-echipa-noua').onclick = () => ruleaza($('#b-echipa-noua'), () => {
     const n = $('#f-e_noua').value.trim();
     if (!n) throw new Error('Scrieți numele echipei.');
-    return K.echipaNoua(n);
+    // v2.9.13 (UX 14 nov, B11): echipa nouă se confirmă pe ecran
+    return K.echipaNoua(n).then((r) => { if (window.EXT) { window.EXT.mesajUrmator(`Echipa „${n}” a fost creată.`); setTimeout(() => { const m = $('#x-mesaj-ecran'); if (m) m.scrollIntoView({ block: 'center' }); }, 50); } return r; });
   }, (id) => id === 'f-e_noua');
   legaImportConturi();
   $('#b-catalog').onclick = () => { stare.catalog = catalogDeEditat(); du('catalog'); };
@@ -12976,7 +13399,7 @@ async function ecranArhiva() {
   document.querySelectorAll('[data-sterge-def]').forEach((b) => {
     b.onclick = async () => {
       const l = list.find((x) => x.id === b.dataset.stergeDef);
-      if (!confirm(`Ștergeți definitiv lucrarea „${l.client || 'fără client'}”? Nu se mai poate recupera.`)) return;
+      if (!(await confirma({ titlu: 'Ștergeți definitiv lucrarea?', text: `Ștergeți definitiv lucrarea „${l.client || 'fără client'}”? Nu se mai poate recupera.`, ok: 'Șterge definitiv', pericol: true }))) return;
       try { await K.sterge(l); ecranArhiva(); }
       catch (e) { alert(e.message); }
     };
@@ -14127,7 +14550,7 @@ window.APP = {
   get stare() { return stare; }, du, deseneaza, salveaza, E, $, nr, nrK, poate, K, C, M, citesteTot, scurt,
   htmlIstoric, htmlContBara, htmlConflict, legaConflict, htmlAlocare, legaAlocare, htmlAdminLucrare, legaAdminLucrare, calculeazaLucrarea, antecalculLucrare, campuriLipsa,
   lucrareNoua, stareLucrare, STARI, deschide, htmlCardLucrare, areConsum, timpRelativ, ziISO, citesteNumar, consumLinie, fara,
-  poatePleca, acasa, inapoi, ecranLista, numeEchipaL, textSync, dataActivitate, lucrariProbleme,
+  poatePleca, acasa, inapoi, ecranLista, numeEchipaL, textSync, dataActivitate, lucrariProbleme, motivProblema, aratLipsuri, confirma, panouParola,
 };
 $('#ecran').innerHTML = '<div class="gol-text">Se încarcă…</div>';
 K.porneste().then((s) => {
@@ -14219,10 +14642,15 @@ function htmlItem(x, cur) {
   return `<button type="button" class="mi${x.id === cur ? ' on' : ''}" data-m="${E(x.id)}"${x.id === cur ? ' aria-current="page"' : ''}>
     <span>${E(x.t)}</span>${x.n ? `<span class="mi-n${x.atentie ? ' at' : ''}">${E(x.n)}</span>` : ''}</button>`;
 }
-function htmlGrupuri(cur, fara) {
+function htmlGrupuri(cur, fara, pliat) {
   const m = X().itemiMeniu().filter((x) => !(fara && fara.includes(x.id)));
   const grupuri = [...new Set(m.map((x) => x.grup))];
-  return grupuri.map((g) => `<div class="mg"><div class="mg-t">${E(g)}</div>${m.filter((x) => x.grup === g).map((x) => htmlItem(x, cur)).join('')}</div>`).join('');
+  return grupuri.map((g) => {
+    const items = m.filter((x) => x.grup === g);
+    // v2.9.12 (UX 14 nov, N15): pe telefon traseul stă pliat la sfârșitul foii „Mai mult”; se deschide desfăcut când suntem într-un departament
+    if (pliat && items.some((x) => x.dep)) return `<details class="mg mg-pliat"${items.some((x) => x.id === cur) ? ' open' : ''}><summary class="mg-t">${E(g)}<span class="mg-sag" aria-hidden="true">›</span></summary>${items.map((x) => htmlItem(x, cur)).join('')}</details>`;
+    return `<div class="mg"><div class="mg-t">${E(g)}</div>${items.map((x) => htmlItem(x, cur)).join('')}</div>`;
+  }).join('');
 }
 function meniuLat(cur) {
   let el = $('#meniu-lat');
@@ -14239,6 +14667,12 @@ function meniuLat(cur) {
     <nav class="ml-nav">${htmlGrupuri(cur)}</nav>
     <button type="button" class="ml-cont${cur === 'cont' ? ' on' : ''}" data-m="cont"><b>${E(p.nume || p.email || '')}</b><span>${E(K.ROLURI[p.rol] || '')}</span><span class="sync ${E(s.c)}">${E(s.t)}</span></button>`;
   el.querySelectorAll('[data-m]').forEach((b) => { b.onclick = () => mergi(b.dataset.m); });
+  // v2.9.13 (UX 14 nov, V2): ca pastila din antet, cardul contului deschide direct lucrarea refuzată / în conflict când e una singură
+  el.querySelector('.ml-cont').onclick = () => {
+    const p = A().lucrariProbleme ? A().lucrariProbleme() : [];
+    if (p.length === 1 && cur !== 'cont' && A().poatePleca(() => el.querySelector('.ml-cont').onclick())) { A().stare.revenireLucrare = A().stare.ecran === 'lucrare' ? A().stare.revenireLucrare : A().stare.ecran; A().du('lucrare', p[0]); return; }
+    mergi('cont');
+  };
 }
 function baraJos(cur, vizibil) {
   let el = $('#tab-jos');
@@ -14273,7 +14707,7 @@ function foaieMeniu(cur, inBara) {
   const m = document.createElement('div');
   m.className = 'modal-problema foaie';
   m.innerHTML = `<div class="modal-in" role="dialog" aria-modal="true" aria-label="Meniu"><nav class="ml-nav">
-    <div class="mg"><div class="mg-t">Cont</div>${htmlItem({ id: 'cont', t: 'Contul meu și sincronizarea' }, cur)}</div>${htmlGrupuri(cur, inBara)}</nav>
+    <div class="mg"><div class="mg-t">Cont</div>${htmlItem({ id: 'cont', t: 'Contul meu și sincronizarea' }, cur)}</div>${htmlGrupuri(cur, inBara, true)}</nav>
     <div class="actiuni"><button type="button" class="buton gol" id="x-mm-inchide">Închide</button></div></div>`;
   document.body.appendChild(m);
   document.body.classList.add('cu-modal');
@@ -14523,10 +14957,41 @@ function actualizeaza() {
   deseneazaCale();
   taburiLucrare();
   indicatorSync();
+  bandaProbleme(st);
   const c = cale();
   document.title = (c.length ? c[c.length - 1].t + ' — ' : '') + 'inoINSTALL';
   const tl = $('.tabs-l');
   if (tl) { const f = () => tl.classList.toggle('curge', tl.scrollLeft + tl.clientWidth < tl.scrollWidth - 4); f(); tl.onscroll = f; }
+}
+
+// v2.9.13 (UX 14 nov, V2, B11): lucrările refuzate de server sau în conflict, ca bandă roșie în pagină, sus pe orice ecran
+// (nu peste conținut, ca să nu acopere butoanele), cu numele lucrării și „Deschide”; dispare când se rezolvă
+function bandaProbleme(st) {
+  const veche = $('#banda-refuz');
+  const ecran = $('#ecran');
+  const scoate = () => { if (veche) veche.remove(); };
+  if (!ecran || !A().lucrariProbleme || ['login', 'parola', 'fara_rol', 'cont'].includes(st.ecran)) return scoate();
+  const p = A().lucrariProbleme();
+  if (!p.length) return scoate();
+  // pe fișa lucrării cu probleme, banda ei e deja acolo (conflictul / refuzul, cu butoanele lui)
+  if (p.length === 1 && st.lucrare && st.lucrare.id === p[0].id && (LUCRARE_ECRANE.includes(st.ecran) || st.ecran === 'pv' || st.ecran === 'verifica')) return scoate();
+  const l = p[0];
+  // `#ecran` e urmărit cu MutationObserver (orice schimbare a copiilor recheamă `actualizeaza`): banda se atinge doar când se schimbă ceva
+  const semn = [st.ecran, p.length, l.id, l._eroare || '', l._conflict ? 'c' : ''].join('|');
+  if (veche && veche.dataset.semn === semn && veche.parentNode === ecran && ecran.firstChild === veche) return;
+  scoate();
+  const b = document.createElement('div');
+  b.dataset.semn = semn;
+  b.id = 'banda-refuz'; b.className = 'banda-refuz'; b.setAttribute('role', 'alert');
+  const motiv = A().motivProblema ? A().motivProblema(l) : (l._conflict ? 'în conflict' : 'refuzată de server');
+  b.innerHTML = `<div class="br-text"><b>${E(l.client || 'Lucrare')}</b> · ${E(motiv)}${p.length > 1 ? ` <span class="br-inca">(încă ${p.length - 1})</span>` : ''}</div><button type="button" class="buton gol" id="x-br-deschide">${p.length > 1 ? 'Vezi lista' : 'Deschide'}</button>`;
+  ecran.insertBefore(b, ecran.firstChild);
+  $('#x-br-deschide').onclick = () => {
+    if (p.length > 1) { mergi('cont'); return; }
+    if (!A().poatePleca(() => $('#x-br-deschide').onclick())) return;
+    A().stare.revenireLucrare = st.ecran === 'lucrare' ? st.revenireLucrare : st.ecran;
+    A().du('lucrare', l);
+  };
 }
 
 /* ------------------------------------- sincronizarea, în antet, pe orice ecran ---- */
@@ -14590,7 +15055,7 @@ css.textContent = `
 /* sincronizarea în antet */
 /* ecranul de parolă: butonul „Salvează parola și intră” nu rămâne sub bara de jos pe telefoanele mici */
 body[data-ecran="parola"] #ecran{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
-#sync-antet{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--linie);background:#fff;border-radius:999px;padding:4px 10px;font:inherit;font-size:12.5px;color:var(--gri);cursor:pointer;min-height:36px;max-width:46vw}
+#sync-antet{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--linie);background:#fff;border-radius:999px;padding:4px 10px;font:inherit;font-size:12.5px;color:var(--gri);cursor:pointer;min-height:40px;max-width:46vw}
 #sync-antet .sync-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #sync-antet .sync-p{width:9px;height:9px;border-radius:50%;background:var(--slab);flex:none}
 #sync-antet.bine .sync-p{background:var(--verde)}
@@ -14666,17 +15131,23 @@ body.ui .start-h{margin:14px 0 6px}
 /* bara de meniu pe telefon */
 #tab-jos{position:fixed;left:0;right:0;bottom:0;z-index:31;background:#fff;border-top:1px solid var(--linie);display:flex;padding:4px max(4px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(4px,env(safe-area-inset-left))}
 #tab-jos[hidden]{display:none}
-.tj{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:1px;border:0;background:none;font:inherit;font-size:11px;color:var(--slab);padding:5px 0;cursor:pointer;min-height:50px}
+.tj{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:1px;border:0;background:none;font:inherit;font-size:12px;color:var(--slab);padding:5px 0;cursor:pointer;min-height:50px}
 .tj.on{color:var(--gri);font-weight:700}
 .tj-i{position:relative;display:block;width:24px;height:24px}
 .tj-i svg{width:24px;height:24px}
-.tj-n{position:absolute;top:-4px;left:16px;background:var(--galben);color:var(--gri);border-radius:999px;font-size:10px;font-weight:700;padding:0 5px;line-height:16px}
+.tj-n{position:absolute;top:-4px;left:16px;background:var(--galben);color:var(--gri);border-radius:999px;font-size:11px;font-weight:700;padding:0 5px;line-height:16px}
 body.cu-tab .bara{bottom:calc(58px + env(safe-area-inset-bottom))}
 body.cu-tab .wrap{margin-bottom:64px}
 /* meniul, în foaie (telefon) sau fix (calculator) */
 .ml-nav .mg{margin-top:8px}
 .mg-t{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--slab);font-weight:700;padding:6px 10px 3px}
-.mi{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;font:inherit;font-size:14.5px;color:var(--text);text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer;min-height:40px}
+.mi{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;font:inherit;font-size:14.5px;color:var(--text);text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer;min-height:44px}
+/* v2.9.12 (UX 14 nov, N15): traseul pliat în „Mai mult” */
+.mg-pliat > summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:6px 10px;border-radius:8px}
+.mg-pliat > summary::-webkit-details-marker{display:none}
+.mg-pliat > summary:hover{background:#ececea}
+.mg-sag{font-size:20px;line-height:1;text-transform:none;letter-spacing:0;transition:transform .15s}
+.mg-pliat[open] > summary .mg-sag{transform:rotate(90deg)}
 .mi:hover{background:#ececea}
 .mi.on{background:var(--gri);color:#fff}
 .mi-n{margin-left:auto;font-size:11.5px;font-weight:700;background:#e6e6e3;color:var(--gri);border-radius:999px;padding:1px 7px}
@@ -14710,7 +15181,7 @@ body.cu-tab .wrap{margin-bottom:64px}
 .tab-l td.tl-client{max-width:240px;overflow:hidden;text-overflow:ellipsis}
 /* tabelul încape în coloana lui: textele lungi se scurtează (întregi la trecerea mouse-ului), starea poate trece pe două rânduri */
 .tab-l td{max-width:120px;overflow:hidden;text-overflow:ellipsis}
-.tab-l td:has(.stare){white-space:normal;max-width:140px}
+.tab-l td:has(.stare){white-space:normal;max-width:180px}   /* v2.9.14: la 12 px, „trimisă · de validat” încape pe un rând */
 .tab-l td .stare{white-space:normal;text-align:left}
 .tab-l th{white-space:nowrap}
 @media (max-width:1599px){.tab-l td.tl-client small{display:none}.tab-l td.tl-client{max-width:160px}
@@ -14731,7 +15202,7 @@ body.cu-tab .wrap{margin-bottom:64px}
 .tab-l tr.sel td{background:var(--galben-deschis)}
 .tab-l tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--gri)}
 .tab-l tr:focus-visible{outline:2px solid var(--gri);outline-offset:-2px}
-.tab-l .stare,.md-det .stare{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:6px;background:var(--galben-deschis);color:var(--gri);white-space:nowrap}
+.tab-l .stare,.md-det .stare{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:2px 7px;border-radius:6px;background:var(--galben-deschis);color:var(--gri);white-space:nowrap}
 .tab-l .stare.raportat,.md-det .stare.raportat{background:var(--verde-deschis);color:var(--verde-text)}
 .tab-l .stare.lucru,.md-det .stare.lucru{background:#eef0f4;color:#3b4a6b}
 .tab-l .stare.validat,.md-det .stare.validat{background:var(--verde);color:var(--gri)}
@@ -14757,14 +15228,14 @@ body.cu-tab .wrap{margin-bottom:64px}
 .coada-rand span.motiv-resp{color:var(--rosu)}
 .coada-toate{display:block;width:100%;border:0;border-top:1px solid #f0f0ee;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--verde-text);padding:8px 12px;text-align:left;cursor:pointer}
 .tile.coada-cap{justify-content:flex-start}
-.nav-tiles{gap:6px}
+.nav-tiles{gap:8px;grid-template-columns:minmax(0,1fr);margin-top:14px}
 .nav-tiles .tile{min-height:46px;padding:8px 11px;border-radius:10px;box-shadow:none;flex-direction:row;justify-content:space-between;align-items:center;gap:8px}
 .nav-tiles .tile-nr{order:2;font-size:13px;margin:0;color:var(--slab)}
 .nav-tiles .tile-t{font-size:14px}
 .nav-tiles .tile-s{display:none}
 /* antetul: pe telefon, titlul pe un rând; logo-ul e înlocuit de bara de meniu și de cale */
 body.ui header h1,body.ui header .sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.ui .b-problema{padding:4px 9px;min-height:30px}
+body.ui .b-problema{padding:6px 10px;min-height:36px}
 body.ui[data-ecran="lista"] .bara{display:none}
 .buton.respinge{background:var(--rosu);border-color:var(--rosu);color:#fff}
 @media (max-width:999px){body.ui header .logo{display:none}}
@@ -14776,10 +15247,16 @@ body.ui[data-ecran="lista"] .bara{display:none}
 .v-q.on{background:var(--galben-deschis);box-shadow:inset 3px 0 0 var(--gri)}
 .dec-butoane{display:flex;flex-direction:column-reverse;gap:8px;margin-top:10px}
 .dec-butoane #x-v-sari{order:-1}
-.pill{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:999px;background:#f1f1f2;color:var(--slab)}
+.pill{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:999px;background:#f1f1f2;color:var(--slab)}
 .pill.rau{background:#fdecea;color:var(--rosu)}
 /* foaia de respingere și meniul „Mai mult” */
 .foaie .ml-nav{max-height:60vh;overflow:auto}
+/* v2.9.13: banda lucrărilor refuzate / în conflict, în pagină */
+.banda-refuz{display:flex;align-items:center;gap:10px;margin:12px 0 0;padding:9px 12px;border-radius:10px;background:#fdecea;border:1px solid #efb7b2;color:var(--rosu);font-size:14px;line-height:1.4}
+.banda-refuz .br-text{flex:1;min-width:0}
+.banda-refuz .br-inca{color:var(--slab)}
+.banda-refuz .buton{flex:none;min-height:40px;padding:6px 12px;background:#fff}
+body.ui[data-ecran="lucrare"] #ecran > .banda-refuz,body.ui[data-ecran="admin"] #ecran > .banda-refuz{grid-column:1 / -1}
 
 @media (min-width:1000px){
   body.ui{padding-left:236px}
