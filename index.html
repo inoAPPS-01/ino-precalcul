@@ -3991,7 +3991,7 @@ function genereazaPDF(l, rez) {
     font('bold', prima ? 15 : 10);
     doc.text(final ? 'Raport de lucrare' : 'Fișă de materiale', PAG.w - PAG.m, PAG.m + (prima ? 5 : 4), { align: 'right' });
     font('normal', prima ? 9 : 8, CUL.slab);
-    doc.text(final ? 'Antecalcul și consum real' : 'Antecalcul — consumul se completează pe șantier',
+    doc.text(final ? 'Pre-calcul și consum real' : 'Pre-calcul — consumul se completează pe șantier',
       PAG.w - PAG.m, PAG.m + (prima ? 10 : 8), { align: 'right' });
     const yb = PAG.m + hLogo + 1.5;
     doc.setFillColor(...CUL.galben); doc.rect(PAG.m, yb, LAT, 1.1, 'F');
@@ -4008,7 +4008,7 @@ function genereazaPDF(l, rez) {
     ['Client', l.client], ['Adresa', l.adresa],
     ['Echipa', l.echipa], ['Estimare făcută de', l.persoana],
     // înghețat = ziua în care a început raportarea; altfel, ziua ultimei salvări
-    l.antecalcul ? ['Antecalcul înghețat din', dataRo(l.antecalcul.data)] : ['Antecalcul din', dataRo(l.modificat || l.creat)],
+    l.antecalcul ? ['Pre-calcul înghețat din', dataRo(l.antecalcul.data)] : ['Pre-calcul din', dataRo(l.modificat || l.creat)],
   ];
   if (final) date.push(['Raportat de', rap.persoana], ['Data terminării', dataRo(rap.data)]);
   // conturile care au făcut operațiunile, din istoricul lucrării (doar cu cont: scris de server)
@@ -4017,8 +4017,8 @@ function genereazaPDF(l, rez) {
   const ultim = (re) => ist.filter((e) => re.test((e && e.actiune) || '')).slice(-1)[0];
   const ROL = { admin: 'Admin', lider: 'lider', membru: 'membru', sales: 'Sales', gestiune: 'Gestiune' };
   const cont = (e) => (e ? `${e.de || ''}${e.rol ? ' (' + (ROL[e.rol] || e.rol) + ')' : ''}, ${dataRo(e.data)}` : '');
-  const eA = ultim(/^a făcut antecalculul$/), eR = ultim(/^a completat consumul$|^a trimis raportul$/), eV = ultim(/^a validat raportul$/);
-  if (eA) date.push(['Antecalcul făcut din contul', cont(eA)]);
+  const eA = ultim(/^a făcut (antecalculul|pre-calculul)$/), eR = ultim(/^a completat consumul$|^a trimis raportul$/), eV = ultim(/^a validat raportul$/);
+  if (eA) date.push(['Pre-calcul făcut din contul', cont(eA)]);
   if (eR && final) date.push(['Consum raportat din contul', cont(eR)]);
   if (eV && rap.validat) date.push(['Validat din contul', cont(eV)]);
   const col = LAT / 2;
@@ -4203,7 +4203,7 @@ function genereazaPDF(l, rez) {
     loc(6 + doc.splitTextToSize(curat(ver[0].text), LAT - 22).length * 3.8 + 2.5);
     font('bold', 10.5);
     doc.setFillColor(...CUL.galben); doc.rect(PAG.m, y - 3.6, 1.4, 4.6, 'F');
-    doc.text('Observații din antecalcul', PAG.m + 3.5, y);
+    doc.text('Observații din pre-calcul', PAG.m + 3.5, y);
     y += 6;
     ver.forEach((v) => {
       font('normal', 8.3);
@@ -6474,13 +6474,15 @@ function formLipsa(l) {
 /* ------------------------------------------------------------------ *
  * Fișa lucrării: punctul de intrare pentru orice tip și orice rol
  * ------------------------------------------------------------------ */
-// textul stării: la lucrările fără pre-calcul, „de executat” / „în execuție” în loc de „antecalculat”
+// textul stării: la lucrările fără pre-calcul, „de executat” / „în lucru” în loc de „calculată”
 // cu cont, stările au aceleași nume peste tot: pe etichete, în filtre, în cozi (glosarul din 26 octombrie)
+// v2.9.11 (UX 14 nov, N1): un singur nume pe stare — „de calculat”, „în lucru”, „trimisă · de validat”,
+// „la verificare”, „aprobată · așteaptă certificatul”; filtrele, cozile și departamentele folosesc aceleași cuvinte
 const NUME_STARI = {
-  necalculat: { t: 'fără pre-calcul', c: 'gri' }, planificat: { t: 'planificată', c: 'gri' }, antecalcul: { t: 'de executat', c: '' },
-  in_lucru: { t: 'în execuție', c: 'lucru' }, faza_intermediara: { t: 'în execuție · zi închisă', c: 'lucru' }, respins: { t: 'respinsă · de corectat', c: 'rau' },
-  raportat: { t: 'raportată', c: 'raportat' }, validat: { t: 'validată · la verificare', c: 'validat' },
-  inchis_tehnic: { t: 'închisă tehnic · așteaptă certificatul', c: 'validat' }, inchis: { t: 'închisă', c: 'validat' },
+  necalculat: { t: 'de calculat', c: 'gri' }, planificat: { t: 'planificată', c: 'gri' }, antecalcul: { t: 'de executat', c: '' },
+  in_lucru: { t: 'în lucru', c: 'lucru' }, faza_intermediara: { t: 'în lucru · zi închisă', c: 'lucru' }, respins: { t: 'respinsă · de corectat', c: 'rau' },
+  raportat: { t: 'trimisă · de validat', c: 'raportat' }, validat: { t: 'la verificare', c: 'validat' },
+  inchis_tehnic: { t: 'aprobată · așteaptă certificatul', c: 'validat' }, inchis: { t: 'închisă', c: 'validat' },
 };
 const STARE_TEXT = (l) => {
   const s = A().stareLucrare(l);
@@ -6489,8 +6491,8 @@ const STARE_TEXT = (l) => {
   if (K.activ && K.serverV2 && s === 'inchis' && decizieT(l) === 'aprobat' && tipL(l) === 'interventie') return { t: 'aprobată la plată', c: 'validat' };
   if (K.activ && K.serverV2 && NUME_STARI[s]) return NUME_STARI[s];
   if (tipL(l) !== 'montaj_nou' && s === 'antecalcul') return { t: 'de executat', c: '' };
-  if (tipL(l) !== 'montaj_nou' && s === 'in_lucru') return { t: 'în execuție', c: 'lucru' };
-  if (s === 'validat' && K.activ) return { t: 'validat · în verificare tehnică', c: 'validat' };
+  if (tipL(l) !== 'montaj_nou' && s === 'in_lucru') return { t: 'în lucru', c: 'lucru' };
+  if (s === 'validat' && K.activ) return NUME_STARI.validat;
   return A().STARI[s] || { t: s, c: '' };
 };
 function htmlTipScurt(l) {
@@ -6545,7 +6547,8 @@ function ecranLucrare() {
     + htmlNefunctional(l) + htmlFacturatApoiDecis(l) + htmlStocLipsa(l);
 
   const montaj = t === 'montaj_nou' ? `<section class="card"><h2>Pre-calcul și consum</h2><div class="corp">
-      ${rz ? `<div class="ajutor">${l.antecalcul ? 'Antecalcul înghețat la începerea raportării.' : 'Antecalcul salvat.'}${rap.finalizat ? ' Raport de consum trimis.' : ''}</div>` : '<div class="ajutor">Pre-calculul nu e făcut încă.</div>'}
+      ${rz ? `<div class="ajutor">${l.antecalcul ? 'Pre-calcul înghețat la începerea raportării.' : 'Pre-calcul salvat.'}${rap.finalizat ? ' Raport de consum trimis.' : ''}</div>` : '<div class="ajutor">Pre-calculul nu e făcut încă.</div>'}
+      ${rap.finalizat && !rap.validat ? `<div class="mesaj info" id="x-raport-trimis">Raport trimis de ${E(rap.finalizat.de || '')} pe ${E(dataRo(rap.finalizat.data))} — așteaptă validarea liderului de echipă.</div>` : ''}
       <div class="actiuni">${A().poate('editeaza', l) ? '<button class="buton gol" id="x-form">Formularul de pre-calcul</button>' : ''}
         ${rz ? '<button class="buton gol" id="x-rezultat">Lista de materiale</button>' : ''}
         ${(l.antecalcul || l.raportat) && K.rol() !== 'partener' ? '<button class="buton gol" id="x-raport">Raportul de consum</button>' : ''}</div></div></section>` : '';
@@ -6579,7 +6582,7 @@ function ecranLucrare() {
         ${ed && (!pv || pv.refacere) ? `<button class="buton" id="x-pv"${lipsa.length ? ' disabled' : ''}>${ciornaPVLa(l) ? 'Continuă procesul verbal' : pv ? 'Semnează din nou PV cu clientul' : 'Semnează PV cu clientul'}</button>` : ''}
         ${ed && pv && !pv.refacere ? '<button class="buton gol" id="x-pv-refa">Refă semnătura</button>' : ''}
         ${pv ? '<button class="buton gol" id="x-pv-pdf">PV în PDF</button>' : ''}
-        ${t === 'montaj_nou' && ed && !l.fazaIntermediara && !pv ? '<button class="buton gol" id="x-faza">Închide ziua (PV intermediar)</button>' : ''}
+        ${t === 'montaj_nou' && ed && !l.fazaIntermediara && !pv ? '<button class="buton gol" id="x-faza">Închide ziua (continuați mâine)</button>' : ''}
         ${l.fazaIntermediara ? '<button class="buton gol" id="x-pvi">PV intermediar</button>' : ''}
         ${t === 'montaj_nou' && ed && l.fazaIntermediara ? '<button class="buton" id="x-reia">Reia lucrul</button>' : ''}
       </div></div></section>`;
@@ -6588,7 +6591,7 @@ function ecranLucrare() {
   const verif = htmlVerificari(l);
   // alocarea membrilor: la montaj e pe lista de materiale; la celelalte tipuri, aici
   const alocare = t !== 'montaj_nou' ? A().htmlAlocare(l) : '';
-  $('#ecran').innerHTML = A().htmlConflict(l) + bannere + antet + htmlDateClient(l) + alocare + montaj + form + poze + sectPV + verif + htmlZile(l) + A().htmlIstoric(l) + A().htmlAdminLucrare(l);
+  $('#ecran').innerHTML = A().htmlConflict(l) + htmlMesajEcran() + bannere + antet + htmlDateClient(l) + alocare + montaj + form + poze + sectPV + verif + htmlZile(l) + A().htmlIstoric(l) + A().htmlAdminLucrare(l);
 
   // bara de jos: salvare și trimitere / validare, pentru lucrările fără raport de consum
   const butoane = [];
@@ -6596,7 +6599,8 @@ function ecranLucrare() {
   if (t !== 'montaj_nou' || !l.antecalcul) {
     // la montaj, membrul trimite din ecranul de consum (acolo se îngheață și antecalculul)
     if (K.activ && r === 'membru' && ed && !rap.finalizat && t !== 'montaj_nou') butoane.push('<button class="buton" id="x-trimite">Trimite</button>');
-    if (K.activ && eEchipa(l) && r !== 'membru' && !rap.validat && t !== 'montaj_nou') butoane.push('<button class="buton" id="x-valid">Validează</button>');
+    // v2.9.11 (UX 14 nov, L6): pe lucrarea respinsă rămâne doar „Retrimite la verificare” (pasul următor), care face același lucru
+    if (K.activ && eEchipa(l) && r !== 'membru' && !rap.validat && t !== 'montaj_nou' && decizieT(l) !== 'respins') butoane.push('<button class="buton" id="x-valid">Validează</button>');
   }
   if (K.activ && eEchipa(l) && r !== 'membru' && (rap.validat || rap.finalizat) && t !== 'montaj_nou' && !['inchis', 'inchis_tehnic'].includes(A().stareLucrare(l))) butoane.push('<button class="buton gol" id="x-redeschide">Redeschide</button>');
   if (t === 'vizita_tehnica' && pv && A().poate('creeaza')) butoane.push('<button class="buton gol" id="x-din-vizita">Montaj din vizită</button>');
@@ -6662,10 +6666,14 @@ document.addEventListener('change', (ev) => {
 // Ce are de făcut echipa acum, pe lucrarea deschisă (null = nimic de propus; „Validează” rămâne în bară)
 function pasUrmator(l, ed) {
   const r = K.rol();
-  if (!ed || !['lider', 'mentenanta', 'membru', 'admin'].includes(r)) return null;
+  if (!['lider', 'mentenanta', 'membru', 'admin'].includes(r)) return null;
   const t = tipL(l);
   const rap = l.raportat || {};
-  if (rap.finalizat || rap.validat) return null;
+  if (rap.validat) return null;
+  // v2.9.11 (UX 14 nov, N9/L1): raportul trimis de membru așteaptă liderul (fișa nu mai e editabilă, dar pasul lui există);
+  // la montaj „Validează” e în ecranul de consum, deci fișa îi dă liderului pasul de acolo. La celelalte tipuri e deja în bară.
+  if (rap.finalizat) return t === 'montaj_nou' && K.activ && A().poate('valideaza', l) ? { id: 'valideaza', t: 'Verifică și validează raportul' } : null;
+  if (!ed) return null;
   // la montaj, întâi pre-calculul (materialele), apoi pozele
   if (t === 'montaj_nou' && !l.antecalcul && !l.rezumatSalvat && A().poate('editeaza', l)) return { id: 'precalcul', t: 'Fă pre-calculul' };
   // ziua e închisă cu PV intermediar: întâi se reia lucrul (abia apoi poze, PV final)
@@ -6677,11 +6685,11 @@ function pasUrmator(l, ed) {
   // v2.9.2: lucrarea respinsă de Tehnic: după corectură, pasul următor e retrimiterea la verificare
   // (nu „Trimite codul clientului”: codul a fost confirmat la prima trimitere, PV-ul e același)
   if (decizieT(l) === 'respins') {
-    if (t === 'montaj_nou') return { id: 'raport', t: 'Retrimite la verificare (din Consum)' };
+    if (t === 'montaj_nou') return { id: 'raport', t: 'Retrimite la verificare' };
     return { id: r === 'membru' ? 'retrimite' : 'revalideaza', t: 'Retrimite la verificare' };
   }
-  const st = A().stare;
-  if (l.pv && !l.pv.confirmat && K.serverV3 && !st.codNeconfigurat && canaleCod().length && !(st.codTrimis || {})[l.id]) return { id: 'cod', t: 'Trimite codul clientului' };
+  // v2.9.11 (UX 14 nov, M1, L2; decizie Clau): codul clientului nu mai e pas în bară (butonul doar derula la secțiune);
+  // după PV fișa derulează la „Confirmare prin cod”, iar la validare se întreabă dacă PV-ul nu e confirmat
   if (t === 'montaj_nou' && (l.antecalcul || l.rezumatSalvat) && r !== 'membru') return { id: 'raport', t: 'Raportează consumul' };
   if (t === 'montaj_nou' && (l.antecalcul || l.rezumatSalvat) && r === 'membru') return { id: 'raport', t: 'Raportează consumul și trimite' };
   return null;
@@ -6746,7 +6754,17 @@ function aratPVIntermediar(l, x) {
 
 function marcaj() { return { de: (K.profil && (K.profil.nume || K.profil.email)) || 'pe acest telefon', id: K.profil && K.profil.id, data: new Date().toISOString() }; }
 
-function gataDeTrimis(l, valid) {
+// v2.9.11 (UX 14 nov, L6, M13): avertismentul pentru PV-ul neconfirmat prin cod, ca text (se pune în aceeași întrebare cu validarea)
+function avertismentCod(l) {
+  return l.pv && !l.pv.confirmat && K.serverV3 && canaleCod().length && !A().stare.codNeconfigurat ? 'Procesul verbal nu e confirmat prin codul trimis clientului.' : '';
+}
+// intrebarea de validare / trimitere, într-o singură fereastră (cu avertismentul codului, dacă e cazul)
+function intrebareTrimitere(l, valid) {
+  const av = valid ? avertismentCod(l) : '';
+  if (valid) return av ? `${av} Validați oricum? Lucrarea ajunge la verificarea tehnică.` : 'Validați lucrarea? Ajunge la verificarea tehnică.';
+  return 'Trimiteți lucrarea? Liderul echipei o verifică și o validează.';
+}
+function gataDeTrimis(l, valid, faraConfirm) {
   const lipsa = [];
   const e = etapeLipsa(l);
   if (e.length) lipsa.push(`pozele obligatorii: ${e.map((x) => x.t).join('; ')}`);
@@ -6765,8 +6783,7 @@ function gataDeTrimis(l, valid) {
     return false;
   }
   // PV semnat, dar neconfirmat prin codul clientului: validarea cere o confirmare (B6)
-  if (valid && l.pv && !l.pv.confirmat && K.serverV3 && canaleCod().length && !A().stare.codNeconfigurat
-    && !confirm('Procesul verbal nu e confirmat prin codul trimis clientului. Validați oricum?')) return false;
+  if (valid && !faraConfirm && avertismentCod(l) && !confirm(avertismentCod(l) + ' Validați oricum?')) return false;
   return true;
 }
 
@@ -6852,7 +6869,7 @@ function htmlCodPV(l, ed) {
     <div class="ajutor" style="margin-top:2px">Clientul primește un cod de 6 cifre și vi-l spune. Așa se confirmă că el a semnat.</div>
     ${canale.length > 1 ? `<div class="chips" style="margin-top:8px">${canale.map((c) => `<button type="button" class="chip${c === canal ? ' ales' : ''}" data-canal="${c}"${c === canal ? ' aria-pressed="true"' : ' aria-pressed="false"'}>${NUME_CANAL_M[c]}</button>`).join('')}</div>` : ''}
     <div class="neg-act">${peTel ? camp('cod-tel', 'Telefonul clientului', implicit, 'type="tel" inputmode="tel" autocomplete="off"') : camp('cod-email', 'E-mailul clientului', implicit, 'type="email" inputmode="email" autocomplete="off"')}</div>
-    <button class="buton gol" id="x-cod-trimite">${trimis ? 'Retrimite codul' : 'Trimite codul prin ' + NUME_CANAL[canal]}</button>
+    <button class="buton gol" id="x-cod-trimite">${trimis ? 'Retrimite codul' : 'Trimite codul clientului prin ' + NUME_CANAL[canal]}</button>
     ${trimis ? `<div class="mesaj info">Cod trimis prin ${E(NUME_CANAL[trimis.canal])} la ${E(trimis.catre)}. Valabil 30 de minute.</div>
       <div class="neg-act">${camp('cod-pv', 'Codul primit de client', '', 'inputmode="numeric" autocomplete="one-time-code" maxlength="9"')}</div>
       ${(st.codGresit || {})[l.id] ? `<div class="mesaj warn" role="alert" id="x-cod-gresit">${E(st.codGresit[l.id])}</div>` : ''}
@@ -6955,8 +6972,8 @@ function legaLucrare(l) {
   };
   const trimite = (valid) => {
     salveazaTot();
-    if (!gataDeTrimis(l, valid)) return;
-    if (!confirm(valid ? 'Validați lucrarea? Ajunge la verificarea tehnică.' : 'Trimiteți lucrarea? Liderul echipei o verifică și o validează.')) return;
+    if (!gataDeTrimis(l, valid, true)) return;
+    if (!confirm(intrebareTrimitere(l, valid))) return;
     const rap = Object.assign({}, l.raportat || {});
     if (!rap.persoana) rap.persoana = (K.profil && (K.profil.nume || K.profil.email)) || '';
     if (!rap.data) rap.data = azi();
@@ -6964,7 +6981,10 @@ function legaLucrare(l) {
     if (valid) rap.validat = marcaj();
     delete rap.redeschis; delete rap.deRetrimis;
     l.raportat = rap;
-    A().salveaza(l); du('lista');
+    A().salveaza(l);
+    // v2.9.11 (UX 14 nov, L5, M5): înapoi de unde a venit (Start), cu confirmarea a ce s-a întâmplat
+    mesajUrmator(valid ? `${l.client || 'Lucrarea'}: validată, trimisă la verificarea tehnică.` : `${l.client || 'Lucrarea'}: trimisă liderului de echipă.`);
+    laRevenire();
   };
   if ($('#x-pas')) $('#x-pas').onclick = () => {
     const p = $('#x-pas').dataset.pas;
@@ -6972,13 +6992,14 @@ function legaLucrare(l) {
     if (p === 'poze') return $('#x-poze') && $('#x-poze').click();
     if (p === 'pv') return $('#x-pv') && $('#x-pv').click();
     if (p === 'raport') return $('#x-raport') ? $('#x-raport').click() : A().du('raport', l);
+    if (p === 'valideaza') { if (!A().poatePleca()) return; return A().du('raport', l); }
     if (p === 'precalcul') { if (!A().poatePleca()) return; return A().du('form', l); }
     if (p === 'revalideaza') return $('#x-valid') ? $('#x-valid').click() : trimite(true);
     if (p === 'retrimite') return $('#x-trimite') ? $('#x-trimite').click() : trimite(false);
     const goale = ['#x-i_constatat', '#x-i_efectuat', '#x-i_vina', '#x-i_sursa', '#x-i_lasat', '#x-u_ech', '#x-p_online', '#x-v_bransament', '#x-v_montaj', '#x-v_inaltime', '#x-v_distanta']
       .map((q) => $(q)).filter((x) => x && (x.type === 'checkbox' ? !x.checked : !String(x.value || '').trim()));
     const cantGresita = [...document.querySelectorAll('[id^="x-i_m_cant_"], [id^="x-u_m_cant_"]')].find((x) => x.value.trim() && !(A().citesteNumar(x.value) > 0));
-    const tinta = p === 'cod' ? $('.cod-pv') : (goale[0] || cantGresita || $('#x-i_constatat, #x-u_ech, #x-p_online, #x-v_bransament'));
+    const tinta = goale[0] || cantGresita || $('#x-i_constatat, #x-u_ech, #x-p_online, #x-v_bransament');
     if (p === 'form') { const ls = formLipsa(l); if (ls.length) arataLipsa(ls); }
     if (tinta) { A().stare.tabFisa = 'detalii'; tinta.scrollIntoView({ behavior: 'smooth', block: 'center' }); const c = tinta.querySelector ? (tinta.matches('input,select,textarea') ? tinta : tinta.querySelector('input')) : null; if (c) setTimeout(() => c.focus(), 350); }
   };
@@ -7069,9 +7090,9 @@ function htmlVerificari(l) {
 
   // tehnic
   const vt = ve.tehnic || {};
-  const stariT = [{ v: 'in_analiza', t: 'În analiză' }, { v: 'aprobat', t: t === 'interventie' ? 'Aprobat la plată' : 'Aprobat' },
+  const stariT = [{ v: 'in_analiza', t: 'La verificare (fără decizie)' }, { v: 'aprobat', t: t === 'interventie' ? 'Aprobat la plată' : 'Aprobat' },
     { v: 'respins', t: 'Respins (se întoarce la echipă)' }].concat(t === 'interventie' ? [{ v: 'neaprobat', t: 'Neaprobat la plată' }] : []);
-  const textT = (s) => (stariT.find((x) => x.v === s) || {}).t || 'nedecis';
+  const textT = (s) => (stariT.find((x) => x.v === s) || {}).t || 'la verificare';
   // lucrarea închisă definitiv (certificat de prosumator sau facturată): decizia o mai schimbă doar Adminul (N3)
   const tehnicBlocat = inchisaDefinitiv(l) && K.rol() !== 'admin';
   if (vizibil) {
@@ -7232,9 +7253,12 @@ function ecranPoze() {
           <label class="buton gol"><input type="file" accept="image/*,application/pdf" multiple data-etapa="${E(e.k)}" hidden>Galerie</label></div>` : ''}
       </div></section>`;
     }).join('') + (vedeAI() ? htmlAI(l) : '');
-  bara('<button class="buton gol" id="x-gata-poze">Înapoi la fișa lucrării</button>');
+  // v2.9.11 (UX 14 nov, L10, M9): cu toate pozele obligatorii făcute, butonul mare duce la pasul următor (PV-ul)
+  const spreP = ed && !etapeLipsa(l).length && !l.pv && !l.fazaIntermediara && tipL(l) !== 'vizita_tehnica';
+  bara('<button class="buton gol" id="x-gata-poze">Înapoi la fișa lucrării</button>' + (spreP ? '<button class="buton pas-urmator" id="x-poze-pv">Continuă: semnează PV-ul cu clientul</button>' : ''));
   if (vedeAI()) legaAI(l);
   $('#x-gata-poze').onclick = () => A().du('lucrare', l);
+  if ($('#x-poze-pv')) $('#x-poze-pv').onclick = () => { A().stare.pvMod = 'final'; A().du('pv', l); };
   document.querySelectorAll('input[type=file][data-etapa]').forEach((inp) => {
     inp.onchange = async () => {
       const f = [...inp.files];
@@ -8429,11 +8453,11 @@ const eAEchipeiMele = (l) => !!K.profil && l._echipa_id === K.profil.echipa_id;
 
 // Cozile: ce așteaptă după fiecare rol. `cine` = rolurile care o văd.
 const COZI = {
-  verificare: { t: 'De verificat tehnic', s: 'lucrări validate de echipă, fără decizie', cine: ['admin', 'tehnic'],
+  verificare: { t: 'De verificat', s: 'lucrări validate de echipă, fără decizie', cine: ['admin', 'tehnic'],
     f: (l) => stL(l) === 'validat' && !DECISE.includes(decizieT(l)), ecran: 'verifica', ordine: (a, b) => ordineDep(a, b) },
   respinse: { t: 'Respinse, de corectat', s: 'întoarse de verificarea tehnică', cine: ['admin', 'tehnic', 'lider', 'mentenanta', 'membru', 'planificare', 'partener'],
     f: (l) => stL(l) === 'respins' },
-  deValidat: { t: 'Rapoarte de validat', s: 'trimise de membri, așteaptă liderul', cine: ['admin', 'lider', 'mentenanta'],
+  deValidat: { t: 'De validat', s: 'trimise de membri, așteaptă liderul', cine: ['admin', 'lider', 'mentenanta'],
     f: (l) => A().poate('valideaza', l) && !!(l.raportat || {}).finalizat && !(l.raportat || {}).validat },
   azi: { t: 'Planificate azi', s: 'lucrările echipei pentru azi', cine: ['lider', 'mentenanta', 'membru'],
     // cele respinse stau doar în „Respinse, de corectat”, cu motivul: o lucrare apare o singură dată pe Start
@@ -8467,7 +8491,7 @@ const COZI = {
   // „tab” = unde se deschide lucrarea (anexa e pe Detalii, raportul pe Consum)
   anexe: { t: 'Anexe de facturat clientului', s: 'cablu și materiale peste contract', cine: ['admin', 'facturare', 'sales'], info: ['sales'], tab: 'anexa',
     f: (l) => !!(l.anexa && l.anexa.semnat && (l.anexa.linii || []).length) && !['facturat', 'achitat'].includes((((l.verificari || {}).facturare) || {}).anexa || '') },
-  raportate: { t: 'Lucrări raportate', s: 'cu raportul de consum', cine: ['sales', 'gestiune'], info: ['sales', 'gestiune'], tab: 'raport',
+  raportate: { t: 'Lucrări trimise', s: 'cu raportul de consum', cine: ['sales', 'gestiune'], info: ['sales', 'gestiune'], tab: 'raport',
     f: (l) => ['raportat', 'validat', 'inchis_tehnic', 'inchis'].includes(stL(l)) },
 };
 // v2.9.2: Mentenanța vede toate lucrările (istoricul clienților), dar cozile de execuție arată doar echipa ei
@@ -8492,14 +8516,15 @@ const DEPARTAMENTE = [
       // v2.9.2: planificatele (cu dată, neîncepute) separat de cele începute (T1 #12)
       const p = L.filter((l) => ['planificat', 'antecalcul', 'necalculat'].includes(stL(l))).length;
       const lucru = L.length - r - v - p, x = [];
-      if (p) x.push(`${p} ${p === 1 ? 'planificată' : 'planificate'}`);
+      // v2.9.11 (UX 14 nov, N8): restanțele sunt dintre planificate, deci se scriu „din care”, ca suma să dea numărul insignei
+      const n = L.filter(rest).length;
+      if (p) x.push(`${p} ${p === 1 ? 'planificată' : 'planificate'}${n ? ` (din care ${n} ${n === 1 ? 'restanță' : 'restanțe'})` : ''}`);
       if (lucru || !p) x.push(`${lucru} în lucru`);
       if (v) x.push(`${v} de validat`);
       if (r) x.push(`${r} ${r === 1 ? 'respinsă' : 'respinse'}`);
-      const n = L.filter(rest).length; if (n) x.push(`${n} ${n === 1 ? 'restanță' : 'restanțe'}`);
       return x.join(' · ');
     } },
-  { k: 'verificare', t: 'Verificare tehnică', cine: ['tehnic'], f: (l) => COZI.verificare.f(l), s: (L) => `${L.length} de verificat`, ecran: 'verifica' },
+  { k: 'verificare', t: 'Verificare', cine: ['tehnic'], f: (l) => COZI.verificare.f(l), s: (L) => `${L.length} de verificat`, ecran: 'verifica' },
   { k: 'prosumator', t: 'Prosumator', cine: ['prosumator'], f: (l) => COZI.prosumator.f(l), s: (L) => `${L.length} ${L.length === 1 ? 'dosar' : 'dosare'}` },
   { k: 'facturare', t: 'Facturare', cine: ['facturare'], f: (l) => COZI.deFacturat.f(l) || COZI.anexe.f(l), s: (L) => `${L.length} de facturat` },
   // v2.9.2: „definitiv”: cardul „Închise” din Lucrări are și pe cele aprobate care așteaptă certificatul (T1 #12)
@@ -8525,10 +8550,11 @@ function textDep(d, L) {
   const tot = numarDep(d, L);
   if (!tot) return 'nimic acum';
   if (d.k === 'executie' && n && tot > L.length && ascunseDep(d) > 0) {
-    const x = [`${tot - (n.executie_respinse || 0) - (n.executie_de_validat || 0)} în lucru`];
+    // v2.9.11 (UX 14 nov, N8): același șablon ca mai sus (serverul nu desparte planificatele de cele în lucru)
+    const rs = n.executie_restante || 0;
+    const x = [`${tot - (n.executie_respinse || 0) - (n.executie_de_validat || 0)} planificate/în lucru${rs ? ` (din care ${rs} ${rs === 1 ? 'restanță' : 'restanțe'})` : ''}`];
     if (n.executie_de_validat) x.push(`${n.executie_de_validat} de validat`);
     if (n.executie_respinse) x.push(`${n.executie_respinse} ${n.executie_respinse === 1 ? 'respinsă' : 'respinse'}`);
-    if (n.executie_restante) x.push(`${n.executie_restante} ${n.executie_restante === 1 ? 'restanță' : 'restanțe'}`);
     return x.join(' · ');
   }
   if (tot > L.length) return d.s(new Array(tot).fill(null).map((_, i) => L[i] || {}));
@@ -8609,13 +8635,13 @@ function ecranStart() {
   const faraFirma = r === 'partener' && K.profil && !K.profil.partener_id;
   // v2.9.10 (test pe serverul real, 14 nov): firma dezactivată de Admin lăsa Start-ul gol, fără explicație
   const firmaInactiva = r === 'partener' && !faraFirma && K.firmaInactiva;
-  $('#ecran').innerHTML = A().htmlContBara()
+  $('#ecran').innerHTML = A().htmlContBara() + htmlMesajEcran()
     + (faraFirma ? '<div class="mesaj warn" style="margin-top:12px" id="x-fara-firma"><b>Contul nu e legat de nicio firmă parteneră</b>, deci nu vedeți nicio lucrare. Cereți Adminului să aleagă firma la contul dvs.</div>' : '')
     + (firmaInactiva ? '<div class="mesaj warn" style="margin-top:12px" id="x-firma-inactiva"><b>Firma dvs. parteneră e dezactivată</b>, deci nu vedeți nicio lucrare. Lucrările ei rămân pe server; cereți Adminului s-o reactiveze.</div>' : '')
     + '<h2 class="start-h">De făcut</h2>'
     + (pline.length ? `<div class="tiles cozi">${pline.map(panou).join('')}</div>`
       : `<div class="mesaj ok" style="margin-top:10px">Nimic nu așteaptă după dvs. acum.</div>`)
-    + (goale.length ? `<div class="start-gol">La zi: ${goale.map((c) => `<button type="button" class="link-buton" data-tile="${E(c.id)}">${E(c.t.toLowerCase())}</button>`).join(' · ')}</div>` : '')
+    + (goale.length ? `<div class="start-gol">Nimic de făcut la: ${goale.map((c) => `<button type="button" class="link-buton" data-tile="${E(c.id)}">${E(c.t.toLowerCase())}</button>`).join(' · ')}</div>` : '')
     + (deUrmarit.length ? `<h2 class="start-h">De urmărit</h2><div class="tiles cozi">${deUrmarit.map(panou).join('')}</div>` : '')
     + `<h2 class="start-h nav-h">Lucru</h2><div class="tiles nav-tiles">${nav.map(tile).join('')}</div>`;
   bara('');
@@ -8879,14 +8905,16 @@ function ecranVerifica() {
     </div></section>`;
   const istoric = (l.verificari || {}).tehnicIstoric || [];
   const stari = [{ v: 'aprobat', t: t === 'interventie' ? 'Aprobat la plată' : 'Aprobat' }, { v: 'respins', t: 'Respins' }].concat(t === 'interventie' ? [{ v: 'neaprobat', t: 'Neaprobat la plată' }] : []);
+  // v2.9.11 (UX 14 nov, N3): butoanele spun ce fac (verbe), nu starea în care ajunge lucrarea
+  const VERB = { aprobat: t === 'interventie' ? 'Aprobă la plată' : 'Aprobă', respins: 'Respinge (înapoi la echipă)', neaprobat: 'Nu aproba la plată' };
   const decizie = `<section class="card verif-decizie" id="decizie"><h2>Decizia tehnică</h2><div class="corp">
       ${istoric.length ? `<div class="mesaj warn" style="margin-top:0" id="x-v-istoric"><b>Respinsă anterior${istoric.length > 1 ? ` de ${istoric.length} ori` : ''}:</b>${istoric.map((x) => `<div>${E(dataRo(x.data))}${x.de ? ', ' + E(x.de) : ''} — ${E(x.motiv || 'fără motiv')}${x.obs ? `: „${E(x.obs)}”` : ''}</div>`).join('')}${ultimaResp && Object.values(l.poze || {}).flat().some((x) => x && eNoua(x)) ? '<div>Pozele adăugate după respingere sunt marcate „nouă”.</div>' : ''}</div>` : ''}
       ${DECISE.includes(vt.stare) ? `<div class="mesaj ${vt.stare === 'aprobat' ? 'ok' : 'warn'}" style="margin-top:0">Decizia actuală: <b>${E((stari.find((x) => x.v === vt.stare) || {}).t || vt.stare)}</b>${vt.motiv ? ' · ' + E(vt.motiv) : ''}${vt.de ? ` · ${E(vt.de)}, ${E(oraRo(vt.data))}` : ''}</div>` : ''}
       ${ed ? `${lipsa.length ? `<div class="mesaj warn" style="margin-top:0">${lipsa.length === 1 ? 'Lipsește o etapă' : `Lipsesc ${lipsa.length} etape`} de poze obligatorii: ${E(lipsa.map((e) => e.t).join(', '))}.</div>` : ''}
+        ${t === 'interventie' ? '<div class="ajutor" style="margin-top:0"><b>Respinge</b> = se întoarce la echipă pentru corectare. <b>Nu aproba la plată</b> = se închide, fără plată către partener.</div>' : ''}
+        <div class="ajutor"${t === 'interventie' ? '' : ' style="margin-top:0"'}>La respingere se alege motivul în fereastra care se deschide. Scurtături pe calculator: A aprobă, R respinge, → următoarea.</div>
         ${zona('vv-obs', 'Observații (opțional, la aprobare)', vt.stare === 'aprobat' ? vt.obs || '' : '')}
-        ${['facturat', 'achitat'].includes(((l.verificari || {}).facturare || {}).stare) && !DECISE.includes(vt.stare) ? `<div class="mesaj info" style="margin-top:0">Lucrarea e deja marcată <b>${E(l.verificari.facturare.stare === 'achitat' ? 'achitată' : 'facturată')}</b> de Facturare. După decizia dvs. se închide definitiv: decizia o mai schimbă apoi doar Adminul.</div>` : ''}
-        ${t === 'interventie' ? '<div class="ajutor"><b>Respins</b> = se întoarce la echipă pentru corectare. <b>Neaprobat la plată</b> = se închide, fără plată către partener.</div>' : ''}
-        <div class="ajutor">La respingere se alege motivul în fereastra care se deschide. Scurtături pe calculator: A aprobă, R respinge, → următoarea.</div>`
+        ${['facturat', 'achitat'].includes(((l.verificari || {}).facturare || {}).stare) && !DECISE.includes(vt.stare) ? `<div class="mesaj info" style="margin-top:0">Lucrarea e deja marcată <b>${E(l.verificari.facturare.stare === 'achitat' ? 'achitată' : 'facturată')}</b> de Facturare. După decizia dvs. se închide definitiv: decizia o mai schimbă apoi doar Adminul.</div>` : ''}`
     : blocataDef ? '<div class="mesaj ok" id="x-vt-blocat">Lucrarea e închisă definitiv (certificat de prosumator, sau facturată după decizia tehnică). Decizia tehnică o mai schimbă doar Adminul.</div>'
       : '<div class="ajutor">Decizia o ia Tehnicul (sau Adminul).</div>'}
     </div></section>`;
@@ -8894,7 +8922,7 @@ function ecranVerifica() {
   const lat = document.body.classList.contains('ui-lat');
   const htmlCoada = `<aside class="v-coada" aria-label="Coada de verificare"><div class="v-coada-h">De verificat · ${coada.length}</div>
     ${coada.map((x) => { const lp = etapeLipsa(x).length; return `<button type="button" class="v-q${x.id === l.id ? ' on' : ''}" data-vq="${E(x.id)}"><b>${E(x.client || 'Lucrare')}</b><small>${E(infoScurt(x))}</small><small>${lp ? `<span class="pill rau">${lp} ${lp === 1 ? 'etapă lipsă' : 'etape lipsă'}</span>` : 'poze complete'}</small></button>`; }).join('') || '<div class="ajutor" style="padding:10px">Coada e goală.</div>'}</aside>`;
-  const butoaneDecizie = ed ? stari.map((x) => `<button class="buton${x.v === 'aprobat' ? '' : ' gol'}${x.v !== 'aprobat' ? ' pericol' : ''}" data-decizie="${x.v}">${E(x.v === 'aprobat' ? '✓ ' + x.t : x.t + '…')}</button>`).reverse().join('')
+  const butoaneDecizie = ed ? stari.map((x) => `<button class="buton${x.v === 'aprobat' ? '' : ' gol'}${x.v !== 'aprobat' ? ' pericol' : ''}" data-decizie="${x.v}">${E(VERB[x.v])}</button>`).reverse().join('')
     + (poz >= 0 && coada.length > 1 ? '<button class="buton gol" id="x-v-sari">Sari peste</button>' : '') : '';
   // v2.9.3 (T8 S15): pe calculator, PV-ul stă în coloana lată, lângă raportul echipei (nu sub decizie, în coloana îngustă)
   $('#ecran').innerHTML = `<div class="v3">${htmlCoada}<div class="v-main">${htmlNefunctional(l) + antet + poze + htmlComparatie(l) + htmlRaportEchipa(l) + (lat ? sectPV : '')}</div>`
@@ -8927,12 +8955,12 @@ function ecranVerifica() {
     const d = b.dataset.decizie;
     if (d === 'aprobat') {
       // cu poze lipsă: avertismentul e pe ecran, aprobarea cere un al doilea clic (fără fereastră)
-      if (lipsa.length && !b.dataset.sigur) { b.dataset.sigur = '1'; b.textContent = '✓ Aprobă totuși (lipsesc poze)'; return; }
+      if (lipsa.length && !b.dataset.sigur) { b.dataset.sigur = '1'; b.textContent = 'Aprobă totuși (lipsesc poze)'; return; }
       decide(d, '', (v('vv-obs') || '').trim());
       return;
     }
     // respingerea: motivul și observațiile într-o foaie peste ecran (pe telefon, de jos)
-    foaieRespingere(d === 'respins' ? 'Respinge lucrarea' : 'Neaprobat la plată', d === 'respins' ? 'Respinge și treci la următoarea' : 'Neaprobă și treci la următoarea',
+    foaieRespingere(d === 'respins' ? 'Respinge lucrarea' : 'Nu aproba la plată', d === 'respins' ? 'Respinge și treci la următoarea' : 'Nu aproba și treci la următoarea',
       d === 'respins' ? (vt.stare === 'respins' ? vt.motiv || '' : lipsa.length ? 'Poză lipsă' : '') : (vt.stare === 'neaprobat' ? vt.motiv || '' : ''),
       d === 'respins' && lipsa.length ? 'Lipsesc pozele: ' + lipsa.map((e) => e.t).join(', ') + '.' : '', (motiv, obs) => decide(d, motiv, obs),
       d === 'respins' ? MOTIVE : MOTIVE_NEAPROBAT);
@@ -9478,7 +9506,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.10';
+const VERSIUNE_APP = '2.9.11';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
@@ -9759,6 +9787,12 @@ K.laSchimbare(() => setTimeout(butonProblema, 0));
 
 const laAdmin = () => A().du(areStart() && A().stare.dinStart ? 'start' : A().poate('admin') ? 'admin' : 'lista');
 const laRevenire = () => { const st = A().stare; const r = st.revenireLucrare; st.revenireLucrare = null; A().du(r || (areStart() ? 'start' : 'lista')); };
+// v2.9.11 (UX 14 nov, L5, M5): un mesaj verde pe ecranul următor (Start, listă sau fișă), 8 secunde, ca la facturarea în lot
+function mesajUrmator(t) { A().stare.mesajEcran = { t, la: Date.now() }; }
+function htmlMesajEcran() {
+  const m = A().stare.mesajEcran;
+  return m && Date.now() - m.la < 8000 ? `<div class="mesaj ok" id="x-mesaj-ecran" role="status" style="margin-top:12px">${E(m.t)}</div>` : '';
+}
 
 window.EXT = {
   ecrane: { tipNou: ecranTipNou, lucrare: ecranLucrare, poze: ecranPoze, pv: ecranPV, parteneri: ecranParteneri, preturi: ecranPreturi, rapoarte: ecranRapoarte, calendar: ecranCalendar,
@@ -9785,6 +9819,7 @@ window.EXT = {
   htmlServicii, legaServicii, semnalePoze, exifDinJpeg, textAnuntSMS, htmlAnuntSMS, pvPDF, verificaPVModel, sumaPartener, ePartener, urcaPozele,
   itemiMeniu, mergiLa, infoScurt, DEPARTAMENTE, modificariNesalvate, fisaAtinsa: () => fisaAtinsa, tipL, dataPlan, pozeEtapa, salveazaFisaAcum, pastreazaPV, oferaPV,
   localitate, telefonPlauzibil, MOTIVE_NEAPROBAT, CONSTATARI,
+  avertismentCod, intrebareTrimitere, mesajUrmator, htmlMesajEcran, laRevenire,
 };
 
 // stilurile ecranelor noi
@@ -10168,7 +10203,7 @@ function continut(l) {
   return JSON.stringify(o);
 }
 // Are lucrarea de pe ecran modificări față de ce era la intrarea pe ecran?
-const aSchimbat = () => !!stare.lucrare && ['form', 'raport'].includes(stare.ecran) && continut(stare.lucrare) !== stare.instantaneu;
+const aSchimbat = () => !!stare.lucrare && ['form', 'raport'].includes(stare.ecran) && stare.instantaneu != null && continut(stare.lucrare) !== stare.instantaneu;
 
 // Ciorna: ce se scrie în formular sau în raport se ține pe telefon, ca să nu se piardă
 // la reîncărcarea paginii, la butonul „Înapoi” al telefonului sau la închiderea aplicației.
@@ -10202,6 +10237,8 @@ function du(ecran, lucrare) {
     if (f && f !== cur && f._v != null && !f._conflict && (f._v !== cur._v || (!!cur._murdar && !f._murdar))) stare.lucrare = f;
   }
   window.scrollTo(0, 0);
+  // v2.9.11 (UX 14 nov, V4): dacă desenarea pică, instantaneul nu rămâne cel vechi (dădea „Modificări nesalvate” fals)
+  stare.instantaneu = null;
   deseneaza();
   // tastatura: după schimbarea ecranului focusul nu rămâne pe pagină (body), ci pe titlul ecranului nou
   setTimeout(() => { const a = document.activeElement; if ((!a || a === document.body) && !document.querySelector('.modal-problema')) { const h = $('#titlu'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } } }, 0);
@@ -10216,17 +10253,18 @@ function du(ecran, lucrare) {
 /* ------------------------------------------------------------------ *
  * Ecranul 1 — lista de lucrări
  * ------------------------------------------------------------------ */
+// v2.9.11 (UX 14 nov, N1): fără cont, aceleași cuvinte ca în glosarul inoINSTALL (NUME_STARI din extensie.js)
 const STARI = {
-  necalculat: { t: 'în lucru', c: 'gri' },
-  antecalcul: { t: 'antecalculat', c: '' },
-  in_lucru: { t: 'raportare începută', c: 'lucru' },
-  raportat: { t: 'raportat', c: 'raportat' },
-  validat: { t: 'validat', c: 'validat' },
-  planificat: { t: 'planificat', c: 'gri' },
-  faza_intermediara: { t: 'fază intermediară', c: 'lucru' },
-  respins: { t: 'respins de tehnic', c: 'rau' },
-  inchis_tehnic: { t: 'închis tehnic · așteaptă certificatul', c: 'validat' },
-  inchis: { t: 'închis', c: 'validat' },
+  necalculat: { t: 'de calculat', c: 'gri' },
+  antecalcul: { t: 'calculată', c: '' },
+  in_lucru: { t: 'în lucru', c: 'lucru' },
+  raportat: { t: 'raportată', c: 'raportat' },
+  validat: { t: 'validată', c: 'validat' },
+  planificat: { t: 'planificată', c: 'gri' },
+  faza_intermediara: { t: 'în lucru · zi închisă', c: 'lucru' },
+  respins: { t: 'respinsă · de corectat', c: 'rau' },
+  inchis_tehnic: { t: 'aprobată · așteaptă certificatul', c: 'validat' },
+  inchis: { t: 'închisă', c: 'validat' },
 };
 // Raportul are ceva completat (nu doar deschis)?
 const areConsum = (r) => !!r && (Object.values(r.valori || {}).some((v) => v != null && v !== '')
@@ -10284,26 +10322,25 @@ function htmlContBara() {
 //   În lucru      lucrarea nu are încă un antecalcul salvat
 //   Antecalculat  antecalculul e salvat (și raportarea poate fi începută), raportul nu e gata
 //   Raportat      raportul e trimis sau validat (fără cont: consumul e salvat)
+// v2.9.11 (UX 14 nov, N1, N2): numele filtrelor urmează glosarul; textul listei goale se face din numele filtrului
 const CARDURI = [
-  { k: 'lucru', t: 'În lucru', s: 'fără antecalcul salvat', c: 'lucru', stari: ['necalculat'],
-    gol: 'Nicio lucrare în lucru în perioada aleasă.' },
-  { k: 'antecalculat', t: 'Antecalculat', s: 'de executat și raportat', c: 'ante', stari: ['antecalcul', 'in_lucru'],
-    gol: 'Nicio lucrare antecalculată în perioada aleasă.' },
-  { k: 'raportat', t: 'Raportat', s: 'raport trimis sau validat', c: 'rap', stari: ['raportat', 'validat'],
-    gol: 'Nicio lucrare raportată în perioada aleasă.' },
+  { k: 'lucru', t: 'De calculat', s: 'fără pre-calcul salvat', c: 'lucru', stari: ['necalculat'] },
+  { k: 'antecalculat', t: 'Calculate', s: 'de executat și raportat', c: 'ante', stari: ['antecalcul', 'in_lucru'] },
+  { k: 'raportat', t: 'Raportate', s: 'raport trimis sau validat', c: 'rap', stari: ['raportat', 'validat'] },
 ];
 // inoINSTALL: planificate și închise; respinsele și fazele intermediare stau la „de executat”
-CARDURI.unshift({ k: 'planificat', t: 'Planificate', s: 'cu dată și echipă', c: 'lucru', stari: ['planificat'], gol: 'Nicio lucrare planificată în perioada aleasă.' });
+CARDURI.unshift({ k: 'planificat', t: 'Planificate', s: 'cu dată și echipă', c: 'lucru', stari: ['planificat'] });
 CARDURI.find((c) => c.k === 'antecalculat').stari.push('faza_intermediara', 'respins');
-CARDURI.push({ k: 'inchis', t: 'Închise', s: 'verificate tehnic', c: 'rap', stari: ['inchis_tehnic', 'inchis'], gol: 'Nicio lucrare închisă în perioada aleasă.' });
+CARDURI.push({ k: 'inchis', t: 'Închise', s: 'verificate tehnic', c: 'rap', stari: ['inchis_tehnic', 'inchis'] });
 // v2.5: și toate lucrările, oricare ar fi starea
-CARDURI.push({ k: 'toate', t: 'Toate', s: 'oricare stare', c: '', stari: [], toate: true, gol: 'Nicio lucrare în perioada aleasă.' });
+CARDURI.push({ k: 'toate', t: 'Toate', s: 'oricare stare', c: '', stari: [], toate: true });
+const textGol = (c) => (!c || c.toate ? 'Nicio lucrare în perioada aleasă.' : `Nicio lucrare la „${c.t}” în perioada aleasă.`);
 const inCard = (c, l) => !!c && (c.toate || c.stari.includes(stareLucrare(l)));
 const finalizata = (l) => !!(l.raportat && (l.raportat.finalizat || l.raportat.validat));
 // cardurile pe care le vede fiecare tip de cont
 // numele filtrelor cu cont, după glosar (aceleași cuvinte ca pe etichete)
-const NUME_CARDURI = { planificat: ['Planificate', 'cu dată și echipă'], lucru: ['Fără pre-calcul', 'montaje de calculat'],
-  antecalculat: ['De executat', 'în execuție sau respinse'], raportat: ['Raportate', 'raport trimis sau validat'], inchis: ['Închise', 'verificate tehnic'], toate: ['Toate', 'oricare stare'] };
+const NUME_CARDURI = { planificat: ['Planificate', 'cu dată și echipă'], lucru: ['De calculat', 'montaje fără pre-calcul'],
+  antecalculat: ['De executat', 'în lucru sau respinse'], raportat: ['Trimise', 'de validat sau la verificare'], inchis: ['Închise', 'verificate tehnic'], toate: ['Toate', 'oricare stare'] };
 function carduriVizibile() {
   const r = K.rol();
   if (K.activ && K.serverV2) return carduriVizibileV2(r).map((c) => (NUME_CARDURI[c.k] ? Object.assign({}, c, { t: NUME_CARDURI[c.k][0], s: NUME_CARDURI[c.k][1] }) : c));
@@ -10378,15 +10415,15 @@ const cineText = (e) => (e ? `${e.de || 'necunoscut'}${e.rol ? ` (${ROL_TEXT[e.r
 function cineAFacut(l) {
   // fără cont e un singur telefon: nu e nimic de spus
   if (!K.activ) return '';
-  const a = ultimaDin(l, /^a făcut antecalculul$/), r = ultimaDin(l, /^a completat consumul$|^a trimis raportul$/);
-  return [a ? 'antecalcul: ' + cineText(a) : '', r ? 'raport: ' + cineText(r) : ''].filter(Boolean).join(' · ');
+  const a = ultimaDin(l, /^a făcut (antecalculul|pre-calculul)$/), r = ultimaDin(l, /^a completat consumul$|^a trimis raportul$/);
+  return [a ? 'pre-calcul: ' + cineText(a) : '', r ? 'raport: ' + cineText(r) : ''].filter(Boolean).join(' · ');
 }
 function htmlIstoric(l) {
   const ist = (l.istoric || []).slice().reverse();
   if (!ist.length) return '';
   const ora = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('ro-RO') + ', ' + d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }); };
   return `<section class="card"><h2>Istoric</h2><div class="corp"><ul class="istoric">${ist.map((e) =>
-    `<li><b>${E(cineText(e))}</b> ${E(e.actiune || '')}<span class="cand">${E(ora(e.data))}</span></li>`).join('')}</ul>
+    `<li><b>${E(cineText(e))}</b> ${E((e.actiune || '').replace(/antecalculul/g, 'pre-calculul').replace(/antecalcul/g, 'pre-calcul'))}<span class="cand">${E(ora(e.data))}</span></li>`).join('')}</ul>
     ${K.activ ? '<div class="ajutor">Scris de server, cu contul care a făcut operațiunea.</div>' : ''}</div></section>`;
 }
 
@@ -10399,10 +10436,10 @@ function htmlCardLucrare(l) {
   const zi = (iso) => (iso ? new Date(iso).toLocaleDateString('ro-RO') : '');
   const executa = alocati.length && r !== 'membru' ? 'de executat: ' + alocati.join(', ') : '';
   const detaliu = rap.validat ? `validat de ${rap.validat.de} pe ${zi(rap.validat.data)}`
-    : rap.finalizat ? `raport trimis de ${rap.finalizat.de} pe ${zi(rap.finalizat.data)}`
+    : rap.finalizat ? `trimisă de ${rap.finalizat.de} pe ${zi(rap.finalizat.data)}`
       : rap.redeschis ? `raport redeschis de ${rap.redeschis.de} pe ${zi(rap.redeschis.data)}, de corectat`
-        : areConsum(l.raportat) ? `${K.activ ? 'raportare începută' : 'consum raportat'}${rap.persoana ? ' de ' + rap.persoana : ''}${executa ? ' · ' + executa : ''}`
-          : l.antecalcul ? `antecalcul înghețat${executa ? ' · ' + executa : ''}` : executa;
+        : areConsum(l.raportat) ? `${K.activ ? 'în lucru' : 'consum raportat'}${rap.persoana ? ' de ' + rap.persoana : ''}${executa ? ' · ' + executa : ''}`
+          : l.antecalcul ? `pre-calcul înghețat${executa ? ' · ' + executa : ''}` : executa;
   const echipa = numeEchipaL(l);
   return `<button class="lucrare" data-deschide="${E(l.id)}">
     <div class="titlu">${window.EXT ? window.EXT.htmlTipScurt(l) : ''}${E(l.client || 'Lucrare fără client')}</div>
@@ -10503,7 +10540,7 @@ function ecranLista() {
     lider: 'Nicio lucrare a echipei încă.<br>Apăsați „Lucrare nouă” ca să începeți.',
     membru: 'Nicio lucrare alocată vouă.<br>Liderul echipei vă alocă lucrările.',
     sales: 'Nicio lucrare raportată încă.<br>Aici apar lucrările după raportarea consumului.',
-    gestiune: 'Nicio lucrare antecalculată încă.<br>Aici apar fișele de materiale de comandat și rapoartele de consum.',
+    gestiune: 'Nicio lucrare cu pre-calcul încă.<br>Aici apar fișele de materiale de comandat și rapoartele de consum.',
   }[r] || '';
   const deValidatToate = toate.filter((l) => poate('valideaza', l) && finalizata(l));
   const deValidat = deValidatToate.length;
@@ -10526,7 +10563,7 @@ function ecranLista() {
   $('#titlu').innerHTML = K.activ && K.serverV2 && window.EXT ? `Lucrări<span class="sub">${din.length} ${din.length === 1 ? 'lucrare' : 'lucrări'} în perioada aleasă</span>`
     : 'Pre-calcul materiale<span class="sub">sisteme fotovoltaice 3–30 kWp</span>';
   $('#btn-inapoi').hidden = !areStart();
-  $('#ecran').innerHTML = (areStart() ? '' : htmlContBara()) + htmlInstalare()
+  $('#ecran').innerHTML = (areStart() ? '' : htmlContBara()) + (window.EXT ? window.EXT.htmlMesajEcran() : '') + htmlInstalare()
     + (deValidat ? `<div class="mesaj warn">${deValidat === 1 ? 'O lucrare are raportul' : deValidat + ' lucrări au raportul'} gata de validat.
       ${card.k !== 'raportat' || deLaValidare < dataDeLa() ? '<br><button type="button" class="link-buton" id="b-devalidat">Vezi rapoartele de validat</button>' : ''}</div>` : '')
     + (window.EXT ? window.EXT.htmlBannerLista(toate) : '')
@@ -10704,7 +10741,7 @@ function deseneazaListaFiltrata(toate) {
     return;
   }
   el.innerHTML = list.length ? notaCautare + notaLimita(list.length) + list.slice(0, LIMITA_LISTA).map(htmlCardLucrare).join('')
-    : `<div class="gol-text" style="padding:28px 20px">${q ? 'Nicio lucrare nu se potrivește căutării.' : E(tab.gol)}</div>`;
+    : `<div class="gol-text" style="padding:28px 20px">${q ? 'Nicio lucrare nu se potrivește căutării.' : E(textGol(tab))}</div>`;
   el.querySelectorAll('[data-deschide]').forEach((b) => {
     b.onclick = () => { const l = K.citesteUna(b.dataset.deschide); if (l) deschide(l); };
   });
@@ -10894,9 +10931,9 @@ function ecranForm() {
 
   const inghetatRz = antecalculValid(l.antecalcul) ? (l.antecalcul.rezumat || {}) : null;
   const html = `
-  ${inghetatRz ? `<div class="mesaj warn" style="margin-top:14px">Antecalculul e înghețat din ${new Date(l.antecalcul.data).toLocaleDateString('ro-RO')}` +
+  ${inghetatRz ? `<div class="mesaj warn" style="margin-top:14px">Pre-calculul e înghețat din ${new Date(l.antecalcul.data).toLocaleDateString('ro-RO')}` +
     `${inghetatRz.kWp ? ` (${nrK(inghetatRz.kWp)} kWp)` : ''}, de la începerea raportării. ` +
-    (K.activ && !poate('deblocheaza', l) ? 'Ce schimbați aici nu modifică lista de materiale; doar Adminul poate debloca și reface antecalculul.</div>' : 'Ce schimbați aici nu modifică lista de materiale decât după „Calculează”, care reface antecalculul.</div>') : ''}
+    (K.activ && !poate('deblocheaza', l) ? 'Ce schimbați aici nu modifică lista de materiale; doar Adminul poate debloca și reface pre-calculul.</div>' : 'Ce schimbați aici nu modifică lista de materiale decât după „Calculează”, care reface pre-calculul.</div>') : ''}
   <section class="card"><h2>Lucrarea</h2><div class="corp">
     ${campText('client', 'Client', l.client)}
     ${campText('adresa', 'Adresa', l.adresa)}
@@ -11441,18 +11478,18 @@ function legaFormular() {
     if (!confirmaDistante(l)) return;
     if (l.antecalcul) {
       const data = new Date(l.antecalcul.data).toLocaleDateString('ro-RO');
-      if (!confirm(`Antecalculul e înghețat din ${data}, de la începerea raportării. ${K.activ ? 'Deblocați și refaceți' : 'Refaceți'} antecalculul? ` +
+      if (!confirm(`Pre-calculul e înghețat din ${data}, de la începerea raportării. ${K.activ ? 'Deblocați și refaceți' : 'Refaceți'} pre-calculul? ` +
         'Valorile raportate rămân pe liniile cu aceeași denumire; verificați-le după recalcul.' +
         (l.raportat && l.raportat.validat ? ' Raportul validat se redeschide și trebuie validat din nou.' : ''))) return;
     }
     // întâi calculul; antecalculul înghețat se scoate doar dacă cel nou a reușit
     try { stare.rezultat = calculeazaLucrarea(l); }
-    catch (e) { alert('Calculul nu a mers: ' + e.message + (l.antecalcul ? '\n\nAntecalculul înghețat a rămas neschimbat.' : '')); return; }
+    catch (e) { alert('Calculul nu a mers: ' + e.message + (l.antecalcul ? '\n\nPre-calculul înghețat a rămas neschimbat.' : '')); return; }
     if (l.antecalcul) {
       l.antecalcul = null;
       if (l.raportat) { delete l.raportat.validat; delete l.raportat.finalizat; }
     }
-    if (JSON.stringify(l.rezumatSalvat || null) !== JSON.stringify(stare.rezultat.rezumat)) notaIstoric(l, 'a făcut antecalculul');
+    if (JSON.stringify(l.rezumatSalvat || null) !== JSON.stringify(stare.rezultat.rezumat)) notaIstoric(l, 'a făcut pre-calculul');
     l.rezumatSalvat = stare.rezultat.rezumat;
     l.amprentaCalc = amprentaIntrare(l);
     stare.rezultatDinLista = false;
@@ -11470,9 +11507,9 @@ function salveazaFormular(l) {
   if (schimbatDupaCalcul(l)) {
     if (l.antecalcul) {
       const rz = l.antecalcul.rezumat || {};
-      if (!confirm(`Antecalculul e înghețat din ${new Date(l.antecalcul.data).toLocaleDateString('ro-RO')} și rămâne cel vechi` +
+      if (!confirm(`Pre-calculul e înghețat din ${new Date(l.antecalcul.data).toLocaleDateString('ro-RO')} și rămâne cel vechi` +
         `${rz.kWp ? ` (${nrK(rz.kWp)} kWp, ${rz.panouri} ${rz.panouri === 1 ? 'panou' : 'panouri'})` : ''}. Datele schimbate se salvează, ` +
-        'dar lista de materiale se schimbă doar după „Calculează”, care reface antecalculul. Salvați?')) return false;
+        'dar lista de materiale se schimbă doar după „Calculează”, care reface pre-calculul. Salvați?')) return false;
     } else {
       // rezultatul vechi nu mai corespunde formularului: lucrarea redevine necalculată
       if (K.activ && (l._alocati || []).length && l.rezumatSalvat
@@ -11664,7 +11701,7 @@ function ecranRezultat() {
   if (!l.antecalcul && campuriLipsa(l).length) {
     $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Lucrare') + '<span class="sub">listă de materiale</span>';
     $('#btn-inapoi').hidden = false;
-    $('#ecran').innerHTML = htmlConflict(l) + `<div class="mesaj info" style="margin-top:14px">Lucrarea nu e încă antecalculată. Lista de materiale apare după ce liderul echipei completează datele din teren și apasă „Calculează”.</div>` + htmlAlocare(l) + htmlAdminLucrare(l);
+    $('#ecran').innerHTML = htmlConflict(l) + `<div class="mesaj info" style="margin-top:14px">Lucrarea nu are încă pre-calculul. Lista de materiale apare după ce liderul echipei completează datele din teren și apasă „Calculează”.</div>` + htmlAlocare(l) + htmlAdminLucrare(l);
     $('#bara-in').innerHTML = poate('editeaza', l) ? '<button class="buton" id="b-inapoi2">Completează datele</button>' : '<button class="buton gol" id="b-lista">Înapoi la lucrări</button>';
     if ($('#b-inapoi2')) $('#b-inapoi2').onclick = () => { stare.rezultatDinLista = false; du('form'); };
     if ($('#b-lista')) $('#b-lista').onclick = () => du('lista');
@@ -11735,12 +11772,12 @@ function ecranRezultat() {
 
   <div class="sectiune-titlu" id="verificari">Verificări</div>
   ${rez.verificari.map((v) => `<div class="mesaj ${E(v.tip)}">${E(v.text)}</div>`).join('')}
-  <div class="ajutor" style="margin-top:14px">${cuRap ? 'Estimat: cantitățile antecalculate, cu rezerva de 5% acolo unde se aplică. Consumat: ce s-a raportat de pe șantier. Diferența în roșu înseamnă mai mult decât s-a estimat.' : 'Cantitățile de mai sus sunt antecalculate, cu rezerva de 5% acolo unde se aplică. Bucata minimă folosibilă de șină este de 60 cm.'}</div>`;
-  const banner = rez.stricat ? `<div class="mesaj warn" style="margin-top:14px">Antecalculul înghețat salvat pe server nu e valid. Mai jos e calculul de acum; Adminul trebuie să deblocheze și să refacă antecalculul.</div>`
-    : inghetat ? `<div class="mesaj info" style="margin-top:14px">Antecalcul înghețat din ${inghetat}, la începerea raportării. Rămâne neschimbat chiar dacă regulile aplicației se modifică.${
+  <div class="ajutor" style="margin-top:14px">${cuRap ? 'Estimat: cantitățile din pre-calcul, cu rezerva de 5% acolo unde se aplică. Consumat: ce s-a raportat de pe șantier. Diferența în roșu înseamnă mai mult decât s-a estimat.' : 'Cantitățile de mai sus sunt din pre-calcul, cu rezerva de 5% acolo unde se aplică. Bucata minimă folosibilă de șină este de 60 cm.'}</div>`;
+  const banner = rez.stricat ? `<div class="mesaj warn" style="margin-top:14px">Pre-calculul înghețat salvat pe server nu e valid. Mai jos e calculul de acum; Adminul trebuie să deblocheze și să refacă pre-calculul.</div>`
+    : inghetat ? `<div class="mesaj info" style="margin-top:14px">Pre-calcul înghețat din ${inghetat}, la începerea raportării. Rămâne neschimbat chiar dacă regulile aplicației se modifică.${
     K.activ && !poate('deblocheaza', l) ? ' Doar Adminul îl poate debloca.' : ''}</div>` : '';
 
-  $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Rezultat') + `<span class="sub">${cuRap ? 'estimat și consumat' : 'listă de materiale antecalculată'}</span>`;
+  $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Rezultat') + `<span class="sub">${cuRap ? 'estimat și consumat' : 'listă de materiale din pre-calcul'}</span>`;
   $('#btn-inapoi').hidden = false;
   // v2.9.3 (T4 S19): lista de materiale și ca CSV (cod, denumire, UM, cantitate), pentru Achiziții
   const csvLista = '<div class="actiuni"><button type="button" class="link-buton" id="b-csv-mat">Descarcă lista ca CSV (cod, denumire, cantitate)</button></div>';
@@ -11805,10 +11842,10 @@ function ecranRezultat() {
   if ($('#b-raport')) $('#b-raport').onclick = () => {
     // la prima raportare, antecalculul se ingheata pe lucrare
     if (rap && !l.antecalcul) {
-      if (!confirm('Începeți raportarea consumului? Antecalculul se îngheață acum și nu se mai schimbă la modificări ulterioare.')) return;
+      if (!confirm('Începeți raportarea consumului? Pre-calculul se îngheață acum și nu se mai schimbă la modificări ulterioare.')) return;
       const rz = stare.rezultat || calculeazaLucrarea(l);
       l.antecalcul = antecalculDin(l, rz);
-      notaIstoric(l, 'a început raportarea (antecalcul înghețat)');
+      notaIstoric(l, 'a început raportarea (pre-calcul înghețat)');
       salveaza(l);
     }
     du('raport');
@@ -11865,11 +11902,11 @@ function htmlAdminLucrare(l) {
   if (!poate('admin')) return '';
   return `<section class="card"><h2>Administrare lucrare</h2><div class="corp">
     <div class="actiuni">
-      ${l.antecalcul ? '<button class="buton gol" id="b-debloc">Deblochează antecalculul</button>' : ''}
+      ${l.antecalcul ? '<button class="buton gol" id="b-debloc">Deblochează pre-calculul</button>' : ''}
       <button class="buton gol" id="b-arhiv">Arhivează</button>
       <button class="buton gol pericol" id="b-sterg">Șterge</button>
     </div>
-    <div class="ajutor">Deblocarea permite refacerea antecalculului; consumul raportat rămâne pe liniile care nu se schimbă. Lucrările arhivate dispar din listele tuturor și se pot restaura din Administrare.</div>
+    <div class="ajutor">Deblocarea permite refacerea pre-calculului; consumul raportat rămâne pe liniile care nu se schimbă. Lucrările arhivate dispar din listele tuturor și se pot restaura din Administrare.</div>
   </div></section>`;
 }
 function legaAdminLucrare(l) {
@@ -11878,9 +11915,9 @@ function legaAdminLucrare(l) {
     // antecalculul și validarea, dar lăsa decizia, certificatul și factura (o lucrare „închisă” fără raport)
     const vf = l.verificari || {};
     const decisa = [((vf.tehnic || {}).stare) && 'decizia tehnică', (vf.prosumator || {}).certificat && 'certificatul de prosumator', ['facturat', 'achitat'].includes((vf.facturare || {}).stare) && 'facturarea'].filter(Boolean);
-    if (decisa.length) { alert(`Lucrarea are deja ${decisa.join(', ')}. Antecalculul nu se mai deblochează: s-ar pierde legătura dintre raport și ce s-a aprobat sau facturat.\n\nDacă e nevoie de o corectură, scrieți-o în istoricul lucrării sau faceți o lucrare nouă.`); return; }
+    if (decisa.length) { alert(`Lucrarea are deja ${decisa.join(', ')}. Pre-calculul nu se mai deblochează: s-ar pierde legătura dintre raport și ce s-a aprobat sau facturat.\n\nDacă e nevoie de o corectură, scrieți-o în istoricul lucrării sau faceți o lucrare nouă.`); return; }
     const validat = l.raportat && (l.raportat.validat || l.raportat.finalizat);
-    if (!confirm('Deblocați antecalculul? Lucrarea se poate recalcula, iar raportarea se leagă de noul antecalcul.'
+    if (!confirm('Deblocați pre-calculul? Lucrarea se poate recalcula, iar raportarea se leagă de noul pre-calcul.'
       + (validat ? ' Raportul trimis sau validat se redeschide și trebuie trimis și validat din nou.' : ''))) return;
     l.antecalcul = null;
     if (l.raportat) { delete l.raportat.validat; delete l.raportat.finalizat; }
@@ -11913,9 +11950,9 @@ function htmlConflict(l) {
   const pastrez = K.poatePastra(l);
   const motiv = c._motiv ? ` Serverul a răspuns: ${E(c._motiv)}.` : '';
   const ce = K.rol() === 'admin' && !c.sters
-    ? ' Dacă păstrați versiunea dvs., raportul și antecalculul rămân cele de pe server, afară de cazul în care chiar dvs. le-ați schimbat.'
+    ? ' Dacă păstrați versiunea dvs., raportul și pre-calculul rămân cele de pe server, afară de cazul în care chiar dvs. le-ați schimbat.'
     : K.rol() === 'lider' && !c.sters
-    ? ' Dacă păstrați versiunea dvs., antecalculul înghețat și raportul membrilor rămân cele de pe server.'
+    ? ' Dacă păstrați versiunea dvs., pre-calculul înghețat și raportul membrilor rămân cele de pe server.'
     : K.rol() === 'membru' && !c.sters ? ' Dacă păstrați versiunea dvs., se trimite doar raportul dvs. și înlocuiește corecturile făcute între timp de lider pe raport.' : '';
   return `<div class="mesaj warn" style="margin-top:14px"><b>Conflict.</b> ${c.sters
       ? 'Modificarea dvs. nu s-a salvat: lucrarea nu mai există pe server sau nu mai e la dvs. (de exemplu, echipa a redeschis raportul sau lucrarea a fost mutată).'
@@ -12013,7 +12050,7 @@ function ecranRaport() {
     ? `<div class="mesaj ok" style="margin-top:14px">Raport validat de ${E(rap.validat.de)} pe ${zi(rap.validat.data)}.${rap.finalizat ? ` Trimis de ${E(rap.finalizat.de)} pe ${zi(rap.finalizat.data)}.` : ''}</div>`
     : rap.finalizat
       ? `<div class="mesaj warn" style="margin-top:14px">Raport trimis de ${E(rap.finalizat.de)} pe ${zi(rap.finalizat.data)}${K.activ ? ', așteaptă validarea liderului de echipă' : ''}.</div>`
-      : rap.deRetrimis ? '<div class="mesaj warn" style="margin-top:14px">Lucrarea s-a schimbat cât lucrați fără semnal (antecalculul a fost deblocat sau refăcut). Consumul dvs. a rămas; verificați-l pe lista de acum și trimiteți raportul din nou.</div>'
+      : rap.deRetrimis ? '<div class="mesaj warn" style="margin-top:14px">Lucrarea s-a schimbat cât lucrați fără semnal (pre-calculul a fost deblocat sau refăcut). Consumul dvs. a rămas; verificați-l pe lista de acum și trimiteți raportul din nou.</div>'
       : rap.redeschis ? `<div class="mesaj warn" style="margin-top:14px">Raport redeschis de ${E(rap.redeschis.de)} pe ${zi(rap.redeschis.data)}: de corectat și trimis din nou.</div>`
         : !editabil ? '<div class="mesaj info" style="margin-top:14px">Raportarea nu e încă finalizată. Valorile de mai jos pot să se mai schimbe.</div>' : '';
 
@@ -12179,14 +12216,18 @@ function ecranRaport() {
     }
     rap.finalizat = { de: cine(), id: K.profil && K.profil.id, data: new Date().toISOString() };
     delete rap.redeschis; delete rap.deRetrimis;
-    salveaza(l); du('lista');
+    salveaza(l);
+    // v2.9.11 (UX 14 nov, M5): înapoi pe Start, cu confirmare, nu în lista tuturor lucrărilor
+    window.EXT.mesajUrmator(`${l.client || 'Lucrarea'}: raportul a plecat la liderul echipei.`); window.EXT.laRevenire();
   };
   if ($('#b-valid')) $('#b-valid').onclick = () => {
     if (editabil && !consumValid()) return;
     dataDinCamp();
     if (!rap.persoana || !rap.data) { alert('Completați numele și data terminării înainte de validare.'); return; }
-    if (window.EXT && !window.EXT.gataDeTrimis(l, true)) return;
-    if (!confirm('Validați raportul? După validare consumul nu se mai modifică decât dacă îl redeschideți.')) return;
+    // v2.9.11 (UX 14 nov, L6): o singură întrebare, cu avertismentul codului neconfirmat în ea
+    if (window.EXT && !window.EXT.gataDeTrimis(l, true, true)) return;
+    const av = window.EXT ? window.EXT.avertismentCod(l) : '';
+    if (!confirm((av ? av + ' Validați oricum?' : 'Validați raportul?') + ' După validare consumul nu se mai modifică decât dacă îl redeschideți.')) return;
     if (!l.antecalcul) {
       const rz = antecalculLucrare(l);
       l.antecalcul = antecalculDin(l, rz);
@@ -12194,7 +12235,9 @@ function ecranRaport() {
     rap.validat = { de: cine(), id: K.profil && K.profil.id, data: new Date().toISOString() };
     // raportul completat de lider sau de Admin se trimite și se validează în același pas
     if (!rap.finalizat) rap.finalizat = Object.assign({}, rap.validat);
-    salveaza(l); du('lista');
+    salveaza(l);
+    // v2.9.11 (UX 14 nov, L5): înapoi pe Start, cu confirmarea că lucrarea a plecat la Tehnic
+    if (window.EXT && K.activ) { window.EXT.mesajUrmator(`${l.client || 'Lucrarea'}: validată, trimisă la verificarea tehnică.`); window.EXT.laRevenire(); } else du('lista');
   };
   if ($('#b-redeschid')) $('#b-redeschid').onclick = () => {
     if (!confirm('Redeschideți raportul? Membrul îl poate corecta, apoi îl trimite și îl validați din nou.')) return;
@@ -13250,7 +13293,23 @@ function deseneaza() {
       legaAdminLucrare(l); legaConflict(l);
     }
   }
-  else if (e === 'raport') ecranRaport();
+  else if (e === 'raport') {
+    // v2.9.11 (UX 14 nov, §E.1/V4): o eroare la deschiderea raportului se spune pe ecran, nu rămâne mută
+    try { ecranRaport(); } catch (err) {
+      console.warn(err);
+      const l = stare.lucrare;
+      const rz = l.rezumatSalvat || {};
+      $('#titlu').innerHTML = (l.client ? E(scurt(l.client)) : 'Raportare') + '<span class="sub">consum real la final de lucrare</span>';
+      $('#btn-inapoi').hidden = false;
+      $('#ecran').innerHTML = htmlConflict(l) + `<div class="mesaj warn" style="margin-top:14px">Nu pot deschide raportul de consum: ${E(err.message)} ` +
+        `${poate('editeaza', l) ? 'Deschideți formularul de pre-calcul și apăsați „Calculează”.' : 'Cereți liderului echipei să refacă pre-calculul.'}</div>` +
+        (rz.kWp ? `<div class="ajutor">Rezumatul salvat: ${E([nrK(rz.kWp) + ' kWp', rz.panouri ? rz.panouri + ' panouri' : '', rz.invertorModel || ''].filter(Boolean).join(' · '))}</div>` : '');
+      $('#bara-in').innerHTML = (window.EXT && K.activ ? '<button class="buton gol" id="b-teren">Înapoi la fișă</button>' : '') + (poate('editeaza', l) ? '<button class="buton" id="b-inapoi2">Deschide formularul</button>' : '');
+      if ($('#b-teren')) $('#b-teren').onclick = () => du('lucrare', l);
+      if ($('#b-inapoi2')) $('#b-inapoi2').onclick = () => du('form');
+      legaConflict(l);
+    }
+  }
   else if (e === 'login') ecranLogin();
   else if (e === 'parola') ecranParola();
   else if (e === 'fara_rol') ecranFaraRol();
