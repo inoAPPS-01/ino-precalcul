@@ -6617,7 +6617,8 @@ function ecranLucrare() {
       </div>
       ${ed && (!pv || pv.refacere) && lipsa.length ? `<div class="ajutor motiv-dezactivat" id="x-pv-motiv">„Semnează PV cu clientul” se activează după ${lipsa.length === 1 ? 'poza obligatorie care lipsește' : `cele ${lipsa.length} poze obligatorii care lipsesc`} — <button type="button" class="link-text" id="x-pv-la-poze">Vezi pozele</button></div>` : ''}</div></section>`;
 
-  const form = htmlFormTeren(l, ed);
+  // v2.9.17 (UX 14 nov, V8, V12): cine nu completează formularul echipei (Partener, birourile) îl vede ca rezumat, nu ca formular gri
+  const form = !ed && !['lider', 'mentenanta', 'membru', 'admin'].includes(K.rol()) && tipL(l) !== 'montaj_nou' ? htmlRaportEchipa(l) : htmlFormTeren(l, ed);
   const verif = htmlVerificari(l);
   // alocarea membrilor: la montaj e pe lista de materiale; la celelalte tipuri, aici
   const alocare = t !== 'montaj_nou' ? A().htmlAlocare(l) : '';
@@ -7150,14 +7151,18 @@ function htmlVerificari(l) {
     // certificatul se trece doar după aprobarea tehnică; odată trecut, îl mai schimbă doar Adminul
     const aprobat = vt.stare === 'aprobat';
     const certBlocat = !!cert && K.rol() !== 'admin';
+    // v2.9.17 (UX 14 nov, V6): datele de care e nevoie la dosar, adunate într-un card, și pașii numerotați
     blocuri.push(P('verificaProsumator') ? `<div class="verif"><h3>Prosumator</h3>
-        ${bifa('vp-verificat', 'Lucrarea e verificată pentru dosarul de prosumator', vp.verificat)}
-        ${bifa('vp-depus', 'Dosarul e depus la distribuitor', vp.depus)}
-        ${bifa('vp-actualizare', 'Dosarul necesită actualizare', vp.actualizare)}
+        ${htmlPentruDosar(l)}
+        <div class="sectiune-titlu">Pașii dosarului</div>
+        ${bifa('vp-verificat', '1. Dosar pregătit (lucrarea e verificată pentru dosarul de prosumator)', vp.verificat)}
+        ${bifa('vp-depus', '2. Dosar depus la distribuitor', vp.depus)}
+        <div class="ajutor" style="margin:6px 0 0"><b>3. Certificat primit</b>: numărul și data, mai jos.</div>
+        ${bifa('vp-actualizare', 'Dosarul necesită actualizare (scrieți ce, la observații)', vp.actualizare)}
         ${certBlocat ? `<div class="mesaj ok">Certificat ${E(cert.nr || '')} din ${E(dataRo(cert.dataCert))}: lucrarea e închisă definitiv. Doar Adminul îl mai poate corecta.</div>`
-          : `<div class="randuri2">${camp('vp-nr', 'Nr. certificat de prosumator', cert ? cert.nr : '', aprobat || cert ? '' : 'disabled')}${camp('vp-data', 'Data certificatului', cert ? cert.dataCert : azi(), `max="${azi()}"${aprobat || cert ? '' : ' disabled'}`, 'date')}</div>`}
+          : `<div class="randuri2">${camp('vp-nr', 'Nr. certificat de prosumator', cert ? cert.nr : '', aprobat || cert ? '' : 'disabled')}${camp('vp-data', 'Data certificatului', cert ? cert.dataCert : '', `max="${azi()}"${aprobat || cert ? '' : ' disabled'}`, 'date')}</div>`}
         ${zona('vp-obs', 'Observații prosumator', vp.obs)}
-        <button class="adauga" id="x-vp-salv">Salvează prosumatorul</button>${htmlStare('prosumator:' + l.id)}
+        <button class="adauga" id="x-vp-salv">Salvează dosarul de prosumator</button>${htmlStare('prosumator:' + l.id)}
         <div class="ajutor">${aprobat || cert ? 'Cu certificatul trecut, lucrarea se închide definitiv.' : 'Certificatul se trece după aprobarea tehnică a lucrării.'}${cine(vp)}</div></div>`
       : `<div class="verif"><h3>Prosumator</h3><div>${cert ? `Certificat ${E(cert.nr || '')} din ${E(dataRo(cert.dataCert))}` : vp.depus ? 'Dosar depus, certificat neprimit' : vp.verificat ? 'Verificat, dosar nedepus' : 'Neînceput'}${cine(vp)}</div></div>`);
   }
@@ -7168,6 +7173,10 @@ function htmlVerificari(l) {
     const anexa = (l.anexa && l.anexa.linii) || [];
     blocuri.push(P('verificaFacturare') ? `<div class="verif"><h3>Facturare</h3>
         ${alege('vf-stare', 'Stare', vf.stare || '', [{ v: '', t: '—' }, { v: 'verificat', t: 'Verificat, de facturat' }, { v: 'facturat', t: 'Facturat' }, { v: 'achitat', t: 'Achitat' }])}
+        ${''/* v2.9.17 (UX 14 nov, V1): factura cu câmpuri, nu text liber în observații (cheile „data” și „de” le scrie serverul) */}
+        <div class="randuri2">${camp('vf-nr', 'Nr. factură', vf.nr || '', 'autocomplete="off"')}${camp('vf-dataf', 'Data facturii', vf.dataFactura || '', `max="${azi()}"`, 'date')}</div>
+        <div class="randuri2">${camp('vf-suma', 'Suma (lei, cu TVA)', vf.suma != null ? String(vf.suma).replace('.', ',') : '', 'inputmode="decimal" autocomplete="off"')}${alege('vf-catre', 'Facturat către', vf.catre || 'partener', [{ v: 'partener', t: 'Partener' + (l.partener_id ? ' (' + (K.numePartener(l.partener_id) || '') + ')' : '') }, { v: 'client', t: 'Client' + (l.client ? ' (' + l.client + ')' : '') }])}</div>
+        <div id="x-vf-inc-camp"${vf.stare === 'achitat' ? '' : ' hidden'}>${camp('vf-incasat', 'Data încasării', vf.incasat || '', `max="${azi()}"`, 'date')}</div>
         ${anexa.length ? `${alege('vf-anexa', 'Materiale suplimentare (anexa semnată)', vf.anexa || '', [{ v: '', t: '—' }, { v: 'de_facturat', t: 'De facturat clientului' }, { v: 'facturat', t: 'Facturate' }, { v: 'achitat', t: 'Achitate' }])}` : ''}
         ${zona('vf-obs', 'Observații facturare', vf.obs)}
         ${tehnicFinal(l) ? '' : '<div class="mesaj warn" id="x-vf-tehnic">Verificarea tehnică nu e încă finalizată. Puteți marca facturarea, dar lucrarea rămâne deschisă până la decizia Tehnicului.</div>'}
@@ -7205,6 +7214,18 @@ document.addEventListener('click', (ev) => {
   if (x) { stergeStare('stoc:' + (A().stare.lucrare || {}).id); A().du('lucrare', x); }
 });
 function legaVerificari(l) {
+  // v2.9.17 (UX 14 nov, V7): „Salvează …” al fiecărui birou e buton principal (galben), dezactivat cât nu s-a schimbat nimic
+  // în blocul lui, cu motivul sub el; prima modificare îl activează
+  ['x-vt-salv', 'x-vp-salv', 'x-vf-salv', 'x-vr-salv', 'x-st-salv'].forEach((id) => {
+    const b = $('#' + id); if (!b) return;
+    const bloc = b.closest('.verif'); if (!bloc) return;
+    b.classList.remove('adauga'); b.classList.add('buton', 'salv-birou');
+    b.disabled = true;
+    const nota = document.createElement('div'); nota.className = 'ajutor motiv-dezactivat'; nota.textContent = 'Nimic schimbat încă: butonul se activează după prima modificare.';
+    b.insertAdjacentElement('afterend', nota);
+    const activ = () => { b.disabled = false; nota.remove(); bloc.removeEventListener('input', activ); bloc.removeEventListener('change', activ); };
+    bloc.addEventListener('input', activ); bloc.addEventListener('change', activ);
+  });
   const scrie = (k, val, mesaj) => {
     l.verificari = Object.assign({}, l.verificari || {}, { [k]: val });
     // v2.9.13 (UX 14 nov, V2, N16): fără alert „… e salvată”; rândul de sub buton urmează răspunsul serverului
@@ -7226,7 +7247,7 @@ function legaVerificari(l) {
     // v2.9.15 (N14): fiecare problemă la câmpul ei, nu alert
     if (nrC && !dc) { eroareCamp('vp-data', 'Pentru certificat completați și data.'); return; }
     // v2.9.3 (T9 m7): o dată aleasă fără număr se pierdea în tăcere
-    if (!nrC && !blocat && dc && dc !== azi() && !vechi && aprobat) { eroareCamp('vp-nr', 'Scrieți și numărul certificatului (sau lăsați data de azi, dacă nu aveți încă certificatul).'); return; }
+    if (!nrC && !blocat && dc && !vechi && aprobat) { eroareCamp('vp-nr', 'Scrieți și numărul certificatului (sau ștergeți data, dacă nu aveți încă certificatul).'); return; }
     if (nrC && !vechi && !aprobat) { eroareCamp('vp-nr', 'Certificatul se trece după aprobarea tehnică a lucrării.'); return; }
     if (nrC && dc > azi()) { eroareCamp('vp-data', 'Data certificatului nu poate fi în viitor.'); return; }
     // v2.8.8: certificatul închide definitiv lucrarea: numărul trebuie să arate a număr, data nu poate fi
@@ -7242,7 +7263,25 @@ function legaVerificari(l) {
     if (nrC) vp.certificat = Object.assign({}, vechi || {}, { nr: nrC, dataCert: dc });
     scrie('prosumator', vp, nrC && !vechi ? 'certificatul e trecut, lucrarea se închide' : '');
   };
-  if ($('#x-vf-salv')) $('#x-vf-salv').onclick = () => scrie('facturare', { stare: v('vf-stare'), anexa: v('vf-anexa') || '', obs: v('vf-obs').trim() }, '');
+  // v2.9.17 (UX 14 nov, V1): la „Achitat” apare data încasării, completată cu azi
+  if ($('#x-vf-stare')) $('#x-vf-stare').addEventListener('change', () => {
+    const ach = v('vf-stare') === 'achitat'; $('#x-vf-inc-camp').hidden = !ach;
+    if (ach && !v('vf-incasat')) $('#x-vf-incasat').value = azi();
+  });
+  if ($('#x-vf-salv')) $('#x-vf-salv').onclick = () => {
+    const stare = v('vf-stare'), nrF = (v('vf-nr') || '').trim(), dataF = v('vf-dataf') || '', incasat = stare === 'achitat' ? (v('vf-incasat') || '') : '';
+    const sumaT = (v('vf-suma') || '').trim(), suma = sumaT ? A().citesteNumar(sumaT) : null;
+    // v2.9.17: factura are număr și dată; încasarea are data ei, nu înaintea facturii; suma e număr
+    const lipsa = [];
+    if (['facturat', 'achitat'].includes(stare) && !nrF) lipsa.push({ cheie: 'vf-nr', nume: 'Numărul facturii' });
+    if (['facturat', 'achitat'].includes(stare) && !dataF) lipsa.push({ cheie: 'vf-dataf', nume: 'Data facturii' });
+    if (stare === 'achitat' && !incasat) lipsa.push({ cheie: 'vf-incasat', nume: 'Data încasării' });
+    if (incasat && dataF && incasat < dataF) lipsa.push({ cheie: 'vf-incasat', nume: 'Data încasării: nu poate fi înaintea facturii' });
+    if (sumaT && (typeof suma !== 'number' || suma < 0)) lipsa.push({ cheie: 'vf-suma', nume: 'Suma: un număr pozitiv (de ex. 3450,50)' });
+    if (A().aratLipsuri(lipsa, { prefix: 'x-' })) return;
+    const vf0 = ((l.verificari || {}).facturare) || {};
+    scrie('facturare', Object.assign({}, vf0, { stare, anexa: v('vf-anexa') || '', obs: v('vf-obs').trim(), nr: nrF, dataFactura: dataF, suma: typeof suma === 'number' ? suma : null, catre: v('vf-catre') || 'partener', incasat }), '');
+  };
   if ($('#x-vr-salv')) $('#x-vr-salv').onclick = () => {
     const s = A().citesteNumar(v('vr-suma'));
     if (typeof s !== 'number' || s < 0) { eroareCamp('vr-suma', 'Suma trebuie să fie un număr pozitiv.'); return; }
@@ -8275,6 +8314,30 @@ function ecranPreturi() {
  * Pe ce vede contul (Partenerul doar firma lui).
  * ------------------------------------------------------------------ */
 function luna(l) { const d = (l.raportat && (l.raportat.data || (l.raportat.finalizat || {}).data)) || (l.planificare || {}).data || l.creat; return d ? String(d).slice(0, 7) : ''; }
+// v2.9.17 (UX 14 nov, V1): facturile emise în luna aleasă (după data facturii), cu sumele și încasările; Admin și Facturare
+function facturiLuna(lunaR, part) {
+  return K.citesteLista().map((l) => ({ l, f: ((l.verificari || {}).facturare) || {} }))
+    .filter(({ l, f }) => f.dataFactura && f.dataFactura.slice(0, 7) === lunaR && (!part || (l.partener_id || '') === part))
+    .sort((a, b) => a.f.dataFactura.localeCompare(b.f.dataFactura));
+}
+function htmlFacturiLuna(lunaR, part) {
+  if (!['admin', 'facturare'].includes(K.rol())) return '';
+  const fl = facturiLuna(lunaR, part);
+  if (!fl.length) return '';
+  const tot = fl.reduce((a, { f }) => a + (+f.suma || 0), 0), inc = fl.filter(({ f }) => f.stare === 'achitat').reduce((a, { f }) => a + (+f.suma || 0), 0);
+  return `<section class="card" id="x-facturi-luna"><h2>Facturi emise în lună (${fl.length})</h2><div class="corp">
+    <div class="rezumat-fisa"><div><span>Facturat</span><b>${E(lei(tot))}</b></div><div><span>Încasat</span><b>${E(lei(inc))}</b></div><div><span>De încasat</span><b>${E(lei(tot - inc))}</b></div></div>
+    <div class="cal-grila" style="margin-top:10px"><table class="rap mic tab-facturi"><tr><th>Nr.</th><th>Data</th><th>Client</th><th>Către</th><th>Sumă</th><th>Încasat la</th></tr>
+    ${fl.map(({ l, f }) => `<tr data-deschide-ext="${E(l.id)}"><td>${E(f.nr || '—')}</td><td>${E(dataRo(f.dataFactura))}</td><td>${E(l.client || '—')}</td><td>${E(f.catre === 'client' ? 'client' : (K.numePartener(l.partener_id) || 'partener'))}</td><td class="n">${f.suma != null ? E(lei(f.suma)) : '—'}</td><td>${f.incasat ? E(dataRo(f.incasat)) : f.stare === 'achitat' ? 'achitat' : '—'}</td></tr>`).join('')}</table></div></div></section>`;
+}
+function csvFacturi(lunaR, part) {
+  const q = (x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"';
+  const rows = [['Nr. factură', 'Data facturii', 'Client', 'Facturat către', 'Partener', 'Sumă (lei)', 'Stare', 'Încasat la']]
+    .concat(facturiLuna(lunaR, part).map(({ l, f }) => [f.nr || '', f.dataFactura, l.client || '', f.catre === 'client' ? 'client' : 'partener', K.numePartener(l.partener_id) || '', f.suma != null ? String(f.suma).replace('.', ',') : '', f.stare || '', f.incasat || '']));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.map((r) => r.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = `facturi ${lunaR}.csv`; a.click();
+}
 function ecranRapoarte() {
   const st = A().stare;
   if (!st.lunaRap) st.lunaRap = azi().slice(0, 7);
@@ -8337,10 +8400,12 @@ function ecranRapoarte() {
         ${vede() ? `<div><span>Materiale cumpărate de partener (real, lucrări raportate)</span><b>${r.materiale.nReal ? E(lei(r.materiale.real)) : '—'}</b></div>${vedNerap && r.materiale.estNerap ? `<div><span>Estimat, lucrări neraportate</span><b>${E(lei(r.materiale.estNerap))}</b></div>` : ''}` : ''}
       </div></div></section>`).join('') : '<div class="gol-text" style="padding:28px 20px">Nicio lucrare în luna aleasă.</div>'}
     <div class="ajutor">Luna lucrării = data raportului (sau data planificată, dacă nu e raportată). „Materiale cumpărate de partener (real)” = consumul raportat × prețurile Achizițiilor, doar la lucrările raportate; estimarea celor neraportate apare separat. „Intervenții cu vină de montaj” se socotesc la firma care a făcut montajul. Suma materialelor cuprinde toate lucrările raportate ale lunii, inclusiv cele respinse sau neaprobate la plată.${vedNerap ? '' : ' Lucrările încă neraportate nu ajung la acest cont, deci nu apar aici.'}</div>
+    ${htmlFacturiLuna(st.lunaRap, st.partRap)}
     ${deFacturat.length && vede() ? `<section class="card"><h2>De facturat clientului (${deFacturat.length})</h2><div class="corp">
       ${deFacturat.map((l) => `<button class="lucrare" data-deschide-ext="${E(l.id)}"><div class="titlu">${E(l.client || '—')}</div>
         <div class="info">${E(l.anexa.linii.map((x) => `${x.den}: ${nr(x.cant)} ${x.um}`).join(' · '))}</div></button>`).join('')}</div></section>` : ''}`;
-  bara(`<button class="buton gol" id="x-csv">Descarcă CSV</button>`);
+  bara(`<button class="buton gol" id="x-csv">Descarcă CSV</button>${$('#x-facturi-luna') ? '<button class="buton gol" id="x-csv-fact">Facturile în CSV</button>' : ''}`);
+  if ($('#x-csv-fact')) $('#x-csv-fact').onclick = () => csvFacturi(st.lunaRap, st.partRap);
   $('#x-luna').onchange = (ev) => { if (/^\d{4}-\d{2}$/.test(ev.target.value)) { st.lunaRap = ev.target.value; ecranRapoarte(); } };
   if ($('#x-rap-part')) $('#x-rap-part').onchange = () => { st.partRap = v('rap-part'); ecranRapoarte(); };
   document.querySelectorAll('[data-deschide-ext]').forEach((b) => { b.onclick = () => { const l = K.citesteUna(b.dataset.deschideExt); if (l) A().du('lucrare', l); }; });
@@ -8451,6 +8516,7 @@ function ecranCalendar() {
       ${sel && ed ? `<div class="mesaj info">Ați ales <b>${E(sel.client || 'lucrarea')}</b>. Apăsați căsuța echipei și a zilei în care o planificați. <button class="link-buton" id="x-cal-anuleaza">Renunță</button></div>`
         : (ed ? `<div class="ajutor">Ca să planificați sau să mutați o lucrare: ${document.body.classList.contains('ui-lat') ? 'trageți-o în căsuța echipei și a zilei, sau ' : ''}apăsați lucrarea, apoi căsuța echipei și a zilei.</div>` : '')}
     </div></section>
+    <div class="cal-indiciu" id="x-cal-indiciu" hidden>‹ › Trageți tabelul ca să vedeți toată săptămâna.</div>
     <div class="cal-grila"><table class="cal"><thead><tr><th><span class="sr">Echipa</span></th>${zile.map((z, i) => `<th class="${z === azi_ ? 'azi' : ''}">${ZILE_SCURT[i]}<span>${ziScurta(z)}</span></th>`).join('')}</tr></thead>
       <tbody>${echipe.map(randEchipa).join('') || '<tr><td colspan="8" class="ajutor">Nu există echipe.</td></tr>'}</tbody></table></div>
     ${faraEchipa.length ? `<section class="card"><h2>Planificate săptămâna aceasta, fără echipă (${faraEchipa.length})</h2><div class="corp">${lista(faraEchipa, '')}</div></section>` : ''}
@@ -8459,6 +8525,11 @@ function ecranCalendar() {
   if (derulare && $('.cal-grila')) $('.cal-grila').scrollLeft = derulare;
   // v2.9.3 (T2 S18): pe telefon, grila pornește la ziua de azi, nu la luni
   else if ($('.cal-grila') && $('table.cal thead th.azi')) { const g = $('.cal-grila'), a = $('table.cal thead th.azi'); if (g.scrollWidth > g.clientWidth) g.scrollLeft = Math.max(0, a.offsetLeft - ($('table.cal tbody th') || {}).offsetWidth || 0); }
+  // v2.9.16 (P8): umbra coloanei fixe când tabelul e derulat, estomparea la dreapta când mai sunt zile, indiciul de defilare
+  { const g = $('.cal-grila'); if (g) {
+    const stare_ = () => { g.classList.toggle('stanga', g.scrollLeft > 2); g.classList.toggle('dreapta', g.scrollLeft + g.clientWidth < g.scrollWidth - 2); const i = $('#x-cal-indiciu'); if (i) i.hidden = g.scrollWidth <= g.clientWidth + 2; };
+    g.addEventListener('scroll', stare_, { passive: true }); stare_();
+  } }
   bara(ed ? '<button class="buton" id="x-cal-nou">+ Lucrare nouă</button>' : '');
   const muta = (n) => { c.start = plusZile(c.start, n); ecranCalendar(); };
   $('#x-cal-inapoi').onclick = () => muta(-7);
@@ -8685,6 +8756,9 @@ function itemiMeniu() {
   if (A().poate('preturi')) g('Instrumente', 'preturi', 'Prețuri parteneri');
   if (r === 'admin') {
     g('Administrare', 'admin', 'Utilizatori și echipe');
+    // v2.9.16 (UX 14 nov, B4): setările și arhiva au intrarea lor (erau butoane la fundul paginii de administrare)
+    g('Administrare', 'setari', 'Setări');
+    g('Administrare', 'arhiva', 'Lucrări arhivate');
     g('Administrare', 'parteneri', 'Parteneri');
     if (K.serverV3) g('Administrare', 'etape', 'Etape de poze');
   }
@@ -8741,7 +8815,7 @@ function ecranStart() {
     return `<section class="coada-pn${pliat ? ' pliat' : ''}">
       ${pliabil ? `<button type="button" class="tile are coada-cap" data-pn="${E(c.k)}" aria-expanded="${!pliat}">${cap(true)}</button>`
       : `<button type="button" class="tile are coada-cap" data-tile="${E(c.id)}">${cap()}</button>`}
-      ${pliat ? '' : `<div class="coada-randuri">${c.lista.slice(0, 5).map((l) => `<button type="button" class="coada-rand" data-coada="${E(c.k)}" data-coada-l="${E(l.id)}"><b>${E(l.client || 'Lucrare fără client')}</b><span>${E(infoScurt(l))}</span>${c.k === 'respinse' && decizieT(l) === 'respins' ? `<span class="motiv-resp">Motiv: ${E(((l.verificari || {}).tehnic || {}).motiv || '—')}</span>` : ''}</button>`).join('')}
+      ${pliat ? '' : `<div class="coada-randuri">${c.lista.slice(0, 5).map((l) => `<button type="button" class="coada-rand" data-coada="${E(c.k)}" data-coada-l="${E(l.id)}"><b>${E(l.client || 'Lucrare fără client')}</b><span>${E(infoScurt(l))}</span>${c.k === 'respinse' && decizieT(l) === 'respins' ? `<span class="motiv-resp">Motiv: ${E(((l.verificari || {}).tehnic || {}).motiv || '—')}</span>` : ''}${['neachitate', 'facturatDecis'].includes(c.k) && textFactura(l) ? `<span class="factura-rand">Factura ${E(textFactura(l))}</span>` : ''}</button>`).join('')}
         ${c.lista.length > 5 ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">toate cele ${c.lista.length}</button>` : pliabil ? `<button type="button" class="coada-toate" data-tile="${E(c.id)}">Deschide lista</button>` : ''}</div>`}</section>`;
   };
   // v2.9.3 (T10 m2): contul de Partener fără firmă legată nu vede nimic; până acum părea doar că n-are lucrări
@@ -8749,9 +8823,10 @@ function ecranStart() {
   // v2.9.10 (test pe serverul real, 14 nov): firma dezactivată de Admin lăsa Start-ul gol, fără explicație
   const firmaInactiva = r === 'partener' && !faraFirma && K.firmaInactiva;
   $('#ecran').innerHTML = A().htmlContBara() + htmlMesajEcran()
-    + (faraFirma ? '<div class="mesaj warn" style="margin-top:12px" id="x-fara-firma"><b>Contul nu e legat de nicio firmă parteneră</b>, deci nu vedeți nicio lucrare. Cereți Adminului să aleagă firma la contul dvs.</div>' : '')
-    + (firmaInactiva ? '<div class="mesaj warn" style="margin-top:12px" id="x-firma-inactiva"><b>Firma dvs. parteneră e dezactivată</b>, deci nu vedeți nicio lucrare. Lucrările ei rămân pe server; cereți Adminului s-o reactiveze.</div>' : '')
-    + '<h2 class="start-h">De făcut</h2>'
+    + (faraFirma ? '<div class="mesaj warn" style="margin-top:12px" id="x-fara-firma"><b>Contul nu e legat de nicio firmă parteneră</b>, deci nu vedeți nicio lucrare. Cereți Adminului să aleagă firma la contul dvs.' + htmlContactAdmin() + '</div>' : '')
+    + (firmaInactiva ? '<div class="mesaj warn" style="margin-top:12px" id="x-firma-inactiva"><b>Firma dvs. parteneră e dezactivată</b>, deci nu vedeți nicio lucrare. Lucrările ei rămân pe server; cereți Adminului s-o reactiveze.' + htmlContactAdmin() + '</div>' : '')
+    // v2.9.17 (UX 14 nov, V8): Partenerul doar urmărește: titlul nu-i spune că are de făcut ceva
+    + (r === 'partener' ? `<h2 class="start-h">Situația lucrărilor dvs.</h2><div class="ajutor" id="x-partener-info" style="margin:0 0 8px">Vedeți lucrările firmei ${E(K.numePartener((K.profil || {}).partener_id) || 'dvs.')}. Modificările le face inoSOLAR.</div>` : '<h2 class="start-h">De făcut</h2>')
     // `.tiles` e mereu pe Start (testele și scripturile de pe serverul real îl așteaptă la intrare)
     + `<div class="tiles cozi">${pline.length ? pline.map(panou).join('') : '<div class="mesaj ok">Nimic nu așteaptă după dvs. acum.</div>'}</div>`
     + (goale.length ? `<div class="start-gol"><span>Nimic de făcut la:</span>${goale.map((c) => `<button type="button" class="link-buton" data-tile="${E(c.id)}">${E(c.t.toLowerCase())}</button>`).join('')}</div>` : '')
@@ -8789,6 +8864,8 @@ function mergiLa(id) {
   if (id === 'borderou') { st.bord = null; A().du('borderou'); return; }
   if (id === 'etape') { st.etape = null; A().du('etape'); return; }
   if (id === 'probleme') { st.filtruPb = null; A().du('probleme'); return; }
+  if (id === 'setari') { st.filaAdmin = 'setari'; A().du('admin'); return; }
+  if (id === 'admin') { if (st.filaAdmin === 'setari') st.filaAdmin = 'conturi'; A().du('admin'); return; }
   A().du(id);
 }
 
@@ -8853,6 +8930,8 @@ function ecranCoada() {
   if (['deFacturat', 'anexe'].includes(st.coada) && toateC.some((l) => A().poate('verificaFacturare', l))) return coadaFacturare(c, toateC.filter((l) => A().poate('verificaFacturare', l)));
   // v2.9.3 (T8 #10): filtre pe tip, partener și echipă (Tehnicul face și Mentenanța; coada are zeci de lucrări)
   const fc = st.filtruCoada && st.filtruCoada.k === st.coada ? st.filtruCoada : (st.filtruCoada = { k: st.coada, tip: '', partener: '', echipa: '' });
+  // v2.9.17 (V1): neîncasatele, cele mai vechi facturi primele
+  if (st.coada === 'neachitate') toateC.sort((a, b) => String((((a.verificari || {}).facturare) || {}).dataFactura || '9').localeCompare(String((((b.verificari || {}).facturare) || {}).dataFactura || '9')));
   const lista = toateC.filter((l) => (!fc.tip || tipL(l) === fc.tip) && (!fc.partener || (l.partener_id || '') === fc.partener) && (!fc.echipa || (l._echipa_id || '') === fc.echipa));
   const uniq = (f) => [...new Set(toateC.map(f).filter(Boolean))];
   const tipuri = uniq(tipL), parts = uniq((l) => l.partener_id), echs = uniq((l) => l._echipa_id);
@@ -8862,7 +8941,7 @@ function ecranCoada() {
       ${parts.length > 1 ? alege('fc-partener', 'Partener', fc.partener, [{ v: '', t: 'toți' }].concat(parts.map((p) => ({ v: p, t: K.numePartener(p) || p })))) : ''}
       ${echs.length > 1 ? alege('fc-echipa', 'Echipa', fc.echipa, [{ v: '', t: 'toate' }].concat(echs.map((e) => ({ v: e, t: K.numeEchipa(e) || e })))) : ''}</div>` : '';
   $('#ecran').innerHTML = filtre + (lista.length ? `<div class="mesaj info" style="margin-top:14px">${lista.length} ${lista.length === 1 ? 'lucrare' : 'lucrări'}${lista.length < toateC.length ? ` din ${toateC.length}` : ''}.${c.ecran === 'verifica' ? ' Apăsați o lucrare: pozele, materialele și procesul verbal sunt pe un singur ecran, cu decizia jos.' : ''}</div>`
-      + lista.map((l) => A().htmlCardLucrare(l)).join('')
+      + lista.map((l) => A().htmlCardLucrare(l) + (['neachitate', 'facturatDecis'].includes(st.coada) && textFactura(l) ? `<div class="factura-sub">Factura ${E(textFactura(l))}</div>` : '')).join('')
     : `<div class="gol-text" style="padding:28px 20px">${toateC.length ? 'Nicio lucrare pentru filtrele alese.' : 'Nimic în această listă. Totul e la zi.'}</div>`);
   ['tip', 'partener', 'echipa'].forEach((k) => { if ($('#x-fc-' + k)) $('#x-fc-' + k).onchange = () => { fc[k] = v('fc-' + k); ecranCoada(); }; });
   bara(c.ecran === 'verifica' && lista.length ? '<button class="buton" id="x-prima">Începe verificarea</button>' : '');
@@ -8889,7 +8968,9 @@ function coadaFacturare(c, lista) {
       <span><b>${E(l.client || 'Lucrare fără client')}</b><small>${E(det)}</small></span></label>
       <button type="button" class="link-buton" data-deschide="${E(l.id)}">Fișa</button></div>`;
   };
-  const ml = st.mesajLot && Date.now() - st.mesajLot.la < 8000 ? `<div class="mesaj ok" id="x-lot-gata" style="margin-top:14px">${E(st.mesajLot.t)}</div>` : '';
+  const ml = (st.mesajLot && Date.now() - st.mesajLot.la < 8000 ? `<div class="mesaj ok" id="x-lot-gata" style="margin-top:14px">${E(st.mesajLot.t)}</div>` : '')
+    // v2.9.17 (V1): la „Marchează facturat”, numărul și data facturii se trec o dată, pentru toate lucrările bifate
+    + (!anexe && lista.length ? `<div class="randuri2 lot-factura">${camp('lot-nr', 'Nr. factură (pentru toate cele bifate)', st.lotNr || '', 'autocomplete="off"')}${camp('lot-data', 'Data facturii', st.lotData || azi(), `max="${azi()}"`, 'date')}</div>` : '');
   $('#ecran').innerHTML = ml + (lista.length ? `<div class="mesaj info" style="margin-top:14px">${lista.length} ${lista.length === 1 ? 'lucrare' : 'lucrări'}. Bifați lucrările și marcați-le deodată; „Fișa” deschide lucrarea cu toate detaliile.</div>
     <div class="lot"><label class="lot-r lot-toate"><input type="checkbox" id="x-lot-toate"${ales.ids.size === lista.length ? ' checked' : ''}><span><b>Toate</b></span></label>${lista.map(rand).join('')}</div>`
     : '<div class="gol-text" style="padding:28px 20px">Nimic în această listă. Totul e la zi.</div>');
@@ -8902,11 +8983,20 @@ function coadaFacturare(c, lista) {
   document.querySelectorAll('[data-lot]').forEach((x) => { x.onchange = () => { if (x.checked) ales.ids.add(x.dataset.lot); else ales.ids.delete(x.dataset.lot); redes(); }; });
   if ($('#x-lot-toate')) $('#x-lot-toate').onchange = (ev) => { ales.ids = ev.target.checked ? new Set(lista.map((l) => l.id)) : new Set(); redes(); };
   document.querySelectorAll('[data-deschide]').forEach((b) => { b.onclick = () => { const l = lista.find((x) => x.id === b.dataset.deschide); if (l) { st.revenireLucrare = 'coada'; A().deschide(l); } }; });
-  const marcheaza = (camp, val, text) => {
+  ['lot-nr', 'lot-data'].forEach((k) => { if ($('#x-' + k)) $('#x-' + k).oninput = () => { st[k === 'lot-nr' ? 'lotNr' : 'lotData'] = v(k); }; });
+  const marcheaza = async (camp, val, text) => {
     // v2.9.6: niciodată obiectul din lista partajată — dacă nu e în cache, o copie proprie
     const alese = lista.filter((l) => ales.ids.has(l.id)).map((l) => K.citesteUna(l.id) || K.copieProprie(l));
     if (!alese.length) return;
-    alese.forEach((l) => { l.verificari = Object.assign({}, l.verificari || {}, { facturare: Object.assign({}, vf(l), { [camp]: val }) }); A().salveaza(l); });
+    const extra = {};
+    if (camp === 'stare' && val === 'facturat') {
+      const nrF = (v('lot-nr') || '').trim(), dataF = v('lot-data') || '';
+      if (!dataF) { A().aratLipsuri([{ cheie: 'lot-data', nume: 'Data facturii' }], { prefix: 'x-', faraRezumat: true }); return; }
+      if (!nrF && !(await A().confirma({ titlu: 'Fără număr de factură?', text: `Marcați ${alese.length === 1 ? 'lucrarea' : 'cele ' + alese.length + ' lucrări'} ca facturate fără numărul facturii? Îl puteți scrie mai târziu, pe fișă.`, ok: 'Marchează fără număr', renunta: 'Scriu numărul' }))) return;
+      Object.assign(extra, { dataFactura: dataF }, nrF ? { nr: nrF } : {});
+    }
+    alese.forEach((l) => { l.verificari = Object.assign({}, l.verificari || {}, { facturare: Object.assign({}, vf(l), { [camp]: val }, extra) }); A().salveaza(l); });
+    st.lotNr = '';
     ales.ids = new Set();
     // v2.9.3 (T9 m2): mesajul rămâne și după redesenarea de la sincronizare (câteva secunde)
     st.mesajLot = { t: `${alese.length} ${alese.length === 1 ? 'lucrare marcată' : 'lucrări marcate'}: ${text}.`, la: Date.now() };
@@ -9629,6 +9719,11 @@ function butoaneLista() {
     + (K.activ && r === 'gestiune' && K.serverV2 ? '<button class="buton gol" id="x-preturi">Prețuri parteneri</button>' : '');
 }
 // lucrările respinse de Tehnic, la echipa care trebuie să le corecteze
+// v2.9.16 (N18): numărul respinselor, pentru rândul compact al listei (fostul banner)
+function respinseLista(toate) {
+  if (!K.activ || !K.serverV2 || !['lider', 'mentenanta', 'membru', 'admin'].includes(K.rol())) return 0;
+  return toate.filter((l) => A().stareLucrare(l) === 'respins').length;
+}
 function htmlBannerLista(toate) {
   if (!K.activ || !K.serverV2 || !['lider', 'mentenanta', 'membru', 'admin'].includes(K.rol())) return '';
   const n = toate.filter((l) => A().stareLucrare(l) === 'respins').length;
@@ -9649,7 +9744,7 @@ function legaLista() {
 /* ------------------------------------------------------------------ *
  * v2.3 — O2: verificarea pozelor cu AI (recomandare pentru Tehnic; decizia rămâne a lui)
  * ------------------------------------------------------------------ */
-const VERSIUNE_APP = '2.9.15';
+const VERSIUNE_APP = '2.9.17';
 window.VERSIUNE_APP = VERSIUNE_APP;
 // v2.8.5: verificarea cu AI costă pe fiecare lucrare, deci o pornesc doar Tehnicul și Adminul, cu confirmare,
 // în limita plafonului lunar setat de Admin (Setări → Verificare AI). Oprită din setări, butonul dispare.
@@ -9684,6 +9779,42 @@ function htmlAI(l) {
 }
 // Admin → „Servicii plătite”: AI pe poze (oprit / pornit, plafon lunar, cost estimat) și SMS (telefonul de contact
 // din mesaje), cu contoarele lunii. Setările stau pe server („setari”: ai, sms); plafonul îl verifică și serverul.
+// v2.9.16 (UX 14 nov, P1): pe ecranele care spun „cereți Adminului”, cine și la ce telefon. Setarea firmei (cheia „contact”
+// în `setari`) o citesc doar conturile cu rol; ultima văzută se ține pe telefon, ca să rămână și după dezactivarea contului.
+function contactAdmin() {
+  let c = (K.setari || {}).contact;
+  try {
+    if (c && (c.nume || c.telefon)) localStorage.setItem('ino_contact_admin', JSON.stringify(c));
+    else c = JSON.parse(localStorage.getItem('ino_contact_admin') || 'null');
+  } catch (e) { /* */ }
+  return c && (c.nume || c.telefon) ? c : null;
+}
+function htmlContactAdmin() {
+  const c = contactAdmin();
+  if (!c) return '';
+  const tel = String(c.telefon || '').trim();
+  return `<div class="contact-admin" id="x-contact-admin">Pentru cont: <b>${E(c.nume || 'Adminul')}</b>${tel ? ` · <a href="tel:${E(tel.replace(/[^\d+]/g, ''))}">${E(tel)}</a>` : ''}</div>`;
+}
+function htmlContactSetare() {
+  if (!K.activ || !K.serverV3 || K.rol() !== 'admin') return '';
+  const c = (K.setari || {}).contact || {};
+  return `<section class="card" id="contact-setare"><h2>Contact pentru probleme de cont</h2><div class="corp">
+    <div class="ajutor" style="margin-top:0">Apare pe ecranele care spun „cereți Adminului” (cont fără firmă, firmă dezactivată, cont dezactivat), cu telefonul apăsabil.</div>
+    <div class="randuri2">${camp('contact-nume', 'Nume', c.nume || '')}${camp('contact-tel', 'Telefon', c.telefon || '', 'inputmode="tel"', 'tel')}</div>
+    <div class="actiuni"><button class="buton gol" id="x-contact-salv">Salvează contactul</button></div>
+  </div></section>`;
+}
+function legaContactSetare() {
+  if (!$('#x-contact-salv')) return;
+  $('#x-contact-salv').onclick = async () => {
+    const nume = v('contact-nume').trim(), telefon = v('contact-tel').trim();
+    if (telefon && !/^[+\d][\d\s.-]{7,16}$/.test(telefon)) { eroareCamp('contact-tel', 'Telefonul nu pare valid (ex. 0735 320 363).'); return; }
+    const b = $('#x-contact-salv'); b.disabled = true;
+    try { await K.salveazaSetare('contact', { nume, telefon }); contactAdmin(); b.insertAdjacentHTML('afterend', '<div class="stare-trimitere ok" id="x-contact-salvat">Contactul e salvat.</div>'); }
+    catch (e) { eroareCamp('contact-tel', e.message); }
+    b.disabled = false;
+  };
+}
 function htmlServicii() {
   if (!K.activ || !K.serverV3 || K.rol() !== 'admin') return '';
   const a = setariAI(), sm = Object.assign({ contact: '' }, (K.setari || {}).sms || {});
@@ -9938,6 +10069,35 @@ const laAdmin = () => A().du(areStart() && A().stare.dinStart ? 'start' : A().po
 const laRevenire = () => { const st = A().stare; const r = st.revenireLucrare; st.revenireLucrare = null; A().du(r || (areStart() ? 'start' : 'lista')); };
 // v2.9.11 (UX 14 nov, L5, M5): un mesaj verde pe ecranul următor (Start, listă sau fișă), 8 secunde, ca la facturarea în lot
 function mesajUrmator(t) { A().stare.mesajEcran = { t, la: Date.now() }; }
+// v2.9.17 (UX 14 nov, V6): datele lucrării de care e nevoie la dosarul de prosumator, într-un loc, cu „Copiază”
+function htmlPentruDosar(l) {
+  const c = l.client_id ? (K.clienti || []).find((x) => x.id === l.client_id) : null;
+  const rz = l.rezumatSalvat || (l.antecalcul && l.antecalcul.rezumat) || {};
+  const m = (l.pv && l.pv.masuratori) || {};
+  const inv = [(m.invertor || {}).tip || rz.invertorModel, (m.invertor || {}).sn ? 'S/N ' + m.invertor.sn : ''].filter(Boolean).join(' · ');
+  const pan = (m.panouri || {}).buc ? `${m.panouri.buc} × ${m.panouri.w || '?'} W` : rz.panouri ? `${rz.panouri} panouri` : '';
+  const randuri = [['Client', l.client], ['Adresa', [l.adresa, l.judet].filter(Boolean).join(', ')], ['Contract', c && c.nr_contract ? `${c.nr_contract}${c.data_contract ? ' din ' + dataRo(c.data_contract) : ''}` : ''],
+    ['Putere', rz.kWp ? A().nrK(rz.kWp) + ' kWp' : c && c.putere_kwp ? A().nrK(c.putere_kwp) + ' kWp (contract)' : ''], ['Invertor', inv], ['Panouri', pan], ['Stocare', m.stocare || ''],
+    ['Finanțare', l.tipFinantare || (c && c.tip_finantare) || ''], ['Procesul verbal', l.pv && l.pv.data ? 'semnat pe ' + dataRo(l.pv.data) : 'nesemnat încă']].filter(([, x]) => x);
+  return `<div class="pentru-dosar" id="x-pentru-dosar"><div class="pd-cap"><b>Pentru dosar</b><button type="button" class="link-text" id="x-pd-copiaza">Copiază datele</button>${l.pv && l.pv.data ? '<button type="button" class="link-text" id="x-pd-pv">PV în PDF</button>' : ''}</div>
+    <div class="verif-kv">${randuri.map(([k, x]) => `<div class="verif-rand"><span>${E(k)}</span><b>${E(x)}</b></div>`).join('')}</div></div>`;
+}
+document.addEventListener('click', async (ev) => {
+  const t = ev.target.closest && ev.target.closest('#x-pd-copiaza, #x-pd-pv');
+  if (!t) return;
+  const l = A().stare.lucrare; if (!l) return;
+  if (t.id === 'x-pd-pv') { pvPDF(l); return; }
+  const txt = [...document.querySelectorAll('#x-pentru-dosar .verif-rand')].map((r) => r.querySelector('span').textContent + ': ' + r.querySelector('b').textContent).join('\n');
+  let ok = false; try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) { /* */ }
+  t.textContent = ok ? 'Copiat ✓' : 'Selectați și copiați';
+});
+// v2.9.17 (UX 14 nov, V1): rândul facturii pe Start și în coada „Facturate, neîncasate”: nr. · data · suma · de câte zile
+function textFactura(l) {
+  const f = ((l.verificari || {}).facturare) || {};
+  if (!f.nr && !f.dataFactura && f.suma == null) return '';
+  const zile = f.dataFactura ? Math.max(0, Math.floor((Date.now() - new Date(f.dataFactura + 'T12:00:00')) / 864e5)) : null;
+  return [f.nr ? 'nr. ' + f.nr : '', f.dataFactura ? dataRo(f.dataFactura).slice(0, 5) : '', f.suma != null ? lei(f.suma) : '', zile != null && f.stare === 'facturat' ? (zile === 0 ? 'azi' : zile === 1 ? 'de ieri' : `de ${zile} zile`) : ''].filter(Boolean).join(' · ');
+}
 // v2.9.15 (UX 14 nov, N14): eroarea unui câmp în pagină (aratLipsuri din app.js, cu id-urile „x-…” ale fișei), fără rezumat sus
 const eroareCamp = (cheie, nume, cuRezumat) => A().aratLipsuri([{ cheie, nume }], { prefix: 'x-', faraRezumat: !cuRezumat });
 const confirma = (o) => A().confirma(o);
@@ -9993,7 +10153,7 @@ window.EXT = {
   deschide, butoaneLista, legaLista, areStart, COZI, htmlBannerLista, htmlTipScurt, htmlInfoCard, gataDeTrimis, stareText: STARE_TEXT,
   // pentru teste
   TIPURI, ETAPE, etapeLucrare, etapeLipsa, standardContract, inclusInContract, campuriDinContract, anexaCalculata,
-  htmlServicii, legaServicii, semnalePoze, exifDinJpeg, textAnuntSMS, htmlAnuntSMS, pvPDF, verificaPVModel, sumaPartener, ePartener, urcaPozele,
+  respinseLista, htmlServicii, legaServicii, htmlContactAdmin, htmlContactSetare, legaContactSetare, semnalePoze, exifDinJpeg, textAnuntSMS, htmlAnuntSMS, pvPDF, verificaPVModel, sumaPartener, ePartener, urcaPozele,
   itemiMeniu, mergiLa, infoScurt, DEPARTAMENTE, modificariNesalvate, fisaAtinsa: () => fisaAtinsa, tipL, dataPlan, pozeEtapa, salveazaFisaAcum, pastreazaPV, oferaPV,
   localitate, telefonPlauzibil, MOTIVE_NEAPROBAT, CONSTATARI,
   avertismentCod, intrebareTrimitere, mesajUrmator, htmlMesajEcran, laRevenire, htmlStare, puneStare, urmaresteTrimiterea,
@@ -10042,6 +10202,20 @@ css.textContent = `
 select.lipsa,textarea.lipsa{border-color:#b3261e;background:#fdf1f0}
 .bifa.lipsa{outline:2px solid #b3261e;outline-offset:2px;border-radius:6px}
 .semnatura.lipsa{outline:2px solid #b3261e;outline-offset:2px}
+/* v2.9.16 (UX 14 nov, P1): contactul Adminului pe ecranele „cereți Adminului” */
+.contact-admin{margin-top:8px;font-size:15px}
+.banner-lista{padding:8px 12px}
+/* v2.9.17 (UX 14 nov, V1, V6, V7) */
+.pentru-dosar{border:1px solid var(--linie);border-radius:10px;padding:8px 12px;margin:4px 0 10px;background:#fbfbf8}
+.pd-cap{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.pd-cap b{flex:1}
+.factura-rand{color:var(--text)!important;font-weight:600}
+.factura-sub{margin:-6px 0 10px 14px;font-size:13.5px;color:var(--slab)}
+.buton.salv-birou{width:100%;margin-top:10px}
+.buton.salv-birou:disabled{opacity:.5;cursor:not-allowed}
+.lot-factura{margin-top:12px}
+.banner-lista .link-text{padding:6px 0}
+.contact-admin a{display:inline-block;padding:10px 4px;min-height:44px;font-weight:700;color:inherit}
 /* v2.9.15 (UX 14 nov, B5): parola unui cont nou, cu „Copiază” */
 .panou-parola{border:2px solid var(--verde-text,#1e7b46)}
 .pp-rand{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap}
@@ -10188,7 +10362,13 @@ table.bord td .det{display:block;color:var(--slab);font-size:11.5px}
 .cal-sus .cal-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .cal-sus .cal-nav .buton{min-width:44px;padding:6px 10px}
 .cal-grila{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 0 14px;border:1px solid var(--linie);border-radius:10px;background:var(--card)}
-table.cal{border-collapse:collapse;min-width:860px;width:100%;table-layout:fixed}
+/* v2.9.16 (UX 14 nov, P8): cu „separate”, coloana fixă (sticky) acoperă celulele care trec pe sub ea; și antetul ei stă pe loc */
+table.cal{border-collapse:separate;border-spacing:0;min-width:860px;width:100%;table-layout:fixed}
+table.cal thead th:first-child{position:sticky;left:0;z-index:2;background:var(--fundal,#f6f6f4)}
+.cal-grila.stanga table.cal tbody th,.cal-grila.stanga table.cal thead th:first-child{box-shadow:4px 0 6px -2px rgba(0,0,0,.18)}
+.cal-grila.dreapta{-webkit-mask-image:linear-gradient(to right,#000 88%,transparent);mask-image:linear-gradient(to right,#000 88%,transparent)}
+.cal-indiciu{font-size:13px;color:var(--slab);margin:-4px 0 6px}
+.cal-indiciu[hidden]{display:none}
 table.cal th,table.cal td{text-transform:none;letter-spacing:0;border-bottom:1px solid var(--linie);border-left:1px solid var(--linie);vertical-align:top;padding:5px;font-size:12.5px}
 table.cal thead th{background:var(--fundal,#f6f6f4);text-align:center;font-weight:700}
 table.cal thead th span{display:block;font-weight:400;color:var(--slab);font-size:12px}
@@ -10519,6 +10699,7 @@ function stareLucrare(l) {
   return l.antecalcul || areConsum(l.raportat) ? 'in_lucru' : 'antecalcul';
 }
 // căutare fără diacritice: „stefanescu” găsește „Ștefănescu”
+const dataRoScurt = (d) => (d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '');
 const fara = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const numeEchipaL = (l) => (l._echipa_id && K.numeEchipa(l._echipa_id)) || l.echipa || '';
 
@@ -10577,7 +10758,10 @@ const NUME_CARDURI = { planificat: ['Planificate', 'cu dată și echipă'], lucr
   antecalculat: ['De executat', 'în lucru sau respinse'], raportat: ['Trimise', 'de validat sau la verificare'], inchis: ['Închise', 'verificate tehnic'], toate: ['Toate', 'oricare stare'] };
 function carduriVizibile() {
   const r = K.rol();
-  if (K.activ && K.serverV2) return carduriVizibileV2(r).map((c) => (NUME_CARDURI[c.k] ? Object.assign({}, c, { t: NUME_CARDURI[c.k][0], s: NUME_CARDURI[c.k][1] }) : c));
+  // v2.9.16 (UX 14 nov, V9): la birou, „Trimise” se cheamă „La verificare” (cuvântul de pe eticheta stării)
+  const birou = ['tehnic', 'prosumator', 'facturare'].includes(r);
+  if (K.activ && K.serverV2) return carduriVizibileV2(r).map((c) => (birou && c.k === 'raportat' ? Object.assign({}, c, { t: 'La verificare', s: 'trimise, validate, de decis' })
+    : NUME_CARDURI[c.k] ? Object.assign({}, c, { t: NUME_CARDURI[c.k][0], s: NUME_CARDURI[c.k][1] }) : c));
   return carduriVizibileV2(r);
 }
 function carduriVizibileV2(r) {
@@ -10804,9 +10988,15 @@ function ecranLista() {
     : 'Pre-calcul materiale<span class="sub">sisteme fotovoltaice 3–30 kWp</span>';
   $('#btn-inapoi').hidden = !areStart();
   $('#ecran').innerHTML = (areStart() ? '' : htmlContBara()) + (window.EXT ? window.EXT.htmlMesajEcran() : '') + htmlInstalare()
-    + (deValidat ? `<div class="mesaj warn">${deValidat === 1 ? 'O lucrare are raportul' : deValidat + ' lucrări au raportul'} gata de validat.
-      ${card.k !== 'raportat' || deLaValidare < dataDeLa() ? '<br><button type="button" class="link-buton" id="b-devalidat">Vezi rapoartele de validat</button>' : ''}</div>` : '')
-    + (window.EXT ? window.EXT.htmlBannerLista(toate) : '')
+    // v2.9.16 (UX 14 nov, N18): „de validat” și „respinse” într-un singur rând compact, cu legăturile lor (Start le are deja ca panouri)
+    + (() => {
+      const nResp = window.EXT ? window.EXT.respinseLista(toate) : 0;
+      if (!deValidat && !nResp) return '';
+      const parti = [];
+      if (deValidat) parti.push(card.k !== 'raportat' || deLaValidare < dataDeLa() ? `<button type="button" class="link-text" id="b-devalidat">${deValidat} de validat</button>` : `${deValidat} de validat`);
+      if (nResp) parti.push(`<button type="button" class="link-text" id="x-vezi-respinse">${nResp} ${nResp === 1 ? 'respinsă' : 'respinse'}, de corectat</button>`);
+      return `<div class="mesaj warn banner-lista" id="x-banner-lista">${parti.join(' · ')}</div>`;
+    })()
     + corp;
   $('#bara-in').innerHTML = (poate('admin') ? '<button class="buton gol" id="b-admin">Administrare</button>' : '')
     + (poate('nomenclator') && !poate('admin') ? '<button class="buton" id="b-nomenclator">Nomenclator și recepție</button>' : '')
@@ -10914,6 +11104,14 @@ function deseneazaListaFiltrata(toate) {
   list.sort((a, b) => ((poate('valideaza', b) && finalizata(b)) - (poate('valideaza', a) && finalizata(a))) || dataActivitate(b) - dataActivitate(a));
   const el = $('#lista-lucrari');
   if (!el) return;
+  // v2.9.16 (UX 14 nov, N19, V9, B8): subtitlul spune câte rânduri se văd, cu filtrul și totalul din perioadă
+  const titluLista = (n) => {
+    const sub = $('#titlu .sub'); if (!sub || !K.activ || !K.serverV2) return;
+    const lu = (x) => `${x} ${x === 1 ? 'lucrare' : 'lucrări'}`;
+    const tot = toate.filter(inPerioada).length;
+    sub.textContent = q ? `${n} ${n === 1 ? 'găsită' : 'găsite'} în toate lucrările` : tab && tab.toate ? `${lu(n)} · de la ${dataRoScurt(dataDeLa())} până azi`
+      : `${n} ${tab ? tab.t.toLowerCase() : ''} · din ${lu(tot)} în perioada aleasă`;
+  };
   // calculator, cu cont: tabel dens în stânga și fișa pe scurt alături (master–detail),
   // cu filtre după tip, echipă și partener și sortare la clic pe antetul coloanei
   if (K.activ && document.body.classList.contains('ui-lat') && (list.length || stare.filtruL)) {
@@ -10929,9 +11127,10 @@ function deseneazaListaFiltrata(toate) {
     const cuPros = ['admin', 'prosumator', 'facturare', 'tehnic'].includes(K.rol());
     const areFiltru = f.tip || f.echipa || f.partener || f.pros;
     // v2.9.3 (T9 c5): cardurile de sus numără toate lucrările, nu doar cele filtrate: se spune
-    const filtre = `<div class="tab-filtre">${opt('tip', 'Tip', valori(tipT))}${opt('echipa', 'Echipă', valori(echT))}${opt('partener', 'Partener', valori(parT))}${cuPros ? opt('pros', 'Prosumator', ['cerut', 'necerut']) : ''}${areFiltru ? '<button type="button" class="tf-sterge" id="tf-sterge">Fără filtre</button>' : ''}</div>`
+    const filtre = `<div class="tab-filtre">${opt('tip', 'Tip', valori(tipT))}${opt('echipa', 'Echipă', valori(echT))}${K.rol() === 'partener' ? '' : opt('partener', 'Partener', valori(parT))}${cuPros ? opt('pros', 'Prosumator', ['cerut', 'necerut']) : ''}${areFiltru ? '<button type="button" class="tf-sterge" id="tf-sterge">Fără filtre</button>' : ''}</div>`
       + (areFiltru ? '<div class="ajutor nota-cautare" style="padding:0 2px 6px">Filtrele se aplică tabelului; numerele de pe cardurile de sus sunt pentru toate lucrările.</div>' : '');
     list = list.filter((l) => (!f.tip || tipT(l) === f.tip) && (!f.echipa || echT(l) === f.echipa) && (!f.partener || parT(l) === f.partener) && (!f.pros || proT(l) === f.pros));
+    titluLista(list.length);
     const SORT = {
       client: (l) => fara(l.client || ''), tip: (l) => tipT(l), stare: (l) => (X ? X.stareText(l) : STARI[stareLucrare(l)]).t,
       echipa: echT, partener: parT, data: (l) => (X ? X.dataPlan(l) : '') || '', poze: (l) => pozeText(l) || '',
@@ -10960,12 +11159,14 @@ function deseneazaListaFiltrata(toate) {
       if ($('#md-poze')) $('#md-poze').onclick = () => { stare.pozeDinFisa = false; du('poze', l); };
     };
     el.querySelectorAll('tr[data-sel]').forEach((tr) => {
+      // v2.9.16 (UX 14 nov, N10; decizie Clau, 14 nov): clicul pe rând deschide fișa, ca în tabelul departamentului;
+      // previzualizarea din dreapta urmează rândul ales cu tastatura (Tab, săgeți) și are „Deschide fișa”
       tr.onclick = () => {
         stare.selLista = tr.dataset.sel;
-        // fără panoul alăturat (ecran îngust), clicul deschide direct fișa
-        if ($('#md-det') && !$('#md-det').offsetParent) { const l = K.citesteUna(tr.dataset.sel); if (l) { stare.revenireLucrare = 'lista'; du('lucrare', l); } return; }
-        arata();
+        const l = K.citesteUna(tr.dataset.sel);
+        if (l) { stare.revenireLucrare = 'lista'; if (window.EXT && K.serverV2) du('lucrare', l); else deschide(l); }
       };
+      tr.onfocus = () => { if (stare.selLista !== tr.dataset.sel) { stare.selLista = tr.dataset.sel; arata(); } };
       tr.ondblclick = () => { const l = K.citesteUna(tr.dataset.sel); if (l) deschide(l); };
       tr.onkeydown = (ev) => {
         if (ev.key === 'Enter') { const l = K.citesteUna(tr.dataset.sel); if (l) deschide(l); return; }
@@ -10981,6 +11182,7 @@ function deseneazaListaFiltrata(toate) {
     arata();
     return;
   }
+  titluLista(list.length);
   el.innerHTML = list.length ? notaCautare + notaLimita(list.length) + list.slice(0, LIMITA_LISTA).map(htmlCardLucrare).join('')
     : `<div class="gol-text" style="padding:28px 20px">${q ? 'Nicio lucrare nu se potrivește căutării.' : E(textGol(tab))}</div>`;
   el.querySelectorAll('[data-deschide]').forEach((b) => {
@@ -12858,7 +13060,8 @@ function ecranFaraRol() {
   $('#ecran').innerHTML = `<div class="gol-text"><img src="${window.LOGO_INOSOLAR}" alt="inoSOLAR">
     ${K.dezactivat
       ? `Contul <b>${E(p.email || '')}</b> a fost dezactivat.<br>Nu mai puteți vedea lucrările. Dacă e o greșeală, cereți Adminului să-l reactiveze, apoi apăsați „Verifică din nou”.`
-      : `Contul <b>${E(p.email || '')}</b> nu are încă un rol.<br>Cereți Adminului să vă dea rolul și echipa, apoi apăsați „Verifică din nou”.`}</div>`;
+      : `Contul <b>${E(p.email || '')}</b> nu are încă un rol.<br>Cereți Adminului să vă dea rolul și echipa, apoi apăsați „Verifică din nou”.`}
+    ${window.EXT && window.EXT.htmlContactAdmin ? window.EXT.htmlContactAdmin() : ''}</div>`;
   $('#bara-in').innerHTML = '<button class="buton gol" id="b-iesire">Ieșire</button><button class="buton" id="b-reverif">Verifică din nou</button>';
   $('#b-iesire').onclick = async () => { await K.iesire(); du('login'); };
   $('#b-reverif').onclick = async () => {
@@ -12943,13 +13146,30 @@ function htmlEchipeOameni(profiluri, echipe) {
 }
 
 const fara0 = (t) => fara(t);
+// v2.9.16 (UX 14 nov, B4, N15): Administrarea pe file, în loc de o pagină de 3 500 px; fila rămâne cât e deschisă aplicația.
+// „Arhivă” e ecranul ei (se încarcă de pe server), cu aceeași bară deasupra.
+const FILE_ADMIN = [{ k: 'conturi', t: 'Conturi' }, { k: 'echipe', t: 'Echipe' }, { k: 'import', t: 'Import' }, { k: 'setari', t: 'Setări' }, { k: 'arhiva', t: 'Arhivă' }];
+function htmlFileAdmin(cur) {
+  return `<nav class="tabs-l file-admin" aria-label="Administrare">${FILE_ADMIN.map((f) => `<button type="button" class="tl${f.k === cur ? ' on' : ''}" data-fa="${f.k}"${f.k === cur ? ' aria-current="page"' : ''}>${E(f.t)}</button>`).join('')}</nav>`;
+}
+function legaFileAdmin() {
+  document.querySelectorAll('[data-fa]').forEach((b) => { b.onclick = () => {
+    const k = b.dataset.fa;
+    if (k === 'arhiva') { du('arhiva'); return; }
+    stare.filaAdmin = k;
+    if (stare.ecran === 'admin') { window.scrollTo(0, 0); ecranAdmin(); } else du('admin');
+  }; });
+}
 function ecranAdmin() {
   stare.dinStart = false;
+  const fila = FILE_ADMIN.some((f) => f.k === stare.filaAdmin && f.k !== 'arhiva') ? stare.filaAdmin : 'conturi';
+  document.body.dataset.filaAdmin = fila;
+  const ascunsa = (k) => (k === fila ? '' : ' hidden');
   const { echipe } = K.oameni;
   // conturile fără rol primele: sunt cele care așteaptă ceva de la Admin
   const profiluri = K.oameni.profiluri.slice().sort((a, b) => (!!a.rol - !!b.rol) || String(a.nume || a.email).localeCompare(String(b.nume || b.email)));
   const fara = profiluri.filter((p) => !p.rol).length;
-  $('#titlu').innerHTML = 'Administrare<span class="sub">utilizatori, echipe, catalog</span>';
+  $('#titlu').innerHTML = 'Administrare<span class="sub">' + E({ conturi: 'conturi și conturi noi', echipe: 'echipele și oamenii lor', import: 'conturi din listă', setari: 'setări, catalog, servicii' }[fila]) + '</span>';
   $('#btn-inapoi').hidden = false;
   // panoul cu toate conturile, în dreapta: pe calculator stă deschis, pe telefon se deschide din buton
   if (stare.panouConturi == null) stare.panouConturi = window.innerWidth >= 1100;
@@ -12977,8 +13197,8 @@ function ecranAdmin() {
       </div>
     </details>`;
   };
-  const panou = `<div class="panou-fundal" id="panou-fundal"></div>
-    <aside class="panou-dr" id="panou-conturi" aria-label="Conturi">
+  const panou = `<div class="panou-fundal" id="panou-fundal"${ascunsa('conturi')}></div>
+    <aside class="panou-dr" id="panou-conturi" aria-label="Conturi"${ascunsa('conturi')}>
       <div class="panou-cap"><b>Conturi (${profiluri.length})</b><button type="button" class="panou-x" id="b-panou-x" aria-label="Închide">&times;</button></div>
       <div class="panou-corp">
         ${fara ? `<div class="mesaj warn" style="margin-top:0">${fara === 1 ? 'Un cont nu are' : fara + ' conturi nu au'} rol și nu ${fara === 1 ? 'vede' : 'văd'} nimic până nu ${fara === 1 ? 'primește' : 'primesc'} unul.</div>` : ''}
@@ -12987,12 +13207,11 @@ function ecranAdmin() {
         <div class="ajutor" style="margin-top:10px">Liderul și membrii au nevoie de echipă; Adminul și Sales nu. Un cont dezactivat nu mai vede nimic. Contul șters dispare definitiv; lucrările lui rămân.</div>
       </div>
     </aside>`;
-  document.body.classList.toggle('panou-deschis', !!stare.panouConturi);
-  $('#ecran').innerHTML = (window.EXT ? window.EXT.htmlMesajEcran() : '') + `
+  document.body.classList.toggle('panou-deschis', !!stare.panouConturi && fila === 'conturi');
+  $('#ecran').innerHTML = (window.EXT ? window.EXT.htmlMesajEcran() : '') + htmlFileAdmin(fila) + `
     ${K.sync.online ? '' : '<div class="mesaj warn" style="margin-top:14px">Fără semnal. Administrarea cere internet.</div>'}
-    <div class="actiuni buton-conturi" style="margin-top:14px"><button class="buton gol" id="b-conturi">Conturi (${profiluri.length})${fara ? ` · ${fara} fără rol` : ''} ▸</button></div>
-    ${htmlEchipeOameni(profiluri, echipe)}
-    <section class="card"><h2>Cont nou</h2><div class="corp">
+    <div class="actiuni buton-conturi" style="margin-top:14px"${ascunsa('conturi')}><button class="buton gol" id="b-conturi">Conturi (${profiluri.length})${fara ? ` · ${fara} fără rol` : ''} ▸</button></div>
+    <section class="card" data-fila="conturi"${ascunsa('conturi')}><h2>+ Cont nou</h2><div class="corp">
       ${campText('n_nume', 'Nume', '')}
       ${campText('n_email', 'Email', '', 'email', 'autocomplete="off"')}
       ${campText('n_parola', 'Parola inițială', parolaSugerata(), 'text', 'autocomplete="off"')}
@@ -13005,7 +13224,7 @@ function ecranAdmin() {
       <div class="ajutor">Dați omului emailul și parola inițială. La prima intrare e obligat să-și aleagă parola lui.</div>
     </div></section>
 
-    <section class="card" id="import-conturi"><h2>Import conturi din listă</h2><div class="corp">
+    <section class="card" id="import-conturi" data-fila="import"${ascunsa('import')}><h2>Import conturi din listă</h2><div class="corp">
       <div class="ajutor" style="margin-top:0">Câte un om pe rând: <b>nume; email; rol; echipă; partener</b>. Echipa e necesară la Lider, Membru și Mentenanță; partenerul, doar la rolul Partener. Puteți lipi rânduri din Excel (coloane) sau încărca un fișier CSV.</div>
       <label for="f-imp_text" class="ascuns">Lista de conturi</label>
       <textarea id="f-imp_text" rows="6" style="width:100%;margin-top:8px;font-family:inherit" placeholder="Popescu Ion; ion.popescu@exemplu.ro; Lider; Echipa Nord; Firma Exemplu&#10;Ionescu Ana; ana.ionescu@exemplu.ro; Membru; Echipa Nord;&#10;Pop Maria; maria.pop@exemplu.ro; Planificare;;">${E(stare.importText || '')}</textarea>
@@ -13013,7 +13232,8 @@ function ecranAdmin() {
       <div id="imp-rezultat"></div>
     </div></section>
 
-    <section class="card"><h2>Echipe (${echipe.length})</h2><div class="corp">
+    <div data-fila="echipe"${ascunsa('echipe')}>${htmlEchipeOameni(profiluri, echipe)}</div>
+    <section class="card" data-fila="echipe"${ascunsa('echipe')}><h2>Echipe (${echipe.length})</h2><div class="corp">
       ${echipe.map((e) => `<div class="randuri2" style="grid-template-columns:1fr auto;margin-top:8px">
           <input type="text" id="f-e_${E(e.id)}" value="${E(e.nume)}" aria-label="Numele echipei">
           <button class="buton gol" data-redenumeste="${E(e.id)}">Redenumește</button></div>
@@ -13024,11 +13244,12 @@ function ecranAdmin() {
       </div>
     </div></section>
 
-    <section class="card"><h2>Date</h2><div class="corp">
+    <section class="card" data-fila="setari"${ascunsa('setari')}><h2>Date</h2><div class="corp">
       <div class="actiuni"><button class="buton gol" id="b-catalog">Catalog de echipamente</button><button class="buton gol" id="b-nomenclator">Nomenclator și recepție</button><button class="buton gol" id="b-arhiva">Lucrări arhivate</button>${window.EXT && K.serverV2 ? '<button class="buton gol" id="b-parteneri">Parteneri</button><button class="buton gol" id="b-preturi">Prețuri materiale parteneri</button><button class="buton gol" id="b-rapoarte-admin">Rapoarte</button>' : ''}</div>
     </div></section>
-    ${window.EXT && window.EXT.htmlServicii ? window.EXT.htmlServicii() : ''}
+    <div data-fila="setari"${ascunsa('setari')}>${window.EXT && window.EXT.htmlServicii ? window.EXT.htmlServicii() : ''}${window.EXT && window.EXT.htmlContactSetare ? window.EXT.htmlContactSetare() : ''}</div>
     ${panou}`;
+  legaFileAdmin();
   $('#bara-in').innerHTML = `<button class="buton gol" id="b-lista">${areStart() ? 'Înapoi la start' : 'Înapoi la lucrări'}</button>`;
   $('#b-lista').onclick = () => du(areStart() ? 'start' : 'lista');
 
@@ -13171,6 +13392,7 @@ function ecranAdmin() {
   $('#b-arhiva').onclick = () => du('arhiva');
   $('#b-nomenclator').onclick = () => du('nomenclator');
   if (window.EXT && window.EXT.legaServicii) window.EXT.legaServicii();
+  if (window.EXT && window.EXT.legaContactSetare) window.EXT.legaContactSetare();
 }
 
 // Import conturi din listă (Admin): rânduri „nume; email; rol; echipă; partener”, verificate înainte de creare.
@@ -13347,6 +13569,7 @@ async function ecranArhiva() {
   try { list = await K.arhiva(); }
   catch (e) { $('#ecran').innerHTML = `<div class="mesaj warn" style="margin-top:14px">Arhiva nu s-a putut încărca: ${E(e.message)}</div>`; return; }
   if (stare.ecran !== 'arhiva') return;
+  document.body.dataset.filaAdmin = 'arhiva';
   // v2.9.5: arhivarea în lot — lucrările închise definitiv, nemodificate de N luni (implicit 6); rămân pe server, în arhivă
   const luniImplicit = Math.max(1, parseInt(stare.arhivaLuni, 10) || 6);
   const nrText = (n) => `${n} ${n === 1 ? 'lucrare' : 'lucrări'}`;
@@ -13358,7 +13581,7 @@ async function ecranArhiva() {
         <b id="x-arh-nr">${nrText(c0.length)}</b>. Rămân pe server, în arhivă, și se pot restaura; dispar de pe telefoane la următoarea sincronizare.</div>
       <div class="actiuni" style="margin-top:10px"><button class="buton" id="b-arh-lot" ${c0.length ? '' : 'disabled'}>Arhivează</button></div>
     </div>`;
-  $('#ecran').innerHTML = lot + (list.length ? list.map((l) => `
+  $('#ecran').innerHTML = htmlFileAdmin('arhiva') + lot + (list.length ? list.map((l) => `
     <div class="lucrare" style="cursor:default">
       <div class="titlu">${E(l.client || 'Lucrare fără client')}</div>
       <div class="info">${E(l.adresa || '')}${l.echipa ? ' · echipa ' + E(l.echipa) : ''} · ${E((([t]) => t.charAt(0).toUpperCase() + t.slice(1))([window.EXT ? window.EXT.stareText(l).t : STARI[stareLucrare(l)].t]))}</div>
@@ -13390,6 +13613,7 @@ async function ecranArhiva() {
     if (rez.erori.length) alert(`${nrText(rez.ok.length)} arhivate. Nu s-au putut arhiva: ${rez.erori.map((x) => (x.client || x.id) + ' (' + x.mesaj + ')').join('; ')}`);
     ecranArhiva();
   };
+  legaFileAdmin();
   document.querySelectorAll('[data-restaureaza]').forEach((b) => {
     b.onclick = async () => {
       try { await K.arhiveaza(list.find((x) => x.id === b.dataset.restaureaza), false); ecranArhiva(); }
@@ -14355,8 +14579,9 @@ function inapoi() {
   const e = stare.ecran, l = stare.lucrare;
   if ((e === 'form' || e === 'raport') && !iesireCuModificari(inapoi)) return;
   if (['etape', 'probleme', 'client', 'preturi'].includes(e) && !poatePleca(inapoi)) return;
-  // pozele deschise din fișă: „Înapoi” revine pe fișă (D6)
-  if (e === 'poze' && stare.pozeDinFisa && l && window.EXT && K.activ) { stare.pozeDinFisa = false; du('lucrare', l); return; }
+  // v2.9.16 (UX 14 nov, N11): din Poze, „Înapoi” urcă un nivel în cale, pe fișa lucrării, oricum s-ar fi ajuns acolo
+  // (butonul de pe fișă sau tab-ul „Poze”); al doilea „Înapoi” iese din lucrare
+  if (e === 'poze' && l && window.EXT && K.activ && (stare.pozeDinFisa || !!K.citesteUna(l.id))) { stare.pozeDinFisa = false; du('lucrare', l); return; }
   // cu cont, ecranele unei lucrări sunt tab-uri: „Înapoi” iese din lucrare, acolo de unde a fost deschisă
   if (window.EXT && K.activ && K.serverV2 && ['form', 'rezultat', 'raport', 'poze'].includes(e) && l && !!K.citesteUna(l.id)) {
     if (stare.alocareNesalvata) {
@@ -14590,8 +14815,8 @@ const activ = () => !!(K && K.activ && K.rol() && !K.trebuieParola && window.EXT
 const SECTIUNE = {
   start: 'start', lista: 'lista', tipNou: 'lista', lucrare: 'lista', form: 'lista', rezultat: 'lista', raport: 'lista', poze: 'lista', pv: 'lista',
   verifica: 'dep:verificare', calendar: 'calendar', clienti: 'clienti', client: 'clienti', borderou: 'borderou', rapoarte: 'rapoarte',
-  nomenclator: 'nomenclator', produs: 'nomenclator', coresp: 'nomenclator', preturi: 'preturi', admin: 'admin', arhiva: 'admin',
-  catalog: 'admin', catalogItem: 'admin', parteneri: 'parteneri', etape: 'etape', probleme: 'probleme', cont: 'cont',
+  nomenclator: 'nomenclator', produs: 'nomenclator', coresp: 'nomenclator', preturi: 'preturi', admin: 'admin', arhiva: 'arhiva',
+  catalog: 'setari', catalogItem: 'setari', parteneri: 'parteneri', etape: 'etape', probleme: 'probleme', cont: 'cont',
 };
 const SUBECRAN = { form: 'Pre-calcul', rezultat: 'Lista de materiale', raport: 'Raport de consum', poze: 'Poze', pv: 'Proces verbal' };
 const LUCRARE_ECRANE = ['lucrare', 'poze', 'form', 'rezultat', 'raport'];
@@ -14606,6 +14831,8 @@ function sectiuneEcran(e) {
     return X().itemiMeniu().some((x) => x.id === id) ? id : 'start';
   }
   if (e === 'departament') return 'dep:' + st.dep;
+  // v2.9.16: Administrarea pe fila „Setări” se aprinde în meniu la „Setări”
+  if (e === 'admin' && st.filaAdmin === 'setari') return 'setari';
   // verificarea deschisă din coada de pe Start rămâne sub Start
   if (e === 'verifica' && st.revenireLucrare === 'coada') return 'start';
   return SECTIUNE[e] || '';
@@ -14622,7 +14849,8 @@ function mergi(id) {
   inchideFoi();
   st.revenireLucrare = null;
   if (id === 'start') A().du('start');
-  else if (id === 'lista') A().du('lista');
+  // v2.9.16 (UX 14 nov, N19): din meniu, lista se deschide pe „Toate” (filtrul ținut minte rămâne la revenirea din fișă)
+  else if (id === 'lista') { Object.assign(st, { card: 'toate', cardAles: true, cauta: '' }); A().du('lista'); }
   else if (id === 'cont') A().du('cont');
   else X().mergiLa(id);
 }
@@ -14739,7 +14967,7 @@ function cale() {
     if (SUBECRAN[e]) c.push({ t: SUBECRAN[e] });
   } else if (e === 'tipNou') c.push({ t: 'Lucrare nouă' });
   else if (e === 'produs') c.push({ t: 'Produs' });
-  else if (e === 'arhiva') c.push({ t: 'Lucrări arhivate' });
+  else if (e === 'arhiva' && !it) c.push({ t: 'Lucrări arhivate' });
   else if (e === 'catalog' || e === 'catalogItem') c.push({ t: 'Catalog' });
   else if (e === 'client') c.push({ t: (st.clientEditat && st.clientEditat.nume) || 'Client' });
   // ultimul element nu e legătură
@@ -15251,6 +15479,12 @@ body.ui[data-ecran="lista"] .bara{display:none}
 .pill.rau{background:#fdecea;color:var(--rosu)}
 /* foaia de respingere și meniul „Mai mult” */
 .foaie .ml-nav{max-height:60vh;overflow:auto}
+/* v2.9.16 (UX 14 nov, B4): Administrarea pe file; fără panoul Conturi pe celelalte file, pagina e pe o coloană */
+.file-admin{margin-bottom:6px}
+.file-admin .tl.on{color:var(--text);font-weight:700;border-bottom-color:var(--galben)}
+body.ui[data-ecran="admin"]:not([data-fila-admin="conturi"]) #ecran{display:block!important}
+/* filele ascunse și panoul Conturi pe alte file: „hidden” e mai tare decât display-ul din CSS (altfel panoul fix acoperă clicurile) */
+body.ui[data-ecran="admin"] #ecran [hidden],.panou-dr[hidden],.panou-fundal[hidden]{display:none!important}
 /* v2.9.13: banda lucrărilor refuzate / în conflict, în pagină */
 .banda-refuz{display:flex;align-items:center;gap:10px;margin:12px 0 0;padding:9px 12px;border-radius:10px;background:#fdecea;border:1px solid #efb7b2;color:var(--rosu);font-size:14px;line-height:1.4}
 .banda-refuz .br-text{flex:1;min-width:0}
